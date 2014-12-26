@@ -20,11 +20,7 @@
         #:datum-literals (module)
         [(~and s (module name:id lang forms ...))
          (values (syntax-e #'name)
-                 (annotate-top #'s (namespace-base-phase ns))
-                 #;
-                 #`(module name lang
-                     #,@(map (lambda (x) (annotate-top stx (namespace-base-phase ns)))
-                             (syntax-e #'(forms ...)))))]))
+                 (annotate-top #'s (namespace-base-phase ns)))]))
     (eval-syntax anned ns)
     (parameterize ([current-namespace ns])
       (namespace-require `',name)))
@@ -34,7 +30,3 @@
   (dict-clear! coverage)
   (set! ns (make-base-empty-namespace))
   (namespace-attach-module (current-namespace) "coverage.rkt" ns))
-
-(module+ test
-  (require racket/pretty)
-  (pretty-print (test-files "tests/basic/prog.rkt")))
