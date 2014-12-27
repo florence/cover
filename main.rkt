@@ -23,6 +23,10 @@
 
 ;; PathString * -> Void
 ;; Test files and build coverage map
+;; TODO we need to load all the modules, then test them
+;;   for the sake of coverage
+;;   in addition we need to make sure each module loads the
+;;   annotated, not the module on disk
 (define (test-files! . paths)
   (for ([p paths])
     (define stx
