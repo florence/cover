@@ -21,4 +21,3 @@
 (define register-profile-done void)
 
 (define-values/invoke-unit/infer stacktrace@)
-

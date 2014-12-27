@@ -23,24 +23,34 @@
 
 ;; PathString * -> Void
 ;; Test files and build coverage map
-;; TODO we need to load all the modules, then test them
+;; TODO we need to load all the modules, *then* test them
 ;;   for the sake of coverage
 ;;   in addition we need to make sure each module loads the
-;;   annotated, not the module on disk
+;;   annotated, not the module on disK
 (define (test-files! . paths)
-  (for ([p paths])
-    (define stx
-      (with-module-reading-parameterization
-          (thunk (read-syntax p (open-input-file p)))))
-    (define-values (name anned)
-      (syntax-parse (with-ns (expand stx))
-        #:datum-literals (module)
-        [(~and s (module name:id lang forms ...))
-         (values (syntax-e #'name)
-                 (annotate-top #'s (namespace-base-phase ns)))]))
-    (eval-syntax anned ns)
-    ;; TODO run test/given submodule
-    (with-ns (namespace-require `',name))))
+  (parameterize ([use-compiled-file-paths
+                  (cons (build-path "compiled" "better-test")
+                        (use-compiled-file-paths))]
+                 [current-compile better-test-compile])
+    (for ([p paths])
+      ;; TODO remove any compiled form of the module not in compiled/errortrace
+      (with-ns (namespace-require `(file ,p)))
+      ;; TODO run test/given submodule
+      )))
+
+(define better-test-compile
+  (let ()
+    (define compile (current-compile))
+    (define reg (namespace-module-registry ns))
+    (define phase (namespace-base-phase ns))
+    (lambda (e immediate-eval?)
+      (define to-compile
+        (if (eq? reg (namespace-module-registry (current-namespace)))
+            (annotate-top
+             (if (syntax? e) (expand e) (datum->syntax #f e))
+             phase)
+            e))
+      (compile to-compile immediate-eval?))))
 
 ;; -> Void
 ;; clear coverage map
@@ -62,9 +72,10 @@
     (filter values
             (for/list ([(stx covered?) coverage])
               (and (syntax? stx)
-                   (let ([src (syntax-source stx)]
-                         [pos (syntax-position stx)]
-                         [span (syntax-span stx)])
+                   (let* ([orig-src  (syntax-source stx)]
+                          [src (if (path? orig-src) (path->string orig-src) orig-src)]
+                          [pos (syntax-position stx)]
+                          [span (syntax-span stx)])
                      (and pos
                           span
                           (list covered?
