@@ -45,7 +45,7 @@
   (set! ns (make-base-namespace))
   (namespace-attach-module (current-namespace) cov ns))
 
-;; -> [Hashof PathString (List Boolean srcloc)]
+;; -> [Hashof PathString (Listof (List Boolean srcloc))]
 ;; returns a hash of file to a list, where the first of the list is if
 ;; that srcloc was covered or not
 ;; based on <pkgs>/drracket/drracket/private/debug.rkt
@@ -75,7 +75,8 @@
             [key (cadr pr)]
             [old (hash-ref actions-ht key 'nothing)])
        (cond
-        [(eq? old 'nothing) (hash-set! actions-ht key on?)]
+        [(eq? old 'nothing)
+         (hash-set! actions-ht key on?)]
         [old ;; recorded as executed
          (void)]
         [(not old) ;; recorded as unexected
@@ -87,6 +88,12 @@
   ;; remove redundant expressions
   (define filtered (hash-map actions-ht (λ (k v) (list v k))))
 
-  (for/hash ([v filtered])
-    (values (srcloc-source (cadr v))
-            v)))
+  (define out (make-hash))
+
+  (for ([v filtered])
+    (define file (srcloc-source (cadr v)))
+    (hash-update! out
+                  file
+                  (lambda (l) (cons v l))
+                  null))
+  out)

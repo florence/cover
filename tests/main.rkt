@@ -28,8 +28,8 @@
 
 (define (covered? i map)
   (for*/and ([l map]
-             [b (in-value (first map))]
-             [srcloc (in-value (second map))]
+             [b (in-value (first l))]
+             [srcloc (in-value (second l))]
              #:when (within? i srcloc))
     b))
 
