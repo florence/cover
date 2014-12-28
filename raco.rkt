@@ -7,6 +7,7 @@
      (command-line
       #:program (short-program+command-name)
       #:args files files)))
+  (printf "testing ~s\n" files)
   (apply test-files! files))
 
 ;; TODO allow for arbitrary extensions
@@ -16,13 +17,14 @@
    (for/list ([f files])
      (if (not (directory-exists? f))
          f
-         (expand-directory f)))))
+         (parameterize ([current-directory (build-path (current-directory) f)])
+           (expand-directory))))))
 
-(define (expand-directory d)
-  (for/list ([p (directory-list d)])
+(define (expand-directory)
+  (for/list ([p (directory-list)])
     (cond [(directory-exists? p)
            (parameterize ([current-directory (build-path (current-directory) p)])
-             (expand-directory "."))]
+             (expand-directory))]
           [(ormap (lambda (r) (regexp-match r (path->string p))) extensions)
            (path->string (build-path (current-directory) p))]
-          [else (displayln " is bad file") null])))
+          [else null])))
