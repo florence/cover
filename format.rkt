@@ -1,6 +1,15 @@
 #lang racket
+(provide generate-html-coverage)
 (require syntax/modread syntax/parse unstable/sequence)
 (module+ test (require rackunit "main.rkt"))
+
+
+;;;;; main
+
+;;; Covearage [PathString] -> Void
+(define (generate-html-coverage coverage [dir "coverage"])
+  ;; TODO
+  (void))
 
 ;;;;; a Coverage is the output of (get-test-coverage)
 ;;;;; a FileCoverage is the values of the hashmap from (get-test-coverage)
@@ -9,6 +18,8 @@
 ;; A Percentage is a [HashMap Type Real∈[0,1]]
 ;; a Type is one of: (update this as needed)
 ;; 'expr
+
+;;  TODO this needs not count submodules and test directories
 
 ;; Coverage -> Percentage
 (define (get-percentages/top coverage)
@@ -64,7 +75,7 @@
 
 (module+ test
   (test-begin
-   (define f "tests/basic/prog.rkt")
+   (define f (path->string (build-path (current-directory) "tests/basic/prog.rkt")))
    (test-files! f)
    (define-values (result _) (expr-percentage f (hash-ref (get-test-coverage) f)))
    (check-equal? result 1)
@@ -73,28 +84,25 @@
 ;;;;; html
 (define (make-html-file coverage path)
   (string-append
-   "<html><body>"
-   (file->html coverage path)
-   "</body></html>"))
+   `(html ()
+     (body ()
+           ,(file->html coverage path)))))
 (define (file->html coverage paths)
   (for/list ([path paths])
     (define file (file->string path))
     (define cover (hash-ref coverage path))
-    (define data
-      (let loop ([loc 1] [chars (string->list file)] [mode 'none])
-        (match chars
-          [(list) (mode->end mode)]
-          [(cons c r)
-           (define (loop* me) (loop (add1 loc) r m))
-           (define m (covered? loc cover))
-           (define encoded (encode-char c))
-           (if (eq? m mode)
-               (cons encoded (loop* mode))
-               (append (mode->end mode)
-                       (mode->start m)
-                       (list encoded)
-                       (loop* m)))])))
-    (apply string data)))
+    (let loop ([loc 1] [start 1] [left (string-length file)] [mode (covered? 1 cover)])
+      (define (get-xml)
+        (mode-xml mode (encode-string (substring file (sub1 start) (sub1 loc)))))
+      (case left
+        [(0) (get-xml)]
+        [else
+         (define m (covered? loc cover))
+         (define (loop* start) (loop (add1 loc) start (sub1 left) m))
+         (if (eq? m mode)
+             (loop* start)
+             (cons (get-xml)
+                   (loop* (add1 loc))))]))))
 
 (define (get-mode loc c)
   (define-values (mode _)
@@ -109,36 +117,23 @@
              (values mode last-start))])))
   mode)
 
-(define (encode-char c) c)
+(define (encode-string c) c)
 
-(define covered-mode-start "<span style=\"color:green\">")
-(define uncovered-mode-start "<span style=\"color:red\">")
-(define (mode->start mode)
-  (string->list
-   (match mode
-     ['none ""]
-     [#t covered-mode-start]
-     [#f uncovered-mode-start])))
-
-(define mode-end "</span>")
-(define (mode->end mode)
-  (string->list
-   (match mode
-     ['none ""]
-     [_ mode-end])))
+(define (mode-xml mode body)
+  (match mode
+    [#t `(span ((style "color:green")) ,body)]
+    [#f `(span ((style "color:red")) ,body)]))
 
 (module+ test
   (define (test file out)
     (test-files! file)
-    (check-equal? (first (file->html (get-test-coverage) (list file)))
-                  out)
+    (check-equal? (file->html (get-test-coverage)
+                              (list (path->string (build-path (current-directory) file))))
+                  (list out))
     (clear-coverage!))
   (test "tests/basic/prog.rkt"
-        (string-append covered-mode-start
-                       (apply string
-                              (map encode-char
-                                   (string->list (file->string "tests/basic/prog.rkt"))))
-                       mode-end)))
+        `(span ((style "color:green"))
+          ,(encode-string (file->string "tests/basic/prog.rkt")))))
 
 
 ;;;; utils
