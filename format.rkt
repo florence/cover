@@ -18,7 +18,8 @@
     (define coverage-file-relative (string-replace (string-replace relative-file-name ".rkt" "") "/" "-"))
     (define output-file (string-append coverage-path "/" coverage-file-relative ".html"))
     (with-output-to-file output-file
-      (λ () (write-xexpr (make-html-file (hash-ref coverage k) relative-file-name))))))
+      (λ () (write-xexpr (make-html-file (hash-ref coverage k) relative-file-name)))
+      #:exists 'replace)))
 
 ;;;;; a Coverage is the output of (get-test-coverage)
 ;;;;; a FileCoverage is the values of the hashmap from (get-test-coverage)
