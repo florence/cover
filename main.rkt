@@ -8,17 +8,18 @@
          syntax/parse
          "coverage.rkt"
          "strace.rkt"
-         racket/runtime-path)
+         racket/runtime-path
+         rackunit)
 
 
 
 (define ns (make-base-namespace))
-(define-runtime-path cov "coverage.rkt")
-(namespace-attach-module (current-namespace) cov ns)
 
-;; PathString * -> Void
+;; PathString * -> Boolean
 ;; Test files and build coverage map
+;; returns true if all tests passed
 (define (test-files! . paths)
+  (clear-coverage!)
   (for ([p paths])
     (let loop ()
       (define-values (loc type) (get-module-path (build-path p)))
@@ -31,12 +32,20 @@
                   (cons (build-path "compiled" "better-test")
                         (use-compiled-file-paths))]
                  [current-compile (make-better-test-compile)])
+    (define tests-failed #f)
     (for ([p paths])
-      (parameterize ([current-namespace ns])
+      (define old-check (current-check-handler))
+      (parameterize* ([current-namespace ns]
+                      [current-check-handler
+                       (lambda x
+                         (set! tests-failed #t)
+                         (apply old-check x))])
+        (eval `(dynamic-require '(file ,p) #f))
         (namespace-require `(file ,p))
         (define submod `(submod (file ,p) test))
         (when (module-declared? submod)
-          (namespace-require submod))))))
+          (namespace-require submod))))
+    (not tests-failed)))
 
 (define (make-better-test-compile)
   (define compile (current-compile))
@@ -51,12 +60,16 @@
           e))
     (compile to-compile immediate-eval?)))
 
+(define-runtime-path cov "coverage.rkt")
 ;; -> Void
 ;; clear coverage map
 (define (clear-coverage!)
   (dict-clear! coverage)
   (set! ns (make-base-namespace))
-  (namespace-attach-module (current-namespace) cov ns))
+  (namespace-attach-module (current-namespace) cov ns)
+  (namespace-attach-module (current-namespace) 'rackunit ns)
+  (parameterize ([current-namespace ns])
+    (namespace-require 'rackunit)))
 
 ;; -> [Hashof PathString (Listof (List Boolean srcloc))]
 ;; returns a hash of file to a list, where the first of the list is if

@@ -2,11 +2,11 @@
 (require raco/command-name "main.rkt" "format.rkt")
 
 (module+ main
-  
+
   (define coverage-dir "coverage")
   (define coverage? #f)
   (define output-format "")
-  
+
   (define files
     (expand-directories
      (command-line
@@ -14,17 +14,21 @@
       #:once-any
       [("-d" "--directory") d "Specify output directory" (set! coverage-dir d)]
       [("-c" "--coverage") format
-                           "Specify that coverage should be run and optional what format" 
-                           (set! coverage? #t) 
+                           "Specify that coverage should be run and optional what format"
+                           (set! coverage? #t)
                            (set! output-format format)]
-      #:args files 
+      #:args files
       files)))
   (printf "testing ~s\n" files)
-  (apply test-files! files)
+  (define passed (apply test-files! files))
   (when coverage?
     (printf "COVERAGE!")
     (case output-format
-      [("html") (generate-html-coverage (get-test-coverage) coverage-dir)])))
+      [("html") (generate-html-coverage (get-test-coverage) coverage-dir)]))
+  (exit
+   (case passed
+     [(#t) 0]
+     [(#f) 1])))
 
 ;; TODO allow for arbitrary extensions
 (define extensions '(#rx".rkt$" #rx".ss$"))
