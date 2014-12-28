@@ -2,19 +2,27 @@
 (require better-test racket/runtime-path rackunit)
 
 (define (test-dir d)
-  (define program (string-append d "/prog.rkt"))
-  (define covered (string-append d "/coverage.rktl"))
+  (define files
+    (for*/list ([p (directory-list d)]
+                [s (in-value (path->string (build-path d p)))]
+                #:when (regexp-match #rx"\\.rkt$" s))
+      s))
+  (define covered
+    (for/hash ([f files])
+      (values f
+              (path->string (path-replace-suffix f ".rktl")))))
 
-  (test-files! program)
+  (apply test-files! files)
 
-  (define actual-coverage (hash-ref (get-test-coverage) program))
-  (define expected-coverage (ranges->numbers (with-input-from-file covered read)))
-
-  (test-begin
-   (for ([i expected-coverage])
-     (check-true (covered? i actual-coverage)
-                 (format "expected char ~a to be covered, but it was not, in: ~s"
-                         i d))))
+  (define coverage (get-test-coverage))
+  (for ([(program cover) covered])
+    (define actual-coverage (hash-ref coverage program))
+    (define expected-coverage (ranges->numbers (with-input-from-file cover read)))
+    (test-begin
+     (for ([i expected-coverage])
+       (check-true (covered? i actual-coverage)
+                   (format "expected char ~a to be covered, but it was not, in: ~s"
+                           i program)))))
 
   (clear-coverage!))
 
