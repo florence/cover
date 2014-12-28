@@ -34,10 +34,10 @@
   (for/sum ([v per-file])
     (* (first v) (/ (second v) total))))
 
-;; PathString (list (list bool srcloc)) ->  Coverage
+;; PathString FileCoverage -> Percentage
 (define (get-percentages/file path coverage)
   (hash
-   'expr (expr-percentage path coverage)))
+   'expr (first (call-with-values (thunk (expr-percentage path coverage)) list))))
 
 ;;; percentage generators. each one has the type:
 ;; FileCoverage -> Real∈[0,1] Natural
@@ -82,27 +82,39 @@
    (clear-coverage!)))
 
 ;;;;; html
+;; FileCoverage PathString -> Xexpr
 (define (make-html-file coverage path)
-  (string-append
-   `(html ()
-     (body ()
-           ,(file->html coverage path)))))
-(define (file->html coverage paths)
-  (for/list ([path paths])
-    (define file (file->string path))
-    (define cover (hash-ref coverage path))
-    (let loop ([loc 1] [start 1] [left (string-length file)] [mode (covered? 1 cover)])
-      (define (get-xml)
-        (mode-xml mode (encode-string (substring file (sub1 start) (sub1 loc)))))
-      (case left
-        [(0) (get-xml)]
-        [else
-         (define m (covered? loc cover))
-         (define (loop* start) (loop (add1 loc) start (sub1 left) m))
-         (if (eq? m mode)
-             (loop* start)
-             (cons (get-xml)
-                   (loop* (add1 loc))))]))))
+  (define %age (get-percentages/file path coverage))
+  `(html ()
+    (body ()
+          ,@(for/list ([(type %) %age])
+              `(p () ,(~a type ': " " (~r (* 100 %) #:precision 2) "%") (br ())))
+          ,(file->html coverage path))))
+(module+ test
+  (test-begin
+   (define f
+     (path->string (build-path (current-directory) "tests/basic/prog.rkt")))
+   (test-files! f)
+   (check-equal? (make-html-file (hash-ref (get-test-coverage) f) f)
+                 `(html ()
+                   (body ()
+                         (p () "expr: 100%" (br ()))
+                         ,(file->html (hash-ref (get-test-coverage) f) f))))
+   (clear-coverage!)))
+(define (file->html cover path)
+  (define file (file->string path))
+  (let loop ([loc 1] [start 1] [left (string-length file)] [mode (covered? 1 cover)])
+    (define (get-xml)
+      (mode-xml mode (encode-string (substring file (sub1 start) (sub1 loc)))))
+    (case left
+      [(0) (get-xml)]
+      [else
+       (define m (covered? loc cover))
+       (define (loop* start) (loop (add1 loc) start (sub1 left) m))
+       (if (eq? m mode)
+           (loop* start)
+           (cons (get-xml)
+                 (loop* (add1 loc))))])))
 
 (define (get-mode loc c)
   (define-values (mode _)
@@ -125,11 +137,12 @@
     [#f `(span ((style "color:red")) ,body)]))
 
 (module+ test
-  (define (test file out)
+  (define (test f out)
+    (define file (path->string (build-path (current-directory) f)))
     (test-files! file)
-    (check-equal? (file->html (get-test-coverage)
-                              (list (path->string (build-path (current-directory) file))))
-                  (list out))
+    (check-equal? (file->html (hash-ref (get-test-coverage) file)
+                              file)
+                  out)
     (clear-coverage!))
   (test "tests/basic/prog.rkt"
         `(span ((style "color:green"))
@@ -138,7 +151,7 @@
 
 ;;;; utils
 
-;; FileCoverage -> Boolean
+;; Natural FileCoverage -> Boolean
 (define (covered? loc c)
   (define-values (mode _)
     (for/fold ([mode 'none] [last-start 0])
