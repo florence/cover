@@ -58,7 +58,7 @@
   (define (is-covered? e)
     ;; we don't need to look at the span because the coverage is expression based
     (define p (syntax-position e))
-    (covered? p coverage))
+    (covered? p coverage path))
 
   (define e
     (with-module-reading-parameterization
@@ -66,19 +66,24 @@
                  (thunk (read-syntax))))))
   (define (ret e)
     (values (e->n e) 1))
+  (define (a->n e)
+    (define m (is-covered? e))
+    (case m
+      [(yes no) 1]
+      [else 0]))
   (define (e->n e)
-    (if (is-covered? e) 1 0))
+    (if (eq? (is-covered? e) 'yes) 1 0))
   (define-values (covered count)
     (let recur ([e e])
       (syntax-parse e
         [x:id (ret #'x)]
         [(v ...)
-         (for/fold ([covered (e->n e)] [count 1])
+         (for/fold ([covered (e->n e)] [count (a->n e)])
                    ([e (in-syntax e)])
            (define-values (cov cnt) (recur e))
            (define add (e->n e))
            (values (+ covered cov add)
-                   (+ count cnt 1)))]
+                   (+ count cnt (a->n e))))]
         [e:expr (ret #'e)]
         [_ (values 0 0)])))
   (values (/ covered count) count))
@@ -115,13 +120,13 @@
 
 (define (file->html cover path)
   (define file (file->string path))
-  (let loop ([loc 1] [start 1] [left (string-length file)] [mode (covered? 1 cover)])
+  (let loop ([loc 1] [start 1] [left (string-length file)] [mode (covered? 1 cover path)])
     (define (get-xml)
       (mode-xml mode (encode-string (substring file (sub1 start) (sub1 loc)))))
     (case left
       [(0) (list (get-xml))]
       [else
-       (define m (covered? loc cover))
+       (define m (covered? loc cover path))
        (define (loop* start) (loop (add1 loc) start (sub1 left) m))
        (if (eq? m mode)
            (loop* start)
@@ -165,8 +170,8 @@
 
 ;;;; utils
 
-;; Natural FileCoverage -> Boolean
-(define (covered? loc c)
+;; Natural FileCoverage PathString -> (U 'yes 'no 'missing)
+(define (covered? loc c path)
   (define-values (mode _)
     (for/fold ([mode 'none] [last-start 0])
               ([pair c])
@@ -177,6 +182,7 @@
                       (> start last-start)))
              (values m start)
              (values mode last-start))])))
-  (if (boolean? mode)
-      mode
-      (error "loc ~s not in coverage" loc)))
+  (case mode
+    [(#t) 'yes]
+    [(#f) 'no]
+    [else 'missing]))
