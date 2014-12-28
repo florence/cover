@@ -1,4 +1,8 @@
 #lang racket
+;; takes all diretories given in the test submodule
+;; for every .rkt file in those directories it loads
+;; tests that file and checks its coverage against an
+;; .rktl file of the same name
 (require better-test racket/runtime-path rackunit)
 
 (define (test-dir d)
@@ -47,5 +51,5 @@
      (>= start i (+ start range))]))
 
 (module+ test
-  (define-runtime-path-list test-dirs '("basic"))
+  (define-runtime-path-list test-dirs '("basic" "simple-multi"))
   (for-each (compose test-dir path->string) test-dirs))
