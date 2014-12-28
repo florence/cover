@@ -1,15 +1,24 @@
 #lang racket
 (provide generate-html-coverage)
-(require syntax/modread syntax/parse unstable/sequence)
+(require syntax/modread 
+         syntax/parse
+         unstable/sequence 
+         (only-in xml write-xexpr))
 (module+ test (require rackunit "main.rkt"))
 
 
 ;;;;; main
 
-;;; Covearage [PathString] -> Void
+;;; Coverage [PathString] -> Void
 (define (generate-html-coverage coverage [dir "coverage"])
-  ;; TODO
-  (void))
+  (make-directory* dir)
+  (for ([(k v) coverage])
+    (define relative-file-name (string-replace k (path->string (build-path (current-directory))) ""))
+    (define coverage-path (path->string (build-path (current-directory) dir)))
+    (define coverage-file-relative (string-replace (string-replace relative-file-name ".rkt" "") "/" "-"))
+    (define output-file (string-append coverage-path "/" coverage-file-relative ".html"))
+    (with-output-to-file output-file
+      (λ () (write-xexpr (make-html-file (hash-ref coverage k) relative-file-name))))))
 
 ;;;;; a Coverage is the output of (get-test-coverage)
 ;;;;; a FileCoverage is the values of the hashmap from (get-test-coverage)
@@ -89,7 +98,8 @@
     (body ()
           ,@(for/list ([(type %) %age])
               `(p () ,(~a type ': " " (~r (* 100 %) #:precision 2) "%") (br ())))
-          ,(file->html coverage path))))
+          ,@(file->html coverage path))))
+
 (module+ test
   (test-begin
    (define f
@@ -99,15 +109,16 @@
                  `(html ()
                    (body ()
                          (p () "expr: 100%" (br ()))
-                         ,(file->html (hash-ref (get-test-coverage) f) f))))
+                         ,@(file->html (hash-ref (get-test-coverage) f) f))))
    (clear-coverage!)))
+
 (define (file->html cover path)
   (define file (file->string path))
   (let loop ([loc 1] [start 1] [left (string-length file)] [mode (covered? 1 cover)])
     (define (get-xml)
       (mode-xml mode (encode-string (substring file (sub1 start) (sub1 loc)))))
     (case left
-      [(0) (get-xml)]
+      [(0) (list (get-xml))]
       [else
        (define m (covered? loc cover))
        (define (loop* start) (loop (add1 loc) start (sub1 left) m))
@@ -129,12 +140,14 @@
              (values mode last-start))])))
   mode)
 
-(define (encode-string c) c)
+(define (encode-string c)
+  (foldr (λ (el rst) (cons el (cons '(br ()) rst)))
+         '()
+         (string-split c "\n")))
 
 (define (mode-xml mode body)
-  (match mode
-    [#t `(span ((style "color:green")) ,body)]
-    [#f `(span ((style "color:red")) ,body)]))
+  (define color (if mode "green" "red"))
+  `(div ((style ,(string-append "color:" color))) ,@body))
 
 (module+ test
   (define (test f out)
@@ -145,8 +158,8 @@
                   out)
     (clear-coverage!))
   (test "tests/basic/prog.rkt"
-        `(span ((style "color:green"))
-          ,(encode-string (file->string "tests/basic/prog.rkt")))))
+        `((div ((style "color:green"))
+          ,@(encode-string (file->string "tests/basic/prog.rkt"))))))
 
 
 ;;;; utils
