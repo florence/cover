@@ -2,6 +2,7 @@
 (provide test-files! clear-coverage! get-test-coverage)
 (require (for-syntax racket/base))
 (require racket/dict
+         syntax/modcode
          racket/function
          syntax/modread
          syntax/parse
@@ -18,11 +19,18 @@
 ;; PathString * -> Void
 ;; Test files and build coverage map
 (define (test-files! . paths)
+  (for ([p paths])
+    (let loop ()
+      (define-values (loc type) (get-module-path (build-path p)))
+      (case type
+        [(zo so)
+         (delete-file loc)
+         (loop)]
+        [else (void)])))
   (parameterize ([use-compiled-file-paths
                   (cons (build-path "compiled" "better-test")
                         (use-compiled-file-paths))]
                  [current-compile (make-better-test-compile)])
-    ;; TODO remove any compiled form of the modules
     (for ([p paths])
       (parameterize ([current-namespace ns])
         (namespace-require `(file ,p))
