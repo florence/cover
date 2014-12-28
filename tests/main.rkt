@@ -21,11 +21,18 @@
   (define coverage (get-test-coverage))
   (for ([(program cover) covered])
     (define actual-coverage (hash-ref coverage program))
-    (define expected-coverage (ranges->numbers (with-input-from-file cover read)))
+    (define-values 
+      (expected-coverage expected-uncoverage)
+      (with-input-from-file cover (lambda () (values (ranges->numbers (read))
+                                                     (ranges->numbers (read))))))
     (test-begin
      (for ([i expected-coverage])
        (check-true (covered? i actual-coverage)
                    (format "expected char ~a to be covered, but it was not, in: ~s"
+                           i program)))
+     (for ([i expected-uncoverage])
+       (check-true (not (covered? i actual-coverage))
+                   (format "expected char ~a to be uncovered, but it was, in: ~s"
                            i program)))))
 
   (clear-coverage!))
@@ -48,7 +55,7 @@
 (define (within? i src)
   (match src
     [(srcloc _ _ _ start range)
-     (>= start i (+ start range))]))
+     (<= start i (+ start range))]))
 
 (module+ test
   (define-runtime-path-list test-dirs '("basic" "simple-multi"))
