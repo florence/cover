@@ -126,7 +126,7 @@
        (if (eq? m mode)
            (loop* start)
            (cons (get-xml)
-                 (loop* (add1 loc))))])))
+                 (loop* loc)))])))
 
 (define (get-mode loc c)
   (define-values (mode _)
