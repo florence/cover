@@ -16,26 +16,30 @@
       (values f
               (path->string (path-replace-suffix f ".rktl")))))
 
-  (apply test-files! files)
+  (define (do-test files)
+    (apply test-files! files)
 
-  (define coverage (get-test-coverage))
-  (for ([(program cover) covered])
-    (define actual-coverage (hash-ref coverage program))
-    (define-values 
-      (expected-coverage expected-uncoverage)
-      (with-input-from-file cover (lambda () (values (ranges->numbers (read))
-                                                     (ranges->numbers (read))))))
-    (test-begin
-     (for ([i expected-coverage])
-       (check-true (covered? i actual-coverage)
-                   (format "expected char ~a to be covered, but it was not, in: ~s"
-                           i program)))
-     (for ([i expected-uncoverage])
-       (check-true (not (covered? i actual-coverage))
-                   (format "expected char ~a to be uncovered, but it was, in: ~s"
-                           i program)))))
+    (define coverage (get-test-coverage))
+    (for ([(program cover) covered])
+      (define actual-coverage (hash-ref coverage program))
+      (define-values (expected-coverage expected-uncoverage)
+        (with-input-from-file cover (lambda () (values (ranges->numbers (read))
+                                                       (ranges->numbers (read))))))
+      (test-begin
+       (for ([i expected-coverage])
+         (check-true (covered? i actual-coverage)
+                     (format "expected char ~a to be covered, but it was not, in: ~s"
+                             i program)))
+       (for ([i expected-uncoverage])
+         (check-true (not (covered? i actual-coverage))
+                     (format "expected char ~a to be uncovered, but it was, in: ~s"
+                             i program)))))
 
-  (clear-coverage!))
+    (clear-coverage!))
+
+  ;; ensure the results are the same regardless of file order
+  (do-test files)
+  (do-test (reverse files)))
 
 (define (ranges->numbers range)
   (match range

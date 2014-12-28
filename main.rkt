@@ -23,23 +23,18 @@
 
 ;; PathString * -> Void
 ;; Test files and build coverage map
-;; TODO we need to load all the modules, *then* test them
-;;   for the sake of coverage
-;;   in addition we need to make sure each module loads the
-;;   annotated, not the module on disK
 (define (test-files! . paths)
   (parameterize ([use-compiled-file-paths
                   (cons (build-path "compiled" "better-test")
                         (use-compiled-file-paths))]
-                 [current-compile better-test-compile])
+                 [current-compile (make-better-test-compile)])
+    ;; TODO remove any compiled form of the modules
     (for ([p paths])
-      ;; TODO remove any compiled form of the module not in compiled/errortrace
       (with-ns (namespace-require `(file ,p)))
       ;; TODO run test/given submodule
       )))
 
-(define better-test-compile
-  (let ()
+(define (make-better-test-compile)
     (define compile (current-compile))
     (define reg (namespace-module-registry ns))
     (define phase (namespace-base-phase ns))
@@ -50,7 +45,7 @@
              (if (syntax? e) (expand e) (datum->syntax #f e))
              phase)
             e))
-      (compile to-compile immediate-eval?))))
+      (compile to-compile immediate-eval?)))
 
 ;; -> Void
 ;; clear coverage map
