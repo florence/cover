@@ -15,12 +15,6 @@
 (define-runtime-path cov "coverage.rkt")
 (namespace-attach-module (current-namespace) cov ns)
 
-(define-syntax (with-ns stx)
-  (syntax-case stx ()
-    [(_ b ...)
-     #'(parameterize ([current-namespace ns])
-         b ...)]))
-
 ;; PathString * -> Void
 ;; Test files and build coverage map
 (define (test-files! . paths)
@@ -30,22 +24,24 @@
                  [current-compile (make-better-test-compile)])
     ;; TODO remove any compiled form of the modules
     (for ([p paths])
-      (with-ns (namespace-require `(file ,p)))
-      ;; TODO run test/given submodule
-      )))
+      (parameterize ([current-namespace ns])
+        (namespace-require `(file ,p))
+        (define submod `(submod (file ,p) test))
+        (when (module-declared? submod)
+          (namespace-require submod))))))
 
 (define (make-better-test-compile)
-    (define compile (current-compile))
-    (define reg (namespace-module-registry ns))
-    (define phase (namespace-base-phase ns))
-    (lambda (e immediate-eval?)
-      (define to-compile
-        (if (eq? reg (namespace-module-registry (current-namespace)))
-            (annotate-top
-             (if (syntax? e) (expand e) (datum->syntax #f e))
-             phase)
-            e))
-      (compile to-compile immediate-eval?)))
+  (define compile (current-compile))
+  (define reg (namespace-module-registry ns))
+  (define phase (namespace-base-phase ns))
+  (lambda (e immediate-eval?)
+    (define to-compile
+      (if (eq? reg (namespace-module-registry (current-namespace)))
+          (annotate-top
+           (if (syntax? e) (expand e) (datum->syntax #f e))
+           phase)
+          e))
+    (compile to-compile immediate-eval?)))
 
 ;; -> Void
 ;; clear coverage map
