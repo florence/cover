@@ -23,8 +23,10 @@
   (define passed (apply test-files! files))
   (when coverage?
     (printf "COVERAGE!")
+    (define coverage (get-test-coverage))
     (case output-format
-      [("html") (generate-html-coverage (get-test-coverage) coverage-dir)]))
+      [("html") (generate-html-coverage coverage coverage-dir)]
+      [("coveralls") (generate-coveralls-coverage coverage (hasheq) coverage-dir)]))
   (exit
    (case passed
      [(#t) 0]

@@ -1,8 +1,9 @@
 #lang racket
-(provide generate-html-coverage)
+(provide generate-html-coverage generate-coveralls-coverage)
 (require syntax/modread 
          syntax/parse
-         unstable/sequence 
+         unstable/sequence
+         json
          (only-in xml write-xexpr))
 (module+ test (require rackunit "main.rkt"))
 
@@ -168,6 +169,59 @@
           ,@(encode-string (file->string "tests/basic/prog.rkt"))))))
 
 
+;; Coveralls
+
+;; Coverage [Hasheq String String] [path-string] -> Void
+(define (generate-coveralls-coverage coverage meta [dir "coverage"])
+  (make-directory* dir)
+  (define coverage-path (path->string (build-path (current-directory) dir)))
+  (with-output-to-file (string-append coverage-path "/coverage.json")
+    (λ () (write-json (generate-coveralls-json coverage meta)))
+    #:exists 'replace))
+
+;; Coverage [Hasheq String String] -> JSexpr
+;; Generates a string that represents a valid coveralls json_file object
+(define (generate-coveralls-json coverage meta)
+  (define src-files 
+    (for/list ([file (hash-keys coverage)])
+      (define src (file->string file))
+      (define c (line-coverage coverage file))
+      (hasheq 'src src 'coverage c)))
+  (hash-set meta 'source_files src-files))
+
+;; CoverallsCoverage = Nat | json-null
+
+;; Coverage PathString -> [Listof CoverallsCoverage]
+;; Get the line coverage for the file to generate a coverage report
+(define (line-coverage coverage file)
+  (define split-src (string-split (file->string file) "\n"))
+  (define file-coverage (hash-ref coverage file))
+  (define (process-coverage value rst-of-line)
+    (case (covered? value file-coverage file)
+      ['yes (if (equal? 'no rst-of-line) rst-of-line 'yes)]
+      ['no 'no]
+      [else rst-of-line]))
+  (define (process-coverage-value value)
+    (case value
+      ['yes 1]
+      ['no 0]
+      [else (json-null)]))
+  
+  (define-values (line-cover _)
+    (for/fold ([coverage '()] [count 0]) ([line split-src])
+      (cond [(zero? (string-length line)) (values (cons (json-null) coverage) (add1 count))]
+            [else (define nw-count (+ count (string-length line)))
+                  (define all-covered (foldr process-coverage 'missing (range count nw-count)))
+                  (values (cons (process-coverage-value all-covered) coverage) nw-count)])))
+  (reverse line-cover))
+
+(module+ test
+  (let ()
+    (define file (path->string (build-path (current-directory) "tests/basic/not-run.rkt")))
+    (test-files! file)
+    (check-equal? (line-coverage (get-test-coverage) file) '(1 0))
+    (clear-coverage!)))
+    
 ;;;; utils
 
 ;; Natural FileCoverage PathString -> (U 'yes 'no 'missing)
