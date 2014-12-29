@@ -3,9 +3,7 @@
 (require racket/runtime-path json "format-utils.rkt")
 
 (module+ test
-  (require rackunit "../main.rkt")
-  (define (simple-path . directories)
-    (path->string (simplify-path (apply build-path directories)))))
+  (require rackunit "../main.rkt" racket/runtime-path))
 
 ;; Coveralls
 
@@ -62,8 +60,9 @@
   (reverse line-cover))
 
 (module+ test
+  (define-runtime-path path "../tests/basic/not-run.rkt")
   (let ()
-    (define file (simple-path (current-directory) 'up "tests/basic/not-run.rkt"))
+    (define file (path->string (simplify-path path)))
     (test-files! file)
     (check-equal? (line-coverage (get-test-coverage) file) '(1 0))
     (clear-coverage!)))

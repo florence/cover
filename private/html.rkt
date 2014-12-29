@@ -3,9 +3,7 @@
 (require (only-in xml write-xexpr) "format-utils.rkt")
 
 (module+ test
-  (require rackunit "../main.rkt")
-  (define (simple-path . directories)
-    (path->string (simplify-path (apply build-path directories)))))
+  (require rackunit "../main.rkt" racket/runtime-path))
 
 ;;; Coverage [PathString] -> Void
 (define (generate-html-coverage coverage [dir "coverage"])
@@ -32,9 +30,9 @@
           ,@(file->html coverage path))))
 
 (module+ test
+  (define-runtime-path path "../tests/basic/prog.rkt")
   (test-begin
-   (define f
-     (simple-path (current-directory) 'up "tests/basic/prog.rkt"))
+   (define f (path->string (simplify-path path)))
    (test-files! f)
    (check-equal? (make-html-file (hash-ref (get-test-coverage) f) f)
                  `(html ()
@@ -85,13 +83,13 @@
   `(div ((style ,(string-append "color:" color))) ,@body))
 
 (module+ test
-  (define (test f out)
-    (define file (simple-path (current-directory) f))
+  (define (test file out)
     (test-files! file)
     (check-equal? (file->html (hash-ref (get-test-coverage) file)
                               file)
                   out)
     (clear-coverage!))
-  (test "../tests/basic/prog.rkt"
+  (define f (path->string (simplify-path path)))
+  (test f
         `((div ((style "color:green"))
-          ,@(encode-string (file->string "../tests/basic/prog.rkt"))))))
+          ,@(encode-string (file->string f))))))

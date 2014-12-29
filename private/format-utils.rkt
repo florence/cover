@@ -1,7 +1,7 @@
 #lang racket
 (provide get-percentages/top get-percentages/file covered?)
 (require syntax/modread syntax/parse unstable/sequence syntax-color/racket-lexer)
-(module+ test (require rackunit "../main.rkt"))
+(module+ test (require rackunit "../main.rkt" racket/runtime-path))
 
 ;;;;; a Coverage is the output of (get-test-coverage)
 ;;;;; a FileCoverage is the values of the hashmap from (get-test-coverage)
@@ -67,8 +67,9 @@
   (values (/ covered count) count))
 
 (module+ test
+  (define-runtime-path path "../tests/basic/prog.rkt")
   (test-begin
-   (define f (path->string (build-path (current-directory) "tests/basic/prog.rkt")))
+   (define f (path->string (simplify-path path)))
    (test-files! f)
    (define-values (result _) (expr-percentage f (hash-ref (get-test-coverage) f)))
    (check-equal? result 1)
@@ -158,8 +159,9 @@
     [else 'missing]))
 
 (module+ test
+  (define-runtime-path path2 "../tests/prog.rkt")
   (test-begin
-   (define f (path->string (build-path (current-directory) "tests/prog.rkt")))
+   (define f (path->string (simplify-path path2)))
    (test-files! f)
    (define coverage (hash-ref (get-test-coverage) f))
    (check-equal? (covered? 17 coverage f) 'missing)

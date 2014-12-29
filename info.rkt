@@ -1,7 +1,7 @@
 #lang setup/infotab
-(define name "better-test")
+(define name "cover")
 (define deps '("base" "errortrace-lib" "rackunit-lib"
                "syntax-color-lib"))
 
 (define raco-commands
-  '(("better-test" (submod better-test/raco main) "a better testing library" 100)))
+  '(("cover" (submod cover/raco main) "a code coverage tool" 100)))
