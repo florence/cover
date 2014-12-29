@@ -18,34 +18,35 @@
 ;; PathString * -> Boolean
 ;; Test files and build coverage map
 ;; returns true if all tests passed
-(define (test-files! . paths)
-  (clear-coverage!)
-  (for ([p paths])
-    (let loop ()
-      (define-values (loc type) (get-module-path (build-path p)))
-      (case type
-        [(zo so)
-         (delete-file loc)
-         (loop)]
-        [else (void)])))
-  (parameterize ([use-compiled-file-paths
-                  (cons (build-path "compiled" "better-test")
-                        (use-compiled-file-paths))]
-                 [current-compile (make-better-test-compile)])
-    (define tests-failed #f)
+(define (test-files!  #:coverage [coverage? #t] . paths)
+  (parameterize ([test-coverage-enabled coverage?])
+    (clear-coverage!)
     (for ([p paths])
-      (define old-check (current-check-handler))
-      (parameterize* ([current-namespace ns]
-                      [current-check-handler
-                       (lambda x
-                         (set! tests-failed #t)
-                         (apply old-check x))])
-        (eval `(dynamic-require '(file ,p) #f))
-        (namespace-require `(file ,p))
-        (define submod `(submod (file ,p) test))
-        (when (module-declared? submod)
-          (namespace-require submod))))
-    (not tests-failed)))
+      (let loop ()
+        (define-values (loc type) (get-module-path (build-path p)))
+        (case type
+          [(zo so)
+           (delete-file loc)
+           (loop)]
+          [else (void)])))
+    (parameterize ([use-compiled-file-paths
+                    (cons (build-path "compiled" "better-test")
+                          (use-compiled-file-paths))]
+                   [current-compile (make-better-test-compile)])
+      (define tests-failed #f)
+      (for ([p paths])
+        (define old-check (current-check-handler))
+        (parameterize* ([current-namespace ns]
+                        [current-check-handler
+                         (lambda x
+                           (set! tests-failed #t)
+                           (apply old-check x))])
+          (eval `(dynamic-require '(file ,p) #f))
+          (namespace-require `(file ,p))
+          (define submod `(submod (file ,p) test))
+          (when (module-declared? submod)
+            (namespace-require submod))))
+      (not tests-failed))))
 
 (define (make-better-test-compile)
   (define compile (current-compile))

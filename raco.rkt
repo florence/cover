@@ -20,7 +20,7 @@
       #:args files
       files)))
   (printf "testing ~s\n" files)
-  (define passed (apply test-files! files))
+  (define passed (keyword-apply test-files! '(#:coverage) (list coverage?) files))
   (when coverage?
     (printf "COVERAGE!")
     (define coverage (get-test-coverage))

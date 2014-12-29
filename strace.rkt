@@ -1,5 +1,5 @@
 #lang racket/base
-(provide annotate-top)
+(provide annotate-top test-coverage-enabled)
 (require errortrace/stacktrace
          racket/function
          racket/unit
