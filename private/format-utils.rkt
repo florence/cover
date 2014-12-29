@@ -1,7 +1,7 @@
 #lang racket
 (provide get-percentages/top get-percentages/file covered?)
 (require syntax/modread syntax/parse unstable/sequence syntax-color/racket-lexer)
-(module+ test (require rackunit "../main.rkt" racket/runtime-path))
+(module+ test (require rackunit "../cover.rkt" racket/runtime-path))
 
 ;;;;; a Coverage is the output of (get-test-coverage)
 ;;;;; a FileCoverage is the values of the hashmap from (get-test-coverage)

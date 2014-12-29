@@ -3,7 +3,7 @@
 (require (only-in xml write-xexpr) "format-utils.rkt")
 
 (module+ test
-  (require rackunit "../main.rkt" racket/runtime-path))
+  (require rackunit "../cover.rkt" racket/runtime-path))
 
 ;;; Coverage [PathString] -> Void
 (define (generate-html-coverage coverage [dir "coverage"])

@@ -3,17 +3,17 @@
 (require racket/runtime-path json "format-utils.rkt")
 
 (module+ test
-  (require rackunit "../main.rkt" racket/runtime-path))
+  (require rackunit "../cover.rkt" racket/runtime-path))
 
 ;; Coveralls
 
-;; Coverage [Hasheq String String] [path-string] -> Void
+;; Coverage [path-string] -> Void
 (define-runtime-path post "curl.sh")
-(define (generate-coveralls-coverage coverage meta [dir "coverage"])
+(define (generate-coveralls-coverage coverage [dir "coverage"])
   (make-directory* dir)
   (define coverage-path (path->string (build-path (current-directory) dir)))
   (define coverage-file (string-append coverage-path "/coverage.json"))
-  (define json (generate-coveralls-json coverage meta))
+  (define json (generate-coveralls-json coverage (hasheq)))
   (define token (or (getenv "COVERALLS_REPO_TOKEN") ""))
   (with-output-to-file coverage-file
     (λ () (write-json (hash-set (hash-set json 'repo_token token)

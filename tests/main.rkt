@@ -3,7 +3,7 @@
 ;; for every .rkt file in those directories it loads
 ;; tests that file and checks its coverage against an
 ;; .rktl file of the same name
-(require "../main.rkt" racket/runtime-path rackunit)
+(require "../cover.rkt" racket/runtime-path rackunit)
 
 (define (test-dir d)
   (define files

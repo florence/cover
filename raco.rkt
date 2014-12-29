@@ -1,5 +1,5 @@
 #lang racket
-(require raco/command-name "main.rkt" "format.rkt")
+(require raco/command-name "cover.rkt" "format.rkt")
 
 (module+ main
 
@@ -11,9 +11,11 @@
      (command-line
       #:program (short-program+command-name)
       #:once-any
-      [("-d" "--directory") d "Specify output directory" (set! coverage-dir d)]
+      [("-d" "--directory") d
+       "Specify output directory. Defaults to ./coverage."
+       (set! coverage-dir d)]
       [("-c" "--coverage") format
-       "Specify that coverage should be run and optional what format"
+       "Specify that coverage should be run and optional what format. Defaults to html."
        (set! output-format format)]
       #:args (file . files)
       (cons file files))))
@@ -22,7 +24,7 @@
   (define coverage (get-test-coverage))
   (case output-format
     [("html") (generate-html-coverage coverage coverage-dir)]
-    [("coveralls") (generate-coveralls-coverage coverage (hasheq) coverage-dir)])
+    [("coveralls") (generate-coveralls-coverage coverage coverage-dir)])
   (exit
    (case passed
      [(#t) 0]
