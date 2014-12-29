@@ -6,8 +6,6 @@ This library is a replacement for rackets `raco test` that has a few benefits. N
 
 install via `raco pkg install better-test`. To install for development, checkout the repo into a folder named `Better Test` and in the parent directory run `raco pkg install better-test/`.
 
-If you're doing developement remember: better-test *cannot* run on itself.
-
 ## How to use
 
 To view the arguments for Better Test run `raco better-test -h`.

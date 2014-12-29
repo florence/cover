@@ -6,8 +6,6 @@
          racket/function
          syntax/modread
          syntax/parse
-         "coverage.rkt"
-         "strace.rkt"
          racket/runtime-path
          rackunit)
 
@@ -19,8 +17,8 @@
 ;; Test files and build coverage map
 ;; returns true if all tests passed
 (define (test-files!  #:coverage [coverage? #t] . paths)
-  (parameterize ([test-coverage-enabled coverage?])
-    (clear-coverage!)
+  (clear-coverage!)
+  (parameterize ([(get-test-coverage-parameter) coverage?])
     (for ([p paths])
       (let loop ()
         (define-values (loc type) (get-module-path (build-path p)))
@@ -52,6 +50,7 @@
   (define compile (current-compile))
   (define reg (namespace-module-registry ns))
   (define phase (namespace-base-phase ns))
+  (define annotate-top (get-annotate-top))
   (lambda (e immediate-eval?)
     (define to-compile
       (if (eq? reg (namespace-module-registry (current-namespace)))
@@ -62,14 +61,17 @@
     (compile to-compile immediate-eval?)))
 
 (define-runtime-path cov "coverage.rkt")
+(define-runtime-path strace "strace.rkt")
 ;; -> Void
 ;; clear coverage map
 (define (clear-coverage!)
-  (dict-clear! coverage)
+  ;(dict-clear! coverage)
   (set! ns (make-base-namespace))
-  (namespace-attach-module (current-namespace) cov ns)
+  ;(namespace-attach-module (current-namespace) cov ns)
   (namespace-attach-module (current-namespace) 'rackunit ns)
   (parameterize ([current-namespace ns])
+    (namespace-require `(file ,(path->string cov)))
+    (namespace-require `(file ,(path->string strace)))
     (namespace-require 'rackunit)))
 
 ;; -> [Hashof PathString (Listof (List Boolean srcloc))]
@@ -83,7 +85,7 @@
   ;; remove those that cannot be annotated
   (define can-annotate
     (filter values
-            (for/list ([(stx covered?) coverage])
+            (for/list ([(stx covered?) (get-raw-coverage)])
               (and (syntax? stx)
                    (let* ([orig-src  (syntax-source stx)]
                           [src (if (path? orig-src) (path->string orig-src) orig-src)]
@@ -125,3 +127,12 @@
                   (lambda (l) (cons v l))
                   null))
   out)
+
+(define (get-annotate-top)
+  (get-ns-var 'annotate-top))
+(define (get-test-coverage-parameter)
+  (get-ns-var 'test-coverage-enabled))
+(define (get-raw-coverage)
+  (get-ns-var 'coverage))
+(define (get-ns-var sym)
+  (namespace-variable-value sym #t #f ns))
