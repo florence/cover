@@ -3,6 +3,7 @@
 (require syntax/modread
          syntax/parse
          unstable/sequence
+         racket/runtime-path
          json
          syntax-color/racket-lexer
          (only-in xml write-xexpr))
@@ -175,21 +176,29 @@
 ;; Coveralls
 
 ;; Coverage [Hasheq String String] [path-string] -> Void
+(define-runtime-path post "curl.sh")
 (define (generate-coveralls-coverage coverage meta [dir "coverage"])
   (make-directory* dir)
   (define coverage-path (path->string (build-path (current-directory) dir)))
-  (with-output-to-file (string-append coverage-path "/coverage.json")
-    (λ () (write-json (generate-coveralls-json coverage meta)))
-    #:exists 'replace))
+  (define coverage-file (string-append coverage-path "/coverage.json"))
+  (define json (generate-coveralls-json coverage meta))
+  (define token (or (getenv "COVERALLS_REPO_TOKEN") ""))
+  (with-output-to-file coverage-file
+    (λ () (write-json (hash-set (hash-set json 'repo_token token)
+                                'service_name
+                                "better-test")))
+    #:exists 'replace)
+  (system* (path->string post) coverage-file))
 
 ;; Coverage [Hasheq String String] -> JSexpr
 ;; Generates a string that represents a valid coveralls json_file object
 (define (generate-coveralls-json coverage meta)
   (define src-files
     (for/list ([file (hash-keys coverage)])
+      (define local-file (path->string (find-relative-path (current-directory) file)))
       (define src (file->string file))
       (define c (line-coverage coverage file))
-      (hasheq 'src src 'coverage c)))
+      (hasheq 'source src 'coverage c 'name local-file)))
   (hash-set meta 'source_files src-files))
 
 ;; CoverallsCoverage = Nat | json-null
