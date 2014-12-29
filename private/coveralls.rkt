@@ -14,13 +14,24 @@
   (define coverage-path (path->string (build-path (current-directory) dir)))
   (define coverage-file (string-append coverage-path "/coverage.json"))
   (define json (generate-coveralls-json coverage (hasheq)))
-  (define token (or (getenv "COVERALLS_REPO_TOKEN") ""))
+  (define meta-data (determine-build-type))
   (with-output-to-file coverage-file
-    (λ () (write-json (hash-set (hash-set json 'repo_token token)
-                                'service_name
-                                "better-test")))
+    (thunk (write-json (for/fold ([blob json]) ([(k v) meta-data]) (hash-set blob k v))))
     #:exists 'replace)
   (system* (path->string post) coverage-file))
+
+;; Maps service name to the environment variable that indicates that the service is to be used.
+(define BUILD-TYPES (hash "travis_ci" "TRAVIS_BUILD_ID"))
+
+;; -> [Hasheq String String
+;; Determine the type of build (e.g. repo token, travis, etc) and return the appropriate metadata
+(define (determine-build-type)
+  (define service-name (for/first ([(name var) BUILD-TYPES] #:when (getenv var)) name))
+  (define repo-token (getenv "COVERALLS_REPO_TOKEN"))
+  (cond [service-name (hasheq 'service_name service-name
+                              'service_job_id (getenv (hash-ref BUILD-TYPES service-name)))]
+        [repo-token (hasheq 'service_name "cover" 'repo_token repo-token)]
+        [else (error "No repo token or ci service detected")]))
 
 ;; Coverage [Hasheq String String] -> JSexpr
 ;; Generates a string that represents a valid coveralls json_file object
