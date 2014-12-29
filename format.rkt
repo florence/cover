@@ -258,20 +258,33 @@
                 cache)
      cache)))
 
-;; TODO things in submods should be irrelevant too
+;; TODO should we only ignore test (and main) submodules?
 (define (make-irrelevant? lexer f)
-  (define s
-    (let ([s (mutable-set)])
-      (let loop ()
-        (define-values (_v type _m start end) (lexer (current-input-port)))
-        (case type
-          [(eof) (void)]
-          [(comment sexp-comment no-color)
-           (for ([i (in-range start end)])
-             (set-add! s i))
-           (loop)]
-          [else (loop)]))
-      s))
+  (define s (mutable-set))
+  (let loop ()
+    (define-values (_v type _m start end) (lexer (current-input-port)))
+    (case type
+      [(eof) (void)]
+      [(comment sexp-comment no-color)
+       (for ([i (in-range start end)])
+         (set-add! s i))
+       (loop)]
+      [else (loop)]))
+  (define stx
+    (with-input-from-file f
+      (thunk (with-module-reading-parameterization read-syntax))))
+  (let loop ([stx stx] [first? #t])
+    (define (loop* stx) (loop stx #f))
+    (syntax-parse stx
+      #:datum-literals (module module* module+)
+      [((~or module module* module+) e ...)
+       #:when (not first?)
+       (define pos (syntax-position stx))
+       (when pos
+         (for ([i (in-range pos (+ pos (syntax-span stx)))])
+           (set-add! s i)))]
+      [(e ...) (for-each loop* (syntax->list #'(e ...)))]
+      [_else (void)]))
   (lambda (i) (set-member? s i)))
 
 (define (in-syntax-object? i stx)
