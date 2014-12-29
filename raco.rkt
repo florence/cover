@@ -4,8 +4,7 @@
 (module+ main
 
   (define coverage-dir "coverage")
-  (define coverage? #f)
-  (define output-format "")
+  (define output-format "html")
 
   (define files
     (expand-directories
@@ -14,19 +13,16 @@
       #:once-any
       [("-d" "--directory") d "Specify output directory" (set! coverage-dir d)]
       [("-c" "--coverage") format
-                           "Specify that coverage should be run and optional what format"
-                           (set! coverage? #t)
-                           (set! output-format format)]
-      #:args files
-      files)))
-  (printf "testing ~s\n" files)
-  (define passed (keyword-apply test-files! '(#:coverage) (list coverage?) files))
-  (when coverage?
-    (printf "COVERAGE!")
-    (define coverage (get-test-coverage))
-    (case output-format
-      [("html") (generate-html-coverage coverage coverage-dir)]
-      [("coveralls") (generate-coveralls-coverage coverage (hasheq) coverage-dir)]))
+       "Specify that coverage should be run and optional what format"
+       (set! output-format format)]
+      #:args (file . files)
+      (cons file files))))
+  (printf "generating test coverage for ~s\n" files)
+  (define passed (apply test-files! files))
+  (define coverage (get-test-coverage))
+  (case output-format
+    [("html") (generate-html-coverage coverage coverage-dir)]
+    [("coveralls") (generate-coveralls-coverage coverage (hasheq) coverage-dir)])
   (exit
    (case passed
      [(#t) 0]
