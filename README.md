@@ -1,6 +1,6 @@
-# Better Test
+# Cover
 
-This library is a replacement for rackets `raco test` that has a few benefits. Namely, it can generate code coverage reports and it will return with a non-zero exit code if tests fail.
+This library is a supplement to rackets `raco test` that adds code coverage capabilities.
 
 ## How to install
 
