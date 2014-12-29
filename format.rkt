@@ -1,9 +1,10 @@
 #lang racket
 (provide generate-html-coverage generate-coveralls-coverage)
-(require syntax/modread 
+(require syntax/modread
          syntax/parse
          unstable/sequence
          json
+         syntax-color/racket-lexer
          (only-in xml write-xexpr))
 (module+ test (require rackunit "main.rkt"))
 
@@ -14,9 +15,11 @@
 (define (generate-html-coverage coverage [dir "coverage"])
   (make-directory* dir)
   (for ([(k v) coverage])
-    (define relative-file-name (string-replace k (path->string (build-path (current-directory))) ""))
+    (define relative-file-name
+      (string-replace k (path->string (build-path (current-directory))) ""))
     (define coverage-path (path->string (build-path (current-directory) dir)))
-    (define coverage-file-relative (string-replace (string-replace relative-file-name ".rkt" "") "/" "-"))
+    (define coverage-file-relative
+      (string-replace (string-replace relative-file-name ".rkt" "") "/" "-"))
     (define output-file (string-append coverage-path "/" coverage-file-relative ".html"))
     (with-output-to-file output-file
       (λ () (write-xexpr (make-html-file (hash-ref coverage k) relative-file-name)))
@@ -63,13 +66,11 @@
 
   (define e
     (with-module-reading-parameterization
-        (thunk (with-input-from-file path
-                 (thunk (read-syntax))))))
+        (thunk (with-input-from-file path read-syntax))))
   (define (ret e)
-    (values (e->n e) 1))
+    (values (e->n e) (a->n e)))
   (define (a->n e)
-    (define m (is-covered? e))
-    (case m
+    (case (is-covered? e)
       [(yes no) 1]
       [else 0]))
   (define (e->n e)
@@ -77,14 +78,12 @@
   (define-values (covered count)
     (let recur ([e e])
       (syntax-parse e
-        [x:id (ret #'x)]
         [(v ...)
          (for/fold ([covered (e->n e)] [count (a->n e)])
                    ([e (in-syntax e)])
            (define-values (cov cnt) (recur e))
-           (define add (e->n e))
-           (values (+ covered cov add)
-                   (+ count cnt (a->n e))))]
+           (values (+ covered cov)
+                   (+ count cnt)))]
         [e:expr (ret #'e)]
         [_ (values 0 0)])))
   (values (/ covered count) count))
@@ -153,7 +152,11 @@
          (string-split c "\n")))
 
 (define (mode-xml mode body)
-  (define color (if mode "green" "red"))
+  (define color
+    (case mode
+      [(yes) "green"]
+      [(no) "red"]
+      [(missing) "black"]))
   `(div ((style ,(string-append "color:" color))) ,@body))
 
 (module+ test
@@ -182,7 +185,7 @@
 ;; Coverage [Hasheq String String] -> JSexpr
 ;; Generates a string that represents a valid coveralls json_file object
 (define (generate-coveralls-json coverage meta)
-  (define src-files 
+  (define src-files
     (for/list ([file (hash-keys coverage)])
       (define src (file->string file))
       (define c (line-coverage coverage file))
@@ -206,9 +209,9 @@
       ['yes 1]
       ['no 0]
       [else (json-null)]))
-  
+
   (define-values (line-cover _)
-    (for/fold ([coverage '()] [count 0]) ([line split-src])
+    (for/fold ([coverage '()] [count 1]) ([line split-src])
       (cond [(zero? (string-length line)) (values (cons (json-null) coverage) (add1 count))]
             [else (define nw-count (+ count (string-length line)))
                   (define all-covered (foldr process-coverage 'missing (range count nw-count)))
@@ -221,11 +224,62 @@
     (test-files! file)
     (check-equal? (line-coverage (get-test-coverage) file) '(1 0))
     (clear-coverage!)))
-    
-;;;; utils
 
-;; Natural FileCoverage PathString -> (U 'yes 'no 'missing)
+;;;;; utils
+
+;;; a Cover is (U 'yes 'no 'missing)
+
+;; [Hashof PathString [Hashof Natural Cover]]
+(define file-location-coverage-cache (make-hash))
+
+;; Natural FileCoverage PathString -> Cover
 (define (covered? loc c path)
+  (define file-cache
+    (let ([v (hash-ref file-location-coverage-cache path #f)])
+      (if v v (coverage-cache-file! path c))))
+  (hash-ref file-cache loc))
+
+
+;; Path FileCoverage -> [Hashof Natural Cover]
+(define (coverage-cache-file! f c)
+  (with-input-from-file f
+    (thunk
+     (define lexer
+       ((read-language) 'color-lexer racket-lexer))
+     (define irrelevant? (make-irrelevant? lexer f))
+     (define file-length (string-length (file->string f)))
+     (define cache
+       (for/hash ([i (range 1 (add1 file-length))])
+         (values i
+                 (cond [(irrelevant? i) 'missing]
+                       [else (raw-covered? i c)]))))
+     (hash-set! file-location-coverage-cache
+                f
+                cache)
+     cache)))
+
+;; TODO things in submods should be irrelevant too
+(define (make-irrelevant? lexer f)
+  (define s
+    (let ([s (mutable-set)])
+      (let loop ()
+        (define-values (_v type _m start end) (lexer (current-input-port)))
+        (case type
+          [(eof) (void)]
+          [(comment sexp-comment no-color)
+           (for ([i (in-range start end)])
+             (set-add! s i))
+           (loop)]
+          [else (loop)]))
+      s))
+  (lambda (i) (set-member? s i)))
+
+(define (in-syntax-object? i stx)
+  (define p (syntax-position stx))
+  (define r (syntax-span stx))
+  (<= p i (+ p r)))
+
+(define (raw-covered? loc c)
   (define-values (mode _)
     (for/fold ([mode 'none] [last-start 0])
               ([pair c])
@@ -240,3 +294,12 @@
     [(#t) 'yes]
     [(#f) 'no]
     [else 'missing]))
+
+(module+ test
+  (test-begin
+   (define f (path->string (build-path (current-directory) "tests/prog.rkt")))
+   (test-files! f)
+   (define coverage (hash-ref (get-test-coverage) f))
+   (check-equal? (covered? 17 coverage f) 'missing)
+   (check-equal? (covered? 35 coverage f) 'yes)
+   (clear-coverage!)))
