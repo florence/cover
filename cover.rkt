@@ -19,7 +19,10 @@
 (define (test-files! . paths)
   (clear-coverage!)
   (for ([path paths])
-    (define p (path->string (simplify-path (build-path (current-directory) path))))
+    (define p
+      (if (absolute-path? path)
+          path
+          (path->string (simplify-path (build-path (current-directory) path)))))
     (let loop ()
       (define-values (loc type) (get-module-path (build-path p)))
       (case type
