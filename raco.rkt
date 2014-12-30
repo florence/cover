@@ -36,7 +36,7 @@
      [(#f) 1])))
 
 ;; TODO allow for arbitrary extensions
-(define extensions '(#rx".rkt$" #rx".ss$"))
+(define extensions '(#rx"\\.rkt$" #rx"\\.ss$"))
 (define (expand-directories files)
   (flatten
    (for/list ([f files])
