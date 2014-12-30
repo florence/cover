@@ -114,7 +114,7 @@
       [(yes) "green"]
       [(no) "red"]
       [(missing) "black"]))
-  `(div ((style ,(string-append "color:" color))) ,@body))
+  `(span ((style ,(string-append "color:" color))) ,@body))
 
 (module+ test
   (define (test file out)
@@ -125,5 +125,5 @@
     (clear-coverage!))
   (define f (path->string (simplify-path path)))
   (test f
-        `((div ((style "color:green"))
+        `((span ((style "color:green"))
           ,@(encode-string (file->string f))))))
