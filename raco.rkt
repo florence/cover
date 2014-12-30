@@ -1,5 +1,5 @@
 #lang racket
-(require raco/command-name "cover.rkt" "format.rkt")
+(require raco/command-name "cover.rkt" "format.rkt" "private/shared.rkt")
 
 (module+ main
 
@@ -17,6 +17,9 @@
       [("-c" "--coverage") format
        "Specify that coverage should be run and optional what format. Defaults to html."
        (set! output-format format)]
+      [("-v" "--verbose")
+       "Verbose mode"
+       (verbose #t)]
       #:args (file . files)
       (cons file files))))
   (define generate-coverage

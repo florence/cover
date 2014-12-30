@@ -1,6 +1,6 @@
 #lang racket
 (provide generate-coveralls-coverage)
-(require racket/runtime-path json "format-utils.rkt")
+(require racket/runtime-path json "format-utils.rkt" "shared.rkt")
 
 (module+ test
   (require rackunit "../cover.rkt" racket/runtime-path))
@@ -15,9 +15,14 @@
   (define coverage-file (build-path coverage-path "coverage.json"))
   (define json (generate-coveralls-json coverage (hasheq)))
   (define meta-data (determine-build-type))
+  (define data (for/fold ([blob json]) ([(k v) meta-data]) (hash-set blob k v)))
   (with-output-to-file coverage-file
-    (thunk (write-json (for/fold ([blob json]) ([(k v) meta-data]) (hash-set blob k v))))
+    (thunk (write-json data))
     #:exists 'replace)
+  (when (verbose)
+    (printf "\n\n\nwriting json to file ~s\n" dir)
+    (write-json data (current-output-port))
+    (printf "\n\n\n"))
   (system* (path->string post) coverage-file))
 
 ;; Maps service name to the environment variable that indicates that the service is to be used.
