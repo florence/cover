@@ -20,7 +20,7 @@
     (thunk (write-json data))
     #:exists 'replace)
   (when (verbose)
-    (printf "\n\n\nwriting json to file ~s\n" dir)
+    (printf "\n\n\nwriting json to file ~s\n" coverage-file)
     (write-json data (current-output-port))
     (printf "\n\n\n"))
   (system* (path->string post) coverage-file))
