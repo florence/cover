@@ -42,7 +42,10 @@
    (for/list ([f files])
      (if (not (directory-exists? f))
          f
-         (parameterize ([current-directory (build-path (current-directory) f)])
+         (parameterize ([current-directory
+                         (if (absolute-path? f)
+                             f
+                             (build-path (current-directory) f))])
            (expand-directory))))))
 
 (define (expand-directory)
