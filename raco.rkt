@@ -28,6 +28,7 @@
   (printf "generating test coverage for ~s\n" files)
   (define passed (apply test-files! files))
   (define coverage (get-test-coverage))
+  (printf "dumbing coverage info into ~s\n" coverage-dir)
   (generate-coverage coverage coverage-dir)
   (exit
    (case passed
