@@ -22,7 +22,8 @@
   (when (verbose)
     (printf "\n\n\nwriting json to file ~s\n" coverage-file)
     (write-json data (current-output-port))
-    (printf "\n\n\n"))
+    (printf "\n\n\n")
+    (printf "calling ~a\n\n\n" (list (path->string post) coverage-file)))
   (system* (path->string post) coverage-file))
 
 ;; Maps service name to the environment variable that indicates that the service is to be used.
