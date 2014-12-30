@@ -69,10 +69,20 @@
              (values mode last-start))])))
   mode)
 
-(define (encode-string c)
-  (foldr (λ (el rst) (cons el (cons '(br ()) rst)))
-         '()
-         (string-split c "\n")))
+(define (encode-string s)
+  (reverse
+   (for/fold ([r null]) ([c s])
+     (cons
+      (case c
+        [(#\space) 'nbsp]
+        [(#\newline) '(br ())]
+        [else (string c)])
+      r))))
+(module+ test
+  (check-equal? (encode-string " ")
+                '(nbsp))
+  (check-equal? (encode-string "\n")
+                '((br ()))))
 
 (define (mode-xml mode body)
   (define color
