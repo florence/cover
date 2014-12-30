@@ -10,7 +10,7 @@
     (expand-directories
      (command-line
       #:program (short-program+command-name)
-      #:once-any
+      #:once-each
       [("-d" "--directory") d
        "Specify output directory. Defaults to ./coverage."
        (set! coverage-dir d)]
