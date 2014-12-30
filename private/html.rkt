@@ -6,28 +6,52 @@
   (require rackunit "../cover.rkt" racket/runtime-path))
 
 ;;; Coverage [PathString] -> Void
-(define (generate-html-coverage coverage [dir "coverage"])
+(define (generate-html-coverage coverage [d "coverage"])
+  (define dir (simplify-path d))
   (make-directory* dir)
-  (for ([(k v) coverage])
-    (define relative-file-name
-      (string-replace k (path->string (build-path (current-directory))) ""))
-    (define coverage-path (path->string (build-path (current-directory) dir)))
-    (define coverage-file-relative
-      (string-replace (string-replace relative-file-name ".rkt" "") "/" "-"))
-    (define output-file (string-append coverage-path "/" coverage-file-relative ".html"))
-    (with-output-to-file output-file
-      (λ () (write-xexpr (make-html-file (hash-ref coverage k) relative-file-name)))
-      #:exists 'replace)))
+  (define file-list
+    (for/list ([(k v) coverage])
+      (define exploded (explode-path k))
+      (define-values (_ dir-list)
+        (split-at exploded
+                  (length (explode-path (current-directory)))))
+      (define coverage-dir-list
+        (cons dir (take dir-list (sub1 (length dir-list)))))
+      (define relative-output-file (path-replace-suffix (last exploded) ".html"))
+      (define output-file (apply build-path (append coverage-dir-list (list relative-output-file))))
+      (define output-dir (apply build-path coverage-dir-list))
+      (make-directory* output-dir)
+      (with-output-to-file output-file
+        (λ () (write-xexpr (make-html-file (hash-ref coverage k) k)))
+        #:exists 'replace)
+      output-file))
+  (build-index! coverage file-list dir))
 
-;;;;; html
+(define (build-index! coverage file-list dir)
+  (define %ages (get-percentages/top coverage))
+  (define xexpr
+    `(html
+      (body
+       ,@(%s->xexprs %ages)
+       ,@(for/list ([file file-list])
+           (define f (path->string (apply build-path (rest (explode-path file)))))
+           `(p () (a ([href ,f]) ,f))))))
+  (with-output-to-file (build-path dir "index.html")
+    #:exists 'replace
+    (thunk
+     (write-xexpr xexpr))))
+
 ;; FileCoverage PathString -> Xexpr
 (define (make-html-file coverage path)
   (define %age (get-percentages/file path coverage))
   `(html ()
     (body ()
-          ,@(for/list ([(type %) %age])
-              `(p () ,(~a type ': " " (~r (* 100 %) #:precision 2) "%") (br ())))
+          ,@(%s->xexprs %age)
           ,@(file->html coverage path))))
+
+(define (%s->xexprs %age)
+  (for/list ([(type %) %age])
+    `(p () ,(~a type ': " " (~r (* 100 %) #:precision 2) "%") (br ()))))
 
 (module+ test
   (define-runtime-path path "../tests/basic/prog.rkt")
