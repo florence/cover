@@ -28,10 +28,9 @@
 (define (determine-build-type)
   (define service-name (for/first ([(name var) BUILD-TYPES] #:when (getenv var)) name))
   (define repo-token (getenv "COVERALLS_REPO_TOKEN"))
-  (cond [(and service-name repo-token)
+  (cond [service-name
          (hasheq 'service_name service-name
-                 'service_job_id (getenv (hash-ref BUILD-TYPES service-name))
-                 'repo_token repo-token)]
+                 'service_job_id (getenv (hash-ref BUILD-TYPES service-name)))]
         [repo-token (hasheq 'service_name "cover" 'repo_token repo-token)]
         [else (error "No repo token or ci service detected")]))
 
