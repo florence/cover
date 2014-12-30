@@ -129,12 +129,12 @@
                 '((br ()))))
 
 (define (mode-xml mode body)
-  (define color
+  (define class
     (case mode
-      [(yes) "green"]
-      [(no) "red"]
-      [(missing) "black"]))
-  `(span ((style ,(string-append "color:" color))) ,@body))
+      [(yes) "covered"]
+      [(no) "uncovered"]
+      [(missing) "missing"]))
+  `(span ((class ,class)) ,@body))
 
 (module+ test
   (define (test file out)
@@ -145,5 +145,5 @@
     (clear-coverage!))
   (define f (path->string (simplify-path path)))
   (test f
-        `((span ((style "color:green"))
+        `((span ((class "covered"))
           ,@(encode-string (file->string f))))))

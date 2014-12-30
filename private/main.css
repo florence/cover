@@ -1,3 +1,13 @@
 .code {
     font-family: "Lucida Console", Monaco, monospace;
 }
+
+.uncovered {
+    color:red;
+}
+
+.covered {
+    color:green;
+}
+
+.missing {}
