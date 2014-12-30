@@ -22,9 +22,11 @@
   (printf "generating test coverage for ~s\n" files)
   (define passed (apply test-files! files))
   (define coverage (get-test-coverage))
-  (case output-format
-    [("html") (generate-html-coverage coverage coverage-dir)]
-    [("coveralls") (generate-coveralls-coverage coverage coverage-dir)])
+  ((case output-format
+     [("html") generate-html-coverage]
+     [("coveralls") generate-coveralls-coverage]
+     [("raw") generate-raw-coverage])
+   coverage coverage-dir)
   (exit
    (case passed
      [(#t) 0]
