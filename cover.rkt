@@ -18,7 +18,8 @@
 ;; returns true if all tests passed
 (define (test-files! . paths)
   (clear-coverage!)
-  (for ([p (map simplify-path paths)])
+  (for ([path paths])
+    (define p (path->string (simplify-path (build-path (current-directory) path))))
     (let loop ()
       (define-values (loc type) (get-module-path (build-path p)))
       (case type
