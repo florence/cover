@@ -11,8 +11,8 @@
 (define-runtime-path post "curl.sh")
 (define (generate-coveralls-coverage coverage [dir "coverage"])
   (make-directory* dir)
-  (define coverage-path (path->string (build-path (current-directory) dir)))
-  (define coverage-file (string-append coverage-path "/coverage.json"))
+  (define coverage-path dir)
+  (define coverage-file (build-path coverage-path "coverage.json"))
   (define json (generate-coveralls-json coverage (hasheq)))
   (define meta-data (determine-build-type))
   (with-output-to-file coverage-file
