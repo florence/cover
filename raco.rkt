@@ -19,14 +19,16 @@
        (set! output-format format)]
       #:args (file . files)
       (cons file files))))
+  (define generate-coverage
+    (case output-format
+      [("html") generate-html-coverage]
+      [("coveralls") generate-coveralls-coverage]
+      [("raw") generate-raw-coverage]
+      [else (error 'cover "given unknown coverage output format: ~s" output-format)]))
   (printf "generating test coverage for ~s\n" files)
   (define passed (apply test-files! files))
   (define coverage (get-test-coverage))
-  ((case output-format
-     [("html") generate-html-coverage]
-     [("coveralls") generate-coveralls-coverage]
-     [("raw") generate-raw-coverage])
-   coverage coverage-dir)
+  (generate-coverage coverage coverage-dir)
   (exit
    (case passed
      [(#t) 0]
