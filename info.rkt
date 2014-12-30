@@ -1,5 +1,6 @@
 #lang setup/infotab
 (define name "cover")
+(define collection "cover")
 (define deps '("base" "errortrace-lib" "rackunit-lib"
                "syntax-color-lib"))
 (define build-deps
