@@ -21,7 +21,7 @@
   (system* (path->string post) coverage-file))
 
 ;; Maps service name to the environment variable that indicates that the service is to be used.
-(define BUILD-TYPES (hash "travis_ci" "TRAVIS_BUILD_ID"))
+(define BUILD-TYPES (hash "travis-ci" "TRAVIS_BUILD_ID"))
 
 ;; -> [Hasheq String String
 ;; Determine the type of build (e.g. repo token, travis, etc) and return the appropriate metadata
