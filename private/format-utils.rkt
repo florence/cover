@@ -107,7 +107,7 @@
        (for/hash ([i (range 1 (add1 file-length))])
          (values i
                  (cond [(irrelevant? i) 'missing]
-                       [else (raw-covered? i c raw-offset)]))))
+                       [else (raw-covered? i c)]))))
      cache)))
 
 ;; TODO should we only ignore test (and main) submodules?
@@ -118,7 +118,7 @@
   (define init-offset (- (string-length (file->string f))
                          (vector-length str)))
 
-  (define offset (make-str->byte-offset str))
+  (define offset (make-byte->str-offset str))
 
   (let loop ()
     (define-values (v type _m start end) (lexer for-lex))
@@ -140,11 +140,11 @@
       #:datum-literals (module module* module+)
       [((~or module module* module+) e ...)
        #:when (not first?)
-       (define start (syntax-position stx))
-       (when start
+       (define ?start (syntax-position stx))
+       (when ?start
+         (define start (- ?start (* 2 (offset/mod ?start))))
          (define end (+ start (syntax-span stx)))
-         (for ([i (in-range (- start (offset/mod start))
-                            (- end (offset/mod end)))])
+         (for ([i (in-range start end)])
            (set-add! s i)))]
       [(e ...) (for-each loop* (syntax->list #'(e ...)))]
       [_else (void)]))
@@ -163,8 +163,8 @@
   (define r (syntax-span stx))
   (<= p i (+ p r)))
 
-(define (raw-covered? i c raw-offset)
-  (define loc (+ (raw-offset i) i))
+(define (raw-covered? i c)
+  (define loc i)
   (define-values (mode _)
     (for/fold ([mode 'none] [last-start 0])
               ([pair (in-list c)])
@@ -184,7 +184,7 @@
 ;; 1 indexed character location
 (define ((make-str->byte-offset str) offset)
     (let loop ([s 0] [b 0])
-      (cond [(or (= (sub1 offset) b)
+      (cond [(or (= (sub1 offset) s)
                  (>= s (vector-length str)))
              (- b s)]
             [else
@@ -195,7 +195,7 @@
 ;; 1 indexed byte locaiton
 (define ((make-byte->str-offset str) offset)
   (let loop ([s 0] [b 0])
-    (cond [(or (= (sub1 offset) s)
+    (cond [(or (= (sub1 offset) b)
                (>= s (vector-length str)))
            (- b s)]
           [else
