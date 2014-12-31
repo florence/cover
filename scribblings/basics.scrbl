@@ -26,4 +26,6 @@ The @exec{raco cover} command accepts the following flags:
          @item{@Flag{e} or @DFlag{exclude-from-output}
                --- excludes any directories by given name from the coverage report.
                Files in these directories are still run, they are just excluded from the
-               outputted coverage. This flag may appear any number of times.}]
+               outputted coverage. This flag may appear any number of times.}
+         @item{@Flag{v} or @DFlag{verbose}
+               --- enable verbose logging}]
