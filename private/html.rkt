@@ -65,7 +65,7 @@
     (body ()
           ,@(%s->xexprs %age)
           (div ([class "code"])
-               ,@(file->html coverage path)))))
+               ,(file->html coverage path)))))
 
 (define (%s->xexprs %age)
   (for/list ([(type %) %age])
@@ -82,23 +82,27 @@
                    (body ()
                          (p () "expr: 100%" (br ()))
                          (div ([class "code"])
-                              ,@(file->html (hash-ref (get-test-coverage) f) f)))))
+                              ,(file->html (hash-ref (get-test-coverage) f) f)))))
    (clear-coverage!)))
 
 (define (file->html cover path)
   (define file (file->string path))
-  (let loop ([loc 1] [start 1] [left (string-length file)] [mode (covered? 1 cover path)])
-    (define (get-xml)
-      (mode-xml mode (encode-string (substring file (sub1 start) (sub1 loc)))))
-    (case left
-      [(0) (list (get-xml))]
-      [else
-       (define m (covered? loc cover path))
-       (define (loop* start) (loop (add1 loc) start (sub1 left) m))
-       (if (eq? m mode)
-           (loop* start)
-           (cons (get-xml)
-                 (loop* loc)))])))
+  (define-values (lines _)
+    (for/fold ([ls null] [pos 1])
+              ([line (string-split file "\n")])
+      (define-values (rline npos)
+        (for/fold ([r null] [pos pos])
+                  ([c line])
+          (values
+           (cons (mode-xml (covered? pos cover path)
+                           (encode-char c))
+                 r)
+           (add1 pos))))
+      (values
+       (cons `(li () ,@(reverse rline)) ls)
+       (add1 npos))))
+  `(ol ()
+    ,@(reverse lines)))
 
 (define (get-mode loc c)
   (define-values (mode _)
@@ -113,20 +117,13 @@
              (values mode last-start))])))
   mode)
 
-(define (encode-string s)
-  (reverse
-   (for/fold ([r null]) ([c s])
-     (cons
-      (case c
-        [(#\space) 'nbsp]
-        [(#\newline) '(br ())]
-        [else (string c)])
-      r))))
+(define (encode-char c)
+  (case c
+    [(#\space) 'nbsp]
+    [else (string c)]))
 (module+ test
-  (check-equal? (encode-string " ")
-                '(nbsp))
-  (check-equal? (encode-string "\n")
-                '((br ()))))
+  (check-equal? (encode-char #\space)
+                'nbsp))
 
 (define (mode-xml mode body)
   (define class
@@ -134,7 +131,7 @@
       [(yes) "covered"]
       [(no) "uncovered"]
       [(missing) "missing"]))
-  `(span ((class ,class)) ,@body))
+  `(span ((class ,class)) ,body))
 
 (module+ test
   (define (test file out)
@@ -145,5 +142,9 @@
     (clear-coverage!))
   (define f (path->string (simplify-path path)))
   (test f
-        `((span ((class "covered"))
-          ,@(encode-string (file->string f))))))
+        `(ol ()
+          ,@(for/list ([l (string-split (file->string f) "\n")])
+              `(li ()
+                ,@(for/list ([c l])
+                    `(span ((class "covered"))
+                      ,(encode-char c))))))))
