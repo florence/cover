@@ -111,13 +111,26 @@
 ;; TODO should we only ignore test (and main) submodules?
 (define (make-irrelevant? lexer f)
   (define s (mutable-set))
+  (define-values (for-lex for-str) (dup-input-port (current-input-port)))
+  (define str (apply vector (string->list (port->string for-str))))
+  (define init-offset (- (string-length (file->string f))
+                        (vector-length str)))
+
+  (define (offset offset)
+    (let loop ([s 0] [b 0])
+      (cond [(= (sub1 offset) b)
+             (- b s)]
+            [else
+             (define l (char-utf-8-length (vector-ref str s)))
+             (loop (add1 s) (+ b l))])))
+
   (let loop ()
-    (define-values (_v type _m start end) (lexer (current-input-port)))
+    (define-values (v type _m start end) (lexer for-lex))
     (case type
       [(eof) (void)]
-      [(comment sexp-comment no-color)
-       (for ([i (in-range start end)])
-         (set-add! s i))
+      [(comment sexp-comment no-color white-space)
+       (for ([i (in-range (- start (offset start)) (- end (offset end)))])
+         (set-add! s (+ init-offset i)))
        (loop)]
       [else (loop)]))
   (define stx
@@ -136,6 +149,14 @@
       [(e ...) (for-each loop* (syntax->list #'(e ...)))]
       [_else (void)]))
   (lambda (i) (set-member? s i)))
+
+(define (dup-input-port p)
+  (define-values (i1 o1) (make-pipe))
+  (define-values (i2 o2) (make-pipe))
+  (copy-port p o1 o2)
+  (close-output-port o1)
+  (close-output-port o2)
+  (values i1 i2))
 
 (define (in-syntax-object? i stx)
   (define p (syntax-position stx))
@@ -164,6 +185,9 @@
    (define f (path->string (simplify-path path2)))
    (test-files! f)
    (define coverage (hash-ref (get-test-coverage) f))
+   (check-equal? (covered? 14 coverage f) 'missing)
    (check-equal? (covered? 17 coverage f) 'missing)
+   (check-equal? (covered? 28 coverage f) 'missing)
    (check-equal? (covered? 35 coverage f) 'yes)
+   (check-equal? (covered? 50 coverage f) 'no)
    (clear-coverage!)))
