@@ -148,7 +148,7 @@
               ([pair c])
       (match pair
         [(list m (srcloc _ _ _ start range))
-         (if (and (<= start loc (+ start range))
+         (if (and (<= start loc (+ start range -1))
                   (or (eq? mode 'none)
                       (> start last-start)))
              (values m start)
