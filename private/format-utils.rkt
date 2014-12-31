@@ -1,5 +1,5 @@
 #lang racket
-(provide get-percentages/top get-percentages/file covered?)
+(provide get-percentages/top get-percentages/file make-covered?)
 (require syntax/modread syntax/parse unstable/sequence syntax-color/racket-lexer)
 (module+ test (require rackunit "../cover.rkt" racket/runtime-path))
 
@@ -21,26 +21,26 @@
 (define (file-percentages->top get-% coverage)
   (define per-file
     (for/list ([(f v) coverage])
-      (call-with-values (thunk (get-% f v)) list)))
+      (define covered? (make-covered? v f))
+      (call-with-values (thunk (get-% f covered?)) list)))
   (define total (for/sum ([v per-file]) (second v)))
   (for/sum ([v per-file])
     (* (first v) (/ (second v) total))))
 
-;; PathString FileCoverage -> Percentage
-(define (get-percentages/file path coverage)
+;; PathString Covered? -> Percentage
+(define (get-percentages/file path covered?)
   (hash
-   'expr (first (call-with-values (thunk (expr-percentage path coverage)) list))))
+   'expr (first (call-with-values (thunk (expr-percentage path covered?)) list))))
 
 ;;; percentage generators. each one has the type:
-;; FileCoverage -> Real∈[0,1] Natural
+;; FilePath Covered? -> Real∈[0,1] Natural
 ;; there the Real is the percentage covered
 ;; and the Natural is the number of things of that type in the file
-
-(define (expr-percentage path coverage)
+(define (expr-percentage path covered?)
   (define (is-covered? e)
     ;; we don't need to look at the span because the coverage is expression based
     (define p (syntax-position e))
-    (covered? p coverage path))
+    (covered? p #:byte? #t))
 
   (define e
     (with-module-reading-parameterization
@@ -71,7 +71,8 @@
   (test-begin
    (define f (path->string (simplify-path path)))
    (test-files! f)
-   (define-values (result _) (expr-percentage f (hash-ref (get-test-coverage) f)))
+   (define covered? (make-covered? (hash-ref (get-test-coverage) f) f))
+   (define-values (result _) (expr-percentage f covered?))
    (check-equal? result 1)
    (clear-coverage!)))
 
@@ -80,18 +81,22 @@
 ;;; a Cover is (U 'yes 'no 'missing)
 
 ;; [Hashof PathString [Hashof Natural Cover]]
-(define file-location-coverage-cache (make-hash))
 
 ;; Natural FileCoverage PathString -> Cover
-(define (covered? loc c path)
-  (define file-cache
-    (let ([v (hash-ref file-location-coverage-cache path #f)])
-      (if v v (coverage-cache-file! path c))))
-  (hash-ref file-cache loc))
+(define (make-covered? c path)
+  (define vec
+    (list->vector (string->list (file->string path))))
+  (define file/str->byte-offset (make-str->byte-offset vec))
+  (define file/byte->str-offset (make-byte->str-offset vec))
+  (define file-location-coverage-cache
+    (coverage-cache-file path c file/str->byte-offset))
+  (lambda (loc #:byte? [byte? #f])
+    (hash-ref file-location-coverage-cache (if (not byte?) loc (- loc (file/byte->str-offset loc)))
+              (lambda () (error 'covered? "char ~s was not cache for file ~s" loc path)))))
 
 
-;; Path FileCoverage -> [Hashof Natural Cover]
-(define (coverage-cache-file! f c)
+;; Path FileCoverage OffsetFunc -> [Hashof Natural Cover]
+(define (coverage-cache-file f c raw-offset)
   (with-input-from-file f
     (thunk
      (define lexer
@@ -102,10 +107,7 @@
        (for/hash ([i (range 1 (add1 file-length))])
          (values i
                  (cond [(irrelevant? i) 'missing]
-                       [else (raw-covered? i c)]))))
-     (hash-set! file-location-coverage-cache
-                f
-                cache)
+                       [else (raw-covered? i c raw-offset)]))))
      cache)))
 
 ;; TODO should we only ignore test (and main) submodules?
@@ -114,15 +116,9 @@
   (define-values (for-lex for-str) (dup-input-port (current-input-port)))
   (define str (apply vector (string->list (port->string for-str))))
   (define init-offset (- (string-length (file->string f))
-                        (vector-length str)))
+                         (vector-length str)))
 
-  (define (offset offset)
-    (let loop ([s 0] [b 0])
-      (cond [(= (sub1 offset) b)
-             (- b s)]
-            [else
-             (define l (char-utf-8-length (vector-ref str s)))
-             (loop (add1 s) (+ b l))])))
+  (define offset (make-str->byte-offset str))
 
   (let loop ()
     (define-values (v type _m start end) (lexer for-lex))
@@ -136,15 +132,19 @@
   (define stx
     (with-input-from-file f
       (thunk (with-module-reading-parameterization read-syntax))))
+
+  (define offset/mod (make-byte->str-offset str))
   (let loop ([stx stx] [first? #t])
     (define (loop* stx) (loop stx #f))
     (syntax-parse stx
       #:datum-literals (module module* module+)
       [((~or module module* module+) e ...)
        #:when (not first?)
-       (define pos (syntax-position stx))
-       (when pos
-         (for ([i (in-range pos (+ pos (syntax-span stx)))])
+       (define start (syntax-position stx))
+       (when start
+         (define end (+ start (syntax-span stx)))
+         (for ([i (in-range (- start (offset/mod start))
+                            (- end (offset/mod end)))])
            (set-add! s i)))]
       [(e ...) (for-each loop* (syntax->list #'(e ...)))]
       [_else (void)]))
@@ -163,10 +163,11 @@
   (define r (syntax-span stx))
   (<= p i (+ p r)))
 
-(define (raw-covered? loc c)
+(define (raw-covered? i c raw-offset)
+  (define loc (+ (raw-offset i) i))
   (define-values (mode _)
     (for/fold ([mode 'none] [last-start 0])
-              ([pair c])
+              ([pair (in-list c)])
       (match pair
         [(list m (srcloc _ _ _ start range))
          (if (and (<= start loc (+ start range -1))
@@ -179,15 +180,41 @@
     [(#f) 'no]
     [else 'missing]))
 
+;; use for determining character/byte offsets for a given
+;; 1 indexed character location
+(define ((make-str->byte-offset str) offset)
+    (let loop ([s 0] [b 0])
+      (cond [(or (= (sub1 offset) b)
+                 (>= s (vector-length str)))
+             (- b s)]
+            [else
+             (define l (char-utf-8-length (vector-ref str s)))
+             (loop (add1 s) (+ b l))])))
+
+;; used for determining character/byte offsets for a given
+;; 1 indexed byte locaiton
+(define ((make-byte->str-offset str) offset)
+  (let loop ([s 0] [b 0])
+    (cond [(or (= (sub1 offset) s)
+               (>= s (vector-length str)))
+           (- b s)]
+          [else
+           (define l (char-utf-8-length (vector-ref str s)))
+           (loop (add1 s) (+ b l))])))
+
 (module+ test
   (define-runtime-path path2 "../tests/prog.rkt")
   (test-begin
    (define f (path->string (simplify-path path2)))
    (test-files! f)
    (define coverage (hash-ref (get-test-coverage) f))
-   (check-equal? (covered? 14 coverage f) 'missing)
-   (check-equal? (covered? 17 coverage f) 'missing)
-   (check-equal? (covered? 28 coverage f) 'missing)
-   (check-equal? (covered? 35 coverage f) 'yes)
-   (check-equal? (covered? 50 coverage f) 'no)
+   (define covered? (make-covered? coverage f))
+   (check-equal? (covered? 14) 'missing)
+   (check-equal? (covered? 17) 'missing)
+   (check-equal? (covered? 28) 'missing)
+   (check-equal? (covered? 35) 'yes)
+   (check-equal? (covered? 50) 'no)
+   (check-equal? (covered? 52) 'missing)
+   (check-equal? (covered? 53) 'missing)
+   (check-equal? (covered? 54) 'missing)
    (clear-coverage!)))

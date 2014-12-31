@@ -53,13 +53,14 @@
 
 ;; CoverallsCoverage = Nat | json-null
 
-;; Coverage PathString -> [Listof CoverallsCoverage]
+;; Coverage PathString Covered? -> [Listof CoverallsCoverage]
 ;; Get the line coverage for the file to generate a coverage report
 (define (line-coverage coverage file)
+  (define covered? (make-covered? (hash-ref coverage file) file))
   (define split-src (string-split (file->string file) "\n"))
   (define file-coverage (hash-ref coverage file))
   (define (process-coverage value rst-of-line)
-    (case (covered? value file-coverage file)
+    (case (covered? value)
       ['yes (if (equal? 'no rst-of-line) rst-of-line 'yes)]
       ['no 'no]
       [else rst-of-line]))

@@ -18,14 +18,15 @@ failed. Test coverage information is still collected when test fail.}
 @defproc[(clear-coverage!) any]{Clears all coverage information.}
 
 @defproc[(get-coverage-information) coverage/c]{Gets coverage information.}
-@defproc[(covered? (loc exact-positive-integer?) (coverage file-coverage/c)
-                   (path path-string?))
-         (or/c 'yes 'no 'missing)
+@defproc[(make-covered? (coverage file-coverage/c) (path path-string?))
+         (->* (exact-positive-integer?)
+            (#:byte? boolean?)
+            (or/c 'yes 'no 'missing))
          ]{
-Given some location in a file, the
-coverage information for that file, and the path to that file,
-@racket[covered?] returns if that position how that position is
-covered. There are three possible results:
+Given some location in a file and the
+coverage information for that file @racket[make-covered?] returns
+a functions that determins if some @racket[1] indexed character or byte location
+in that file is covered. There are three possible results:
 @itemize[@item{@racket['missing] --- The location is not in the
 coverage information, is a comment, or is in a submodule}
 @item{@racket['yes] --- The location is not @racket['missing] and is
