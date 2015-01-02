@@ -3,7 +3,7 @@
          racket/contract)
 (provide
  (contract-out
-  [test-files! (->* () () #:rest path-string? any/c)]
+  [test-files! (->* () () #:rest (listof path-string?) any/c)]
   [clear-coverage! (-> any)]
   [get-test-coverage (-> coverage/c)]
   [make-covered?
