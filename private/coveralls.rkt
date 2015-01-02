@@ -73,7 +73,7 @@
   (define-values (line-cover _)
     (for/fold ([coverage '()] [count 1]) ([line split-src])
       (cond [(zero? (string-length line)) (values (cons (json-null) coverage) (add1 count))]
-            [else (define nw-count (+ count (string-length line)))
+            [else (define nw-count (+ count (string-length line) 1))
                   (define all-covered (foldr process-coverage 'missing (range count nw-count)))
                   (values (cons (process-coverage-value all-covered) coverage) nw-count)])))
   (reverse line-cover))
