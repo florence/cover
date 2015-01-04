@@ -8,9 +8,9 @@
   (define coverage-dir "coverage")
   (define output-format "html")
   (define exclude-dirs '())
+  (define include-exts '())
 
-  (define files
-    (expand-directories
+  (define args
      (command-line
       #:program (short-program+command-name)
       #:once-each
@@ -27,8 +27,12 @@
       [("-e" "--exclude-from-output") t
        "exclude all directories named this from the coverage report. By default excludes dirs named tests"
        (set! exclude-dirs (cons t exclude-dirs))]
+      [("-i" "--include-extentions") f
+       "include these extentions in files to cover."
+       (set! include-exts (cons f include-exts))]
       #:args (file . files)
-      (cons file files))))
+      (cons file files)))
+  (define files (expand-directories args include-exts))
   (define generate-coverage
     (case output-format
       [("html") generate-html-coverage]
@@ -47,7 +51,8 @@
 
 ;; TODO allow for arbitrary extensions
 (define extensions '(#rx"\\.rkt$" #rx"\\.ss$"))
-(define (expand-directories files)
+(define (expand-directories files [exts null])
+  (define comped (map regexp exts))
   (flatten
    (for/list ([f files])
      (if (not (directory-exists? f))
@@ -56,22 +61,22 @@
                          (if (absolute-path? f)
                              f
                              (build-path (current-directory) f))])
-           (expand-directory))))))
+           (expand-directory (append extensions comped)))))))
 
 ;; -> (HorribyNestedListsOf PathString)
-(define (expand-directory)
+(define (expand-directory exts)
   (for/list ([p (directory-list)])
     (cond [(directory-exists? p)
            (parameterize ([current-directory (build-path (current-directory) p)])
-             (expand-directory))]
-          [(ormap (lambda (r) (regexp-match r (path->string p))) extensions)
+             (expand-directory exts))]
+          [(ormap (lambda (r) (regexp-match r (path->string p))) exts)
            (path->string (build-path (current-directory) p))]
           [else null])))
 (module+ test
   (define-runtime-path cur ".")
   (parameterize ([current-directory (build-path cur "tests/basic")])
     (check-equal? (list->set (map (compose path->string ->relative)
-                                  (flatten (expand-directory))))
+                                  (flatten (expand-directory extensions))))
                   (set "prog.rkt"
                        "not-run.rkt"))))
 
