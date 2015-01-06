@@ -9,4 +9,4 @@
 (define raco-commands
   '(("cover" (submod cover/raco main) "a code coverage tool" 30)))
 
-(define scribblings '(("scribblings/cover.scrbl" ())))
+(define scribblings '(("scribblings/cover.scrbl")))
