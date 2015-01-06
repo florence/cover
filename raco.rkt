@@ -42,7 +42,7 @@
   (printf "generating test coverage for ~s\n" files)
   (define passed (apply test-files! files))
   (define coverage (remove-dirs (get-test-coverage) exclude-dirs))
-  (printf "dumbing coverage info into ~s\n" coverage-dir)
+  (printf "dumping coverage info into ~s\n" coverage-dir)
   (generate-coverage coverage coverage-dir)
   (exit
    (case passed

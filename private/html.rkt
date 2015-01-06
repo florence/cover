@@ -62,6 +62,7 @@
   (define %age (get-percentages/file path covered?))
   `(html ()
     (head ()
+          (meta ([charset "utf-8"]))
           (link ([rel "stylesheet"] [type "text/css"] [href ,path-to-css])))
     (body ()
           ,@(%s->xexprs %age)
