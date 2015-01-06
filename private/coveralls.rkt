@@ -15,7 +15,8 @@
   (define coverage-file (build-path coverage-path "coverage.json"))
   (define json (generate-coveralls-json coverage (hasheq)))
   (define meta-data (determine-build-type))
-  (define data (for/fold ([blob json]) ([(k v) meta-data]) (hash-set blob k v)))
+  (define meta-with-git-info (hash-merge meta-data (get-git-info)))
+  (define data (hash-merge json meta-with-git-info))
   (with-output-to-file coverage-file
     (thunk (write-json data))
     #:exists 'replace)
@@ -36,7 +37,8 @@
   (define repo-token (getenv "COVERALLS_REPO_TOKEN"))
   (cond [service-name
          (hasheq 'service_name service-name
-                 'service_job_id (getenv (hash-ref BUILD-TYPES service-name)))]
+                 'service_job_id (getenv (hash-ref BUILD-TYPES service-name))
+                 'repo_token repo-token)]
         [repo-token (hasheq 'service_name "cover" 'repo_token repo-token)]
         [else (error "No repo token or ci service detected")]))
 
@@ -69,7 +71,7 @@
       ['yes 1]
       ['no 0]
       [else (json-null)]))
-
+  
   (define-values (line-cover _)
     (for/fold ([coverage '()] [count 1]) ([line split-src])
       (cond [(zero? (string-length line)) (values (cons (json-null) coverage) (add1 count))]
@@ -85,3 +87,37 @@
     (test-files! file)
     (check-equal? (line-coverage (get-test-coverage) file) '(1 0))
     (clear-coverage!)))
+
+(define (hash-merge h1 h2) (for/fold ([res h1]) ([(k v) h2]) (hash-set res k v)))
+  
+
+;; Git Magic
+
+(define (get-git-info)
+  (hasheq 'git 
+          (hasheq 'head (get-git-commit)
+                  'branch (get-git-branch)
+                  'remotes (get-git-remotes))))
+
+(define (get-git-branch) 
+  (string-trim 
+   (or (getenv "TRAVIS_BRANCH")
+       (with-output-to-string (thunk (system "git rev-parse --abbrev-ref HEAD"))))))
+
+(define (get-git-remotes)
+  (define raw (with-output-to-string (thunk (system "git remote -v"))))
+  (define lines (string-split raw "\n"))
+  (define fetch-only (filter (λ (line) (regexp-match #rx"\\(fetch\\)" line)) lines))
+  (for/list ([line fetch-only])
+    (define split (string-split line))
+    (hasheq 'name (list-ref split 0) 
+            'url (list-ref split 1))))
+
+(define (get-git-commit)
+  (define format (string-join '("%H" "%aN" "%ae" "%cN" "%ce" "%s") "%n"))
+  (define command (string-append "git --no-pager log -1 --pretty=format:" format))
+  (define log (with-output-to-string (thunk (system command))))
+  (define lines (string-split log "\n"))
+  (for/hasheq ([field '(id author_name author_email committer_name committer_email message)]
+               [line lines])
+    (values field line)))
