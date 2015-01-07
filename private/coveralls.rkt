@@ -49,6 +49,25 @@
                  'repo_token repo-token)]
         [repo-token (hasheq 'service_name "cover" 'repo_token repo-token)]
         [else (error "No repo token or ci service detected")]))
+(module+ test
+  (define-syntax (with-env stx)
+    (syntax-case stx ()
+      [(test-with-env (env ...) test ...)
+       #'(parameterize ([current-environment-variables
+                         (make-environment-variables
+                          (string->bytes/utf-8 env) ...)])
+           test ...)]))
+  (with-env ()
+    (check-exn void determine-build-type))
+  (with-env ("COVERALLS_REPO_TOKEN" "abc")
+    (check-equal? (determine-build-type)
+                  (hasheq 'service_name "cover"
+                          'repo_token "abc")))
+  (with-env ("TRAVIS_JOB_ID" "abc")
+    (check-equal? (determine-build-type)
+                  (hasheq 'service_name "travis-ci"
+                          'service_job_id "abc"
+                          'repo_token #f))))
 
 ;; Coverage [Hasheq String String] -> JSexpr
 ;; Generates a string that represents a valid coveralls json_file object
