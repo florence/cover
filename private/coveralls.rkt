@@ -149,13 +149,21 @@
        (with-output-to-string (thunk (system "git rev-parse --abbrev-ref HEAD"))))))
 
 (define (get-git-remotes)
-  (define raw (with-output-to-string (thunk (system "git remote -v"))))
+  (parse-git-remote (with-output-to-string (thunk (system "git remote -v")))))
+(define (parse-git-remote raw)
   (define lines (string-split raw "\n"))
   (define fetch-only (filter (λ (line) (regexp-match #rx"\\(fetch\\)" line)) lines))
   (for/list ([line fetch-only])
     (define split (string-split line))
     (hasheq 'name (list-ref split 0)
             'url (list-ref split 1))))
+(module+ test
+  (test-begin
+   (define raw
+     "origin	git@github.com:florence/cover.git (fetch)\norigin	git@github.com:florence/cover.git (push)")
+   (check-equal? (parse-git-remote raw)
+                 (list (hasheq 'name "origin"
+                               'url "git@github.com:florence/cover.git")))))
 
 (define (get-git-commit)
   (define format (string-join '("%H" "%aN" "%ae" "%cN" "%ce" "%s") "%n"))
