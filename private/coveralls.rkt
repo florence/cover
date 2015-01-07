@@ -28,7 +28,7 @@
   (system* (path->string post) coverage-file))
 
 ;; Maps service name to the environment variable that indicates that the service is to be used.
-(define BUILD-TYPES (hash "travis-ci" "TRAVIS_BUILD_ID"))
+(define BUILD-TYPES (hash "travis-ci" "TRAVIS_JOB_ID"))
 
 ;; -> [Hasheq String String
 ;; Determine the type of build (e.g. repo token, travis, etc) and return the appropriate metadata
@@ -71,7 +71,7 @@
       ['yes 1]
       ['no 0]
       [else (json-null)]))
-  
+
   (define-values (line-cover _)
     (for/fold ([coverage '()] [count 1]) ([line split-src])
       (cond [(zero? (string-length line)) (values (cons (json-null) coverage) (add1 count))]
@@ -89,18 +89,18 @@
     (clear-coverage!)))
 
 (define (hash-merge h1 h2) (for/fold ([res h1]) ([(k v) h2]) (hash-set res k v)))
-  
+
 
 ;; Git Magic
 
 (define (get-git-info)
-  (hasheq 'git 
+  (hasheq 'git
           (hasheq 'head (get-git-commit)
                   'branch (get-git-branch)
                   'remotes (get-git-remotes))))
 
-(define (get-git-branch) 
-  (string-trim 
+(define (get-git-branch)
+  (string-trim
    (or (getenv "TRAVIS_BRANCH")
        (with-output-to-string (thunk (system "git rev-parse --abbrev-ref HEAD"))))))
 
@@ -110,7 +110,7 @@
   (define fetch-only (filter (λ (line) (regexp-match #rx"\\(fetch\\)" line)) lines))
   (for/list ([line fetch-only])
     (define split (string-split line))
-    (hasheq 'name (list-ref split 0) 
+    (hasheq 'name (list-ref split 0)
             'url (list-ref split 1))))
 
 (define (get-git-commit)
