@@ -19,12 +19,8 @@ Right now the valid formats are: `html` and `coveralls`.
 highlighted source code.
 
 `coveralls` generates a coveralls coverage report and sends it to coveralls.
-Using coveralls requires the "COVERALLS_REPO_TOKEN" to be set, and needs bash and curl.
-Travic-ci/Coveralls support coming soon...
 
-Note that coveralls expect coverage by line. To convert from an expression based coverage to line based coverage we consider any line with any unrun expression to be not run.
-
-The directory that the coverage is outputted to can be specified with the `-d` flag.
+For more detailed usage see [the full documentation](http://pkg-build.racket-lang.org/doc/cover/index.html).
 
 If any tests run by `rackunit` fail, Cover will return with exit code `1`. If all tests pass it will return with exit code `0`.
 
@@ -55,4 +51,4 @@ Note: This currently only works for public Github repos. This project does not s
 
 ## Internals
 
-Cover also comes with a racket API for running tests and generating coverage reports. Documentation coming soon...
+Cover comes with a racket API, which can be read about in [the full documentation](http://pkg-build.racket-lang.org/doc/cover/index.html).

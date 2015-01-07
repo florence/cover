@@ -27,8 +27,11 @@ The @exec{raco cover} command accepts the following flags:
                --- excludes any directories by given name from the coverage report.
                Files in these directories are still run, they are just excluded from the
                outputted coverage. This flag may appear any number of times.}
+         @item{@Flag{p} or @DFlag{exclude-pkg-defaults}
+               Equivalent to @exec{-e tests -e info.rkt -e scribblings}}
          @item{@Flag{i} or @DFlag{include-extentions}
                --- include the given regular expression in the list of file patterns
                    used when expanding directories, searching for files to cover.}
          @item{@Flag{v} or @DFlag{verbose}
-               --- enable verbose logging}]
+               --- enable verbose logging}
+         ]
