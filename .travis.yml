@@ -1,0 +1,12 @@
+langauge: c
+env:
+  - RACKET_VERSION=6.1.1
+
+before_install:
+  - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
+  - cat ../travis-racket/install-racket.sh | bash
+
+script:
+ - /usr/racket/bin/raco pkg install git://github.com/florence/cover
+ - /usr/racket/bin/raco test $TRAVIS_BUILD_DIR
+ - /usr/racket/bin/raco cover -c coveralls -d $TRAVIS_BUILD_DIR/coverage .
