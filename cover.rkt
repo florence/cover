@@ -19,7 +19,6 @@
 ;; Test files and build coverage map
 ;; returns true if all tests passed
 (define (test-files! . paths)
-  (clear-coverage!)
   (for ([path paths])
     (define p
       (if (absolute-path? path)
@@ -87,6 +86,9 @@
     (namespace-require `(file ,(path->string cov)))
     (namespace-require `(file ,(path->string strace)))
     (namespace-require 'rackunit)))
+
+;; A little hack to setup coverage for the first time
+(clear-coverage!)
 
 ;; -> [Hashof PathString (Listof (List Boolean srcloc))]
 ;; returns a hash of file to a list, where the first of the list is if
