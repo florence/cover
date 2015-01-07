@@ -90,10 +90,6 @@
   (close-output-port o2)
   (values i1 i2))
 
-(define (in-syntax-object? i stx)
-  (define p (syntax-position stx))
-  (define r (syntax-span stx))
-  (<= p i (+ p r)))
 
 (define (raw-covered? i c)
   (define loc i)
@@ -142,10 +138,12 @@
    (define coverage (hash-ref (get-test-coverage) f))
    (define covered? (make-covered? coverage f))
    (check-equal? (covered? 14) 'missing)
+   (check-equal? (covered? 14 #:byte? #t) 'missing)
    (check-equal? (covered? 17) 'missing)
    (check-equal? (covered? 28) 'missing)
    (check-equal? (covered? 35) 'yes)
    (check-equal? (covered? 50) 'no)
+   (check-equal? (covered? 51 #:byte? #t) 'no)
    (check-equal? (covered? 52) 'missing)
    (check-equal? (covered? 53) 'missing)
    (check-equal? (covered? 54) 'missing)
