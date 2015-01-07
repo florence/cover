@@ -11,14 +11,20 @@
 
 (module+ test
   (require rackunit "../cover.rkt" racket/runtime-path)
+  (define-runtime-path root "..")
   (define-runtime-path tests/basic/prog.rkt "../tests/basic/prog.rkt"))
 
 ;;; Coverage [PathString] -> Void
 (define (generate-html-coverage coverage [d "coverage"])
   (define dir (simplify-path d))
-  (make-directory* dir)
+  (define fs (get-files coverage dir))
+  (write-files fs)
+  (move-support-files! dir))
+
+(define (get-files coverage dir)
   (define file-list
     (for/list ([(k v) coverage])
+      (vprintf "building html coverage for: ~a" k)
       (define exploded (explode-path k))
       (define-values (_ dir-list)
         (split-at exploded
@@ -35,19 +41,40 @@
                 (append (build-list (sub1 (length coverage-dir-list))
                                     (const ".."))
                         (list "main.css")))))
-      (make-directory* output-dir)
-      (with-output-to-file output-file
-        (λ ()
-          (define expr (make-html-file (hash-ref coverage k) k path-to-css))
-          (vprintf "writing html coverage for ~s to ~s\n" k output-file)
-          (write-xexpr expr))
-        #:exists 'replace)
-      output-file))
-  (define index (build-index coverage file-list))
-  (with-output-to-file (build-path dir "index.html")
-    #:exists 'replace
-    (thunk (write-xexpr index)))
-  (move-support-files! dir))
+      (define xexpr (make-html-file (hash-ref coverage k) k path-to-css))
+      (list output-file output-dir xexpr)))
+  (define index (build-index coverage (map first file-list)))
+  (cons (list (build-path dir "index.html") dir index)
+        file-list))
+
+(module+ test
+  (test-begin
+   (parameterize ([current-directory root])
+     (after
+      (define f (path->string (simplify-path tests/basic/prog.rkt)))
+      (define d "coverage")
+      (test-files! f)
+      (define coverage (get-test-coverage))
+      (define files (get-files coverage d))
+      (define (maybe-path->string p)
+        (if (string? p) p (path->string p)))
+      (check-equal? (list->set (map (compose maybe-path->string first)
+                                    files))
+                    (set "coverage/index.html"
+                         "coverage/tests/basic/prog.html"))
+      (check-equal? (list->set (map (compose maybe-path->string second) files))
+                    (set "coverage"
+                         "coverage/tests/basic"))
+      (clear-coverage!)))))
+
+(define (write-files f)
+  (for ([l f])
+    (match-define (list f d e) l)
+    (vprintf "writing html coverage: ~s" f)
+    (make-directory* d)
+    (with-output-to-file f
+      #:exists 'replace
+      (thunk (write-xexpr e)))))
 
 (define (build-index coverage file-list)
   (vprintf "building index.html\n")
@@ -96,9 +123,8 @@
   `(p () ,(~a "expr" ': " " (~r (* 100 %) #:precision 2) "%") (br ())))
 
 (module+ test
-  (define-runtime-path path "../tests/basic/prog.rkt")
   (test-begin
-   (define f (path->string (simplify-path path)))
+   (define f (path->string (simplify-path tests/basic/prog.rkt)))
    (test-files! f)
    (define cov (hash-ref (get-test-coverage) f))
    (define covered? (make-covered? cov f))
@@ -156,7 +182,7 @@
     (check-equal? (file->html file covered?)
                   out)
     (clear-coverage!))
-  (define f (path->string (simplify-path path)))
+  (define f (path->string (simplify-path tests/basic/prog.rkt)))
   (test f
         `(ol ()
           (li ()
