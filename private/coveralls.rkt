@@ -1,6 +1,6 @@
 #lang racket
 (provide generate-coveralls-coverage)
-(require racket/runtime-path json "format-utils.rkt" "shared.rkt")
+(require racket/runtime-path json "format-utils.rkt" "shared.rkt" racket/pretty)
 
 (module+ test
   (require rackunit "../cover.rkt" racket/runtime-path))
@@ -21,6 +21,9 @@
   (with-output-to-file coverage-file
     (thunk (write-json data))
     #:exists 'replace)
+  (when (verbose)
+    (printf "data written was:\n")
+    (pretty-print data))
   (vprintf "invoking coveralls API")
   (parameterize ([current-output-port
                   (if (verbose)
@@ -28,7 +31,7 @@
                       (open-output-nowhere))])
     (void (system* (path->string post)
                    coverage-file
-                   (if (vebose) "-v" "")))))
+                   (if (verbose) "-v" "")))))
 
 ;; Maps service name to the environment variable that indicates that the service is to be used.
 (define BUILD-TYPES (hash "travis-ci" "TRAVIS_JOB_ID"))
