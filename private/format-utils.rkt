@@ -1,81 +1,11 @@
 #lang racket
-(provide get-percentages/top get-percentages/file make-covered?)
+(provide make-covered?)
 (require syntax/modread syntax/parse unstable/sequence syntax-color/racket-lexer
          "shared.rkt")
 (module+ test (require rackunit "../cover.rkt" racket/runtime-path))
 
 ;;;;; a Coverage is the output of (get-test-coverage)
 ;;;;; a FileCoverage is the values of the hashmap from (get-test-coverage)
-
-;;;;; percentage
-;; A Percentage is a [HashMap Type Real∈[0,1]]
-;; a Type is one of: (update this as needed)
-;; 'expr
-
-;;  TODO this needs not count submodules and test directories
-
-;; Coverage -> Percentage
-(define (get-percentages/top coverage)
-  (hash
-   'expr (file-percentages->top expr-percentage coverage)))
-
-(define (file-percentages->top get-% coverage)
-  (define per-file
-    (for/list ([(f v) coverage])
-      (define covered? (make-covered? v f))
-      (call-with-values (thunk (get-% f covered?)) list)))
-  (define total (for/sum ([v per-file]) (second v)))
-  (for/sum ([v per-file])
-    (* (first v) (/ (second v) total))))
-
-;; PathString Covered? -> Percentage
-(define (get-percentages/file path covered?)
-  (hash
-   'expr (first (call-with-values (thunk (expr-percentage path covered?)) list))))
-
-;;; percentage generators. each one has the type:
-;; FilePath Covered? -> Real∈[0,1] Natural
-;; there the Real is the percentage covered
-;; and the Natural is the number of things of that type in the file
-(define (expr-percentage path covered?)
-  (define (is-covered? e)
-    ;; we don't need to look at the span because the coverage is expression based
-    (define p (syntax-position e))
-    (covered? p #:byte? #t))
-
-  (define e
-    (with-module-reading-parameterization
-        (thunk (with-input-from-file path read-syntax))))
-  (define (ret e)
-    (values (e->n e) (a->n e)))
-  (define (a->n e)
-    (case (is-covered? e)
-      [(yes no) 1]
-      [else 0]))
-  (define (e->n e)
-    (if (eq? (is-covered? e) 'yes) 1 0))
-  (define-values (covered count)
-    (let recur ([e e])
-      (syntax-parse e
-        [(v ...)
-         (for/fold ([covered (e->n e)] [count (a->n e)])
-                   ([e (in-syntax e)])
-           (define-values (cov cnt) (recur e))
-           (values (+ covered cov)
-                   (+ count cnt)))]
-        [e:expr (ret #'e)]
-        [_ (values 0 0)])))
-  (values (/ covered count) count))
-
-(module+ test
-  (define-runtime-path path "../tests/basic/prog.rkt")
-  (test-begin
-   (define f (path->string (simplify-path path)))
-   (test-files! f)
-   (define covered? (make-covered? (hash-ref (get-test-coverage) f) f))
-   (define-values (result _) (expr-percentage f covered?))
-   (check-equal? result 1)
-   (clear-coverage!)))
 
 ;;;;; utils
 

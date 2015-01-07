@@ -66,6 +66,23 @@
                              (build-path (current-directory) f))])
            (expand-directory (append extensions comped)))))))
 
+(module+ test
+  (define-runtime-path root".")
+  (define-runtime-path private "private")
+  (define-runtime-path main.rkt "main.rkt")
+  (parameterize ([current-directory root])
+    (check-equal? (list->set
+                   (map (compose path->string ->relative)
+                        (expand-directories (list (path->string main.rkt)
+                                                  (->relative (path->string private))))))
+                  (set "main.rkt"
+                       "private/coveralls.rkt"
+                       "private/contracts.rkt"
+                       "private/html.rkt"
+                       "private/format-utils.rkt"
+                       "private/shared.rkt"
+                       "private/raw.rkt"))))
+
 ;; -> (HorribyNestedListsOf PathString)
 (define (expand-directory exts)
   (for/list ([p (directory-list)])

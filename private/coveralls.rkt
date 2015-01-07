@@ -61,6 +61,23 @@
       (hasheq 'source src 'coverage c 'name local-file)))
   (hash-set meta 'source_files src-files))
 
+(module+ test
+  (define-runtime-path tests/prog.rkt"../tests/prog.rkt")
+  (define-runtime-path root "..")
+  (test-begin
+   (parameterize ([current-directory root])
+     (after
+      (define file (path->string (simplify-path tests/prog.rkt)))
+      (test-files! (path->string (simplify-path tests/prog.rkt)))
+      (define coverage (get-test-coverage))
+      (check-equal?
+       (generate-coveralls-json coverage (hasheq))
+       (hasheq 'source_files
+               (list (hasheq 'source (file->string tests/prog.rkt)
+                             'coverage (line-coverage coverage file)
+                             'name "tests/prog.rkt"))))
+      (clear-coverage!)))))
+
 ;; CoverallsCoverage = Nat | json-null
 
 ;; Coverage PathString Covered? -> [Listof CoverallsCoverage]

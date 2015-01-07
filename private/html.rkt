@@ -1,13 +1,17 @@
 #lang racket
 (provide generate-html-coverage)
 (require racket/runtime-path
+         syntax/modread
+         syntax/parse
+         unstable/sequence
          (only-in xml write-xexpr)
          "format-utils.rkt"
          "shared.rkt")
 
 
 (module+ test
-  (require rackunit "../cover.rkt" racket/runtime-path))
+  (require rackunit "../cover.rkt" racket/runtime-path)
+  (define-runtime-path tests/basic/prog.rkt "../tests/basic/prog.rkt"))
 
 ;;; Coverage [PathString] -> Void
 (define (generate-html-coverage coverage [d "coverage"])
@@ -50,7 +54,7 @@
       (head ()
             (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
       (body
-       ,@(%s->xexprs %ages)
+       ,(%s->xexpr %ages)
        (div ()
             ,@(for/list ([file file-list])
                 (define f (path->string (apply build-path (rest (explode-path file)))))
@@ -73,13 +77,12 @@
           (meta ([charset "utf-8"]))
           (link ([rel "stylesheet"] [type "text/css"] [href ,path-to-css])))
     (body ()
-          ,@(%s->xexprs %age)
+          ,(%s->xexpr %age)
           (div ([class "code"])
                ,(file->html path covered?)))))
 
-(define (%s->xexprs %age)
-  (for/list ([(type %) %age])
-    `(p () ,(~a type ': " " (~r (* 100 %) #:precision 2) "%") (br ()))))
+(define (%s->xexpr %)
+  `(p () ,(~a "expr" ': " " (~r (* 100 %) #:precision 2) "%") (br ())))
 
 (module+ test
   (define-runtime-path path "../tests/basic/prog.rkt")
@@ -167,3 +170,75 @@
                 ,@(for/list ([c l])
                     `(span ((class ,(if (equal? c #\space) "missing" "covered")))
                       ,(encode-char c))))))))
+
+
+;;;;; percentage
+;; A Percentage is a Real∈[0,1]
+;; a Type is one of: (update this as needed)
+;; 'expr
+
+;; Coverage -> Percentage
+(define (get-percentages/top coverage)
+  (file-percentages->top expr-percentage coverage))
+(module+ test
+  (test-begin
+   (after
+    (test-files! (path->string (simplify-path tests/basic/prog.rkt)))
+    (check-equal? (get-percentages/top (get-test-coverage)) 1)
+    (clear-coverage!))))
+
+(define (file-percentages->top get-% coverage)
+  (define per-file
+    (for/list ([(f v) coverage])
+      (define covered? (make-covered? v f))
+      (call-with-values (thunk (get-% f covered?)) list)))
+  (define total (for/sum ([v per-file]) (second v)))
+  (for/sum ([v per-file])
+    (* (first v) (/ (second v) total))))
+
+;; PathString Covered? -> Percentage
+(define (get-percentages/file path covered?)
+  (first (call-with-values (thunk (expr-percentage path covered?)) list)))
+
+;;; percentage generators. each one has the type:
+;; FilePath Covered? -> Real∈[0,1] Natural
+;; there the Real is the percentage covered
+;; and the Natural is the number of things of that type in the file
+(define (expr-percentage path covered?)
+  (define (is-covered? e)
+    ;; we don't need to look at the span because the coverage is expression based
+    (define p (syntax-position e))
+    (covered? p #:byte? #t))
+
+  (define e
+    (with-module-reading-parameterization
+        (thunk (with-input-from-file path read-syntax))))
+  (define (ret e)
+    (values (e->n e) (a->n e)))
+  (define (a->n e)
+    (case (is-covered? e)
+      [(yes no) 1]
+      [else 0]))
+  (define (e->n e)
+    (if (eq? (is-covered? e) 'yes) 1 0))
+  (define-values (covered count)
+    (let recur ([e e])
+      (syntax-parse e
+        [(v ...)
+         (for/fold ([covered (e->n e)] [count (a->n e)])
+                   ([e (in-syntax e)])
+           (define-values (cov cnt) (recur e))
+           (values (+ covered cov)
+                   (+ count cnt)))]
+        [e:expr (ret #'e)]
+        [_ (values 0 0)])))
+  (values (/ covered count) count))
+
+(module+ test
+  (test-begin
+   (define f (path->string (simplify-path tests/basic/prog.rkt)))
+   (test-files! f)
+   (define covered? (make-covered? (hash-ref (get-test-coverage) f) f))
+   (define-values (result _) (expr-percentage f covered?))
+   (check-equal? result 1)
+   (clear-coverage!)))
