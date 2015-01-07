@@ -43,26 +43,37 @@
           (write-xexpr expr))
         #:exists 'replace)
       output-file))
-  (build-index! coverage file-list dir)
-  (move-support-files! dir))
-
-(define (build-index! coverage file-list dir)
-  (vprintf "building index.html\n")
-  (define %ages (get-percentages/top coverage))
-  (define xexpr
-    `(html
-      (head ()
-            (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
-      (body
-       ,(%s->xexpr %ages)
-       (div ()
-            ,@(for/list ([file file-list])
-                (define f (path->string (apply build-path (rest (explode-path file)))))
-                `(p () (a ([href ,f]) ,f)))))))
+  (define index (build-index coverage file-list))
   (with-output-to-file (build-path dir "index.html")
     #:exists 'replace
-    (thunk
-     (write-xexpr xexpr))))
+    (thunk (write-xexpr index)))
+  (move-support-files! dir))
+
+(define (build-index coverage file-list)
+  (vprintf "building index.html\n")
+  (define %ages (get-percentages/top coverage))
+  `(html
+    (head ()
+          (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
+    (body
+     ,(%s->xexpr %ages)
+     (div ()
+          ,@(for/list ([file file-list])
+              (define f (path->string (apply build-path (rest (explode-path file)))))
+              `(p () (a ([href ,f]) ,f)))))))
+
+(module+ test
+  (define-runtime-path prog.rkt "../tests/basic/prog.rkt")
+  (test-begin
+   (after
+    (test-files! (path->string (simplify-path prog.rkt)))
+    (define coverage (get-test-coverage))
+    (check-equal?
+     (build-index coverage '("./tests/basic/prog.rkt"))
+     `(html (head () (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
+       (body ,(%s->xexpr 1)
+             (div () (p () (a ([href "tests/basic/prog.rkt"]) "tests/basic/prog.rkt"))))))
+    (clear-coverage!))))
 
 (define-runtime-path css "main.css")
 (define (move-support-files! dir)
@@ -120,19 +131,6 @@
        (add1 npos))))
   `(ol ()
     ,@(reverse lines)))
-
-(define (get-mode loc c)
-  (define-values (mode _)
-    (for/fold ([mode 'none] [last-start 0])
-              ([pair c])
-      (match pair
-        [(list m (srcloc _ _ _ start range))
-         (if (and (<= start loc (+ start range))
-                  (or (eq? mode 'none)
-                      (> start last-start)))
-             (values m start)
-             (values mode last-start))])))
-  mode)
 
 (define (encode-char c)
   (case c
