@@ -7,7 +7,7 @@
 
   (define coverage-dir "coverage")
   (define output-format "html")
-  (define exclude-paths '("info.rkt"))
+  (define exclude-paths '("info.rkt" "tests"))
   (define include-exts '())
 
   (define args
@@ -25,7 +25,7 @@
        (verbose #t)]
       #:multi
       [("-e" "--exclude-from-output") t
-       "exclude all paths named this from the coverage report. By default excludes paths named tests"
+       "exclude all paths named this from the coverage report. By default excludes info.rkt and the tests directory"
        (set! exclude-paths (cons t exclude-paths))]
       [("-i" "--include-extentions") f
        "include these extentions in files to cover."
@@ -88,7 +88,7 @@
 
 (module+ test
   (parameterize ([current-directory (build-path "/tests")])
-    (check-equal? (remove-excluded-paths 
+    (check-equal? (remove-excluded-paths
                    (hash "/tests/tests/x.rkt" null
                          "/tests/x/tests/x/x.rkt" null
                          "/tests/x.rkt" null)
