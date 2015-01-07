@@ -67,7 +67,7 @@
                           e
                           (or (syntax-source-file-name e)
                               (syntax-source e)
-                              e)))
+                              (syntax->datum e))))
              (annotate-top
               (if (syntax? e) (expand e) (datum->syntax #f e))
               phase)]
