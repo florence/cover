@@ -7,6 +7,6 @@ before_install:
   - cat ../travis-racket/install-racket.sh | bash
 
 script:
- - /usr/racket/bin/raco pkg install git://github.com/florence/cover
+ - /usr/racket/bin/raco pkg $TRAVIS_BUILD_DIR
  - /usr/racket/bin/raco test $TRAVIS_BUILD_DIR
  - /usr/racket/bin/raco cover -v -c coveralls -d $TRAVIS_BUILD_DIR/coverage $TRAVIS_BUILD_DIR
