@@ -26,7 +26,9 @@
                   (if (verbose)
                       (current-output-port)
                       (open-output-nowhere))])
-    (void (system* (path->string post) coverage-file))))
+    (void (system* (path->string post)
+                   coverage-file
+                   (if (vebose) "-v" "")))))
 
 ;; Maps service name to the environment variable that indicates that the service is to be used.
 (define BUILD-TYPES (hash "travis-ci" "TRAVIS_JOB_ID"))
