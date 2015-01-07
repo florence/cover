@@ -17,15 +17,16 @@
   (define meta-data (determine-build-type))
   (define meta-with-git-info (hash-merge meta-data (get-git-info)))
   (define data (hash-merge json meta-with-git-info))
+  (vprintf "writing json to file ~s\n" coverage-file)
   (with-output-to-file coverage-file
     (thunk (write-json data))
     #:exists 'replace)
-  (when (verbose)
-    (printf "\n\n\nwriting json to file ~s\n" coverage-file)
-    (write-json data (current-output-port))
-    (printf "\n\n\n")
-    (printf "calling ~a\n\n\n" (list (path->string post) coverage-file)))
-  (system* (path->string post) coverage-file))
+  (vprintf "invoking coveralls API")
+  (parameterize ([current-output-port
+                  (if (verbose)
+                      (current-output-port)
+                      (open-output-nowhere))])
+    (void (system* (path->string post) coverage-file))))
 
 ;; Maps service name to the environment variable that indicates that the service is to be used.
 (define BUILD-TYPES (hash "travis-ci" "TRAVIS_JOB_ID"))
@@ -35,6 +36,8 @@
 (define (determine-build-type)
   (define service-name (for/first ([(name var) BUILD-TYPES] #:when (getenv var)) name))
   (define repo-token (getenv "COVERALLS_REPO_TOKEN"))
+  (vprintf "using repo token: ~s\n" repo-token)
+  (vprintf "using service name: ~s\n" service-name)
   (cond [service-name
          (hasheq 'service_name service-name
                  'service_job_id (getenv (hash-ref BUILD-TYPES service-name))

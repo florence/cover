@@ -1,6 +1,10 @@
 #lang racket
 (provide generate-html-coverage)
-(require (only-in xml write-xexpr) "format-utils.rkt" racket/runtime-path)
+(require racket/runtime-path
+         (only-in xml write-xexpr)
+         "format-utils.rkt"
+         "shared.rkt")
+
 
 (module+ test
   (require rackunit "../cover.rkt" racket/runtime-path))
@@ -29,13 +33,17 @@
                         (list "main.css")))))
       (make-directory* output-dir)
       (with-output-to-file output-file
-        (λ () (write-xexpr (make-html-file (hash-ref coverage k) k path-to-css)))
+        (λ ()
+          (define expr (make-html-file (hash-ref coverage k) k path-to-css))
+          (vprintf "writing html coverage for ~s to ~s\n" k output-file)
+          (write-xexpr expr))
         #:exists 'replace)
       output-file))
   (build-index! coverage file-list dir)
   (move-support-files! dir))
 
 (define (build-index! coverage file-list dir)
+  (vprintf "building index.html\n")
   (define %ages (get-percentages/top coverage))
   (define xexpr
     `(html

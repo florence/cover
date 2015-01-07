@@ -1,6 +1,7 @@
 #lang racket
 (provide get-percentages/top get-percentages/file make-covered?)
-(require syntax/modread syntax/parse unstable/sequence syntax-color/racket-lexer)
+(require syntax/modread syntax/parse unstable/sequence syntax-color/racket-lexer
+         "shared.rkt")
 (module+ test (require rackunit "../cover.rkt" racket/runtime-path))
 
 ;;;;; a Coverage is the output of (get-test-coverage)
@@ -97,6 +98,7 @@
 
 ;; Path FileCoverage OffsetFunc -> [Hashof Natural Cover]
 (define (coverage-cache-file f c raw-offset)
+  (vprintf "caching coverage info for ~s\n" f)
   (with-input-from-file f
     (thunk
      (define lexer

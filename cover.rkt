@@ -6,8 +6,10 @@
          racket/function
          syntax/modread
          syntax/parse
+         unstable/syntax
          racket/runtime-path
-         rackunit)
+         rackunit
+         "private/shared.rkt")
 
 
 
@@ -27,6 +29,7 @@
       (define-values (loc type) (get-module-path (build-path p)))
       (case type
         [(zo so)
+         (vprintf "deleting compiled file: ~s\n" loc)
          (delete-file loc)
          (loop)]
         [else (void)])))
@@ -36,11 +39,13 @@
                  [current-compile (make-better-test-compile)])
     (define tests-failed #f)
     (for ([p paths])
+      (vprintf "running file: ~s\n" p)
       (define old-check (current-check-handler))
       (parameterize* ([current-namespace ns]
                       [current-check-handler
                        (lambda x
                          (set! tests-failed #t)
+                         (vprintf "file ~s had failed tests\n" p)
                          (apply old-check x))])
         (eval `(dynamic-require '(file ,p) #f))
         (namespace-require `(file ,p))
@@ -56,11 +61,17 @@
   (define annotate-top (get-annotate-top))
   (lambda (e immediate-eval?)
     (define to-compile
-      (if (eq? reg (namespace-module-registry (current-namespace)))
-          (annotate-top
-           (if (syntax? e) (expand e) (datum->syntax #f e))
-           phase)
-          e))
+      (cond [(eq? reg (namespace-module-registry (current-namespace)))
+             (vprintf "compiling ~s with coverage annotations\n"
+                      (if (not (syntax? e))
+                          e
+                          (or (syntax-source-file-name e)
+                              (syntax-source e)
+                              e)))
+             (annotate-top
+              (if (syntax? e) (expand e) (datum->syntax #f e))
+              phase)]
+            [else e]))
     (compile to-compile immediate-eval?)))
 
 (define-runtime-path cov "coverage.rkt")
@@ -82,6 +93,7 @@
 ;; that srcloc was covered or not
 ;; based on <pkgs>/drracket/drracket/private/debug.rkt
 (define (get-test-coverage)
+  (vprintf "generating test coverage\n")
   ;; can-annotate : (listof (list boolean srcloc))
   ;; boolean is #t => code was run
   ;;            #f => code was not run
