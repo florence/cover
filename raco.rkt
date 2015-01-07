@@ -7,7 +7,7 @@
 
   (define coverage-dir "coverage")
   (define output-format "html")
-  (define exclude-paths '("info.rkt" "tests"))
+  (define exclude-paths '())
   (define include-exts '())
 
   (define args
@@ -23,9 +23,12 @@
       [("-v" "--verbose")
        "Verbose mode"
        (verbose #t)]
+      [("-p" "--exclude-pkg-defaults")
+        "exclude info.rkt, the tests directory, and the scribblings directory from the coverage report"
+        (set! exclude-paths (append '("info.rkt" "tests" "scribblings") exclude-paths))]
       #:multi
       [("-e" "--exclude-from-output") t
-       "exclude all paths named this from the coverage report. By default excludes info.rkt and the tests directory"
+       "exclude any paths named this from the coverage report."
        (set! exclude-paths (cons t exclude-paths))]
       [("-i" "--include-extentions") f
        "include these extentions in files to cover."
