@@ -7,7 +7,7 @@
 
   (define coverage-dir "coverage")
   (define output-format "html")
-  (define exclude-dirs '())
+  (define exclude-paths '("info.rkt"))
   (define include-exts '())
 
   (define args
@@ -25,8 +25,8 @@
        (verbose #t)]
       #:multi
       [("-e" "--exclude-from-output") t
-       "exclude all directories named this from the coverage report. By default excludes dirs named tests"
-       (set! exclude-dirs (cons t exclude-dirs))]
+       "exclude all paths named this from the coverage report. By default excludes paths named tests"
+       (set! exclude-paths (cons t exclude-paths))]
       [("-i" "--include-extentions") f
        "include these extentions in files to cover."
        (set! include-exts (cons f include-exts))]
@@ -41,7 +41,7 @@
       [else (error 'cover "given unknown coverage output format: ~s" output-format)]))
   (printf "generating test coverage for ~s\n" files)
   (define passed (apply test-files! files))
-  (define coverage (remove-dirs (get-test-coverage) exclude-dirs))
+  (define coverage (remove-excluded-paths (get-test-coverage) exclude-paths))
   (printf "dumping coverage info into ~s\n" coverage-dir)
   (generate-coverage coverage coverage-dir)
   (exit
@@ -81,29 +81,32 @@
                        "not-run.rkt"))))
 
 ;; Coverage -> Coverage
-(define (remove-dirs cover dirs)
+(define (remove-excluded-paths cover paths)
   (for/hash ([(k v) cover]
-             #:unless (is-dir? k dirs))
+             #:unless (is-excluded-path? k paths))
     (values k v)))
+
 (module+ test
   (parameterize ([current-directory (build-path "/tests")])
-    (check-equal? (remove-dirs (hash "/tests/tests/x.rkt" null
-                                     "/tests/x/tests/x/x.rkt" null
-                                     "/tests/x.rkt" null)
-                               '("tests"))
+    (check-equal? (remove-excluded-paths 
+                   (hash "/tests/tests/x.rkt" null
+                         "/tests/x/tests/x/x.rkt" null
+                         "/tests/x.rkt" null)
+                   '("tests"))
                   (hash "/tests/x.rkt" null))))
 
 
-;; PathString -> any/c
-(define (is-dir? k dirs)
+;; PathString [ListOf PathString]-> any/c
+(define (is-excluded-path? k paths)
   (define expl (explode-path (->relative k)))
   (ormap (lambda (d) (member (build-path d) expl))
-         dirs))
+         paths))
+
 (module+ test
   (parameterize ([current-directory (build-path "/tests")])
-    (check-not-false (is-dir? "/test/test/x.rkt" '("test")))
-    (check-false (is-dir? "/test/x.rkt" '("test")))
-    (check-false (is-dir? "/test/t/x.rkt" '("test")))))
+    (check-not-false (is-excluded-path? "/test/test/x.rkt" '("test")))
+    (check-false (is-excluded-path? "/test/x.rkt" '("test")))
+    (check-false (is-excluded-path? "/test/t/x.rkt" '("test")))))
 
 ;; PathString -> Path
 (define (->relative path)
@@ -113,6 +116,7 @@
                     (split-at (explode-path path)
                               (length (explode-path (current-directory))))])
         (apply build-path lst))))
+
 (module+ test
   (parameterize ([current-directory (build-path "/test")])
     (check-equal? (->relative "a")
