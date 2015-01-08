@@ -19,7 +19,9 @@ The @exec{raco cover} command accepts the following flags:
                               and submit the report to coveralls using that repo token. It should be
                               noted that, for the moment, coveralls requires both bash and curl to
                               run.
-                              This is also suitable for pushing to coveralls from Travis CI.}]}
+                              This is also suitable for pushing to coveralls from Travis CI.}
+                        @item{raw: @racket[write]s the raw output @racket[get-test-coverage] to the
+                              output file.}]}
 
          @item{@Flag{d} or @DFlag{directory}
                --- Specifies the directory output the coverage too.

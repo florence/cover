@@ -3,6 +3,8 @@
          "private/raw.rkt" racket/contract)
 (provide
  (contract-out
+  [coverage/c contract?]
+  [file-coverage/c contract?]
   [test-files! (->* () () #:rest (listof path-string?) any/c)]
   [clear-coverage! (-> any)]
   [get-test-coverage (-> coverage/c)]

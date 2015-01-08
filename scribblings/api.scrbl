@@ -17,7 +17,7 @@ fail. Test coverage info is added to existing coverage info.}
 
 @defproc[(clear-coverage!) any]{Clears all coverage information.}
 
-@defproc[(get-coverage-information) coverage/c]{Gets the current coverage information.}
+@defproc[(get-test-coverage) coverage/c]{Gets the current coverage information.}
 @defproc[(make-covered? (coverage file-coverage/c) (path path-string?))
          (->* (exact-positive-integer?)
             (#:byte? boolean?)
