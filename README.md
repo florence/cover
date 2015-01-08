@@ -22,8 +22,6 @@ highlighted source code.
 
 For more detailed usage see [the full documentation](http://pkg-build.racket-lang.org/doc/cover/index.html).
 
-If any tests run by `rackunit` fail, Cover will return with exit code `1`. If all tests pass it will return with exit code `0`.
-
 ## Use with TravisCI
 
 If your code is hosted on a public github repo then you can use this plugin in conjunction with [TravisCI](https://travis-ci.org/) and [Coveralls](https://coveralls.io/).
