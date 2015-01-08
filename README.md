@@ -35,10 +35,11 @@ before_install:
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
   - cat ../travis-racket/install-racket.sh | bash
 
+install: /usr/racket/bin/raco pkg install --deps search-auto $TRAVIS_BUILD_DIR # install dependencies
+
 script:
- - /usr/racket/bin/raco pkg install --deps search-auto $TRAVIS_BUILD_DIR # install dependencies
  - /usr/racket/bin/raco test $TRAVIS_BUILD_DIR # run tests. you wrote tests, right?
- - /usr/racket/bin/raco cover -c coveralls -d $TRAVIS_BUILD_DIR/coverage . # generate coverage information
+ - /usr/racket/bin/raco cover -c coveralls -d $TRAVIS_BUILD_DIR/coverage . # generate coverage information for coveralls
 ```
 The above Travis configuration will install any project dependencies, test your project, and report coverage information to coveralls.
 
