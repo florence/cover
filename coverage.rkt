@@ -1,3 +1,3 @@
-(module coverage '#%kernel 
+(module coverage '#%kernel
   (#%provide coverage)
   (define-values (coverage) (make-hash)))

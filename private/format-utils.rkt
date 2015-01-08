@@ -1,8 +1,17 @@
-#lang racket
+#lang racket/base
 (provide make-covered?)
-(require syntax/modread syntax/parse unstable/sequence syntax-color/racket-lexer
+(require racket/file
+         racket/function
+         racket/list
+         racket/match
+         racket/port
+         racket/set
+         syntax-color/racket-lexer
+         syntax/modread
+         syntax/parse
          "shared.rkt")
-(module+ test (require rackunit "../cover.rkt" racket/runtime-path))
+
+(module+ test (require rackunit "../cover.rkt" racket/runtime-path racket/set))
 
 ;;;;; a Coverage is the output of (get-test-coverage)
 ;;;;; a FileCoverage is the values of the hashmap from (get-test-coverage)
@@ -45,7 +54,7 @@
 ;; TODO should we only ignore test (and main) submodules?
 (define (make-irrelevant? lexer f)
   (define s (mutable-set))
-  (define-values (for-lex for-str) (dup-input-port (current-input-port)))
+  (define-values (for-lex for-str) (replicate-input-port (current-input-port)))
   (define str (apply vector (string->list (port->string for-str))))
   (define init-offset (- (string-length (file->string f))
                          (vector-length str)))
@@ -82,7 +91,7 @@
       [_else (void)]))
   (lambda (i) (set-member? s i)))
 
-(define (dup-input-port p)
+(define (replicate-input-port p)
   (define-values (i1 o1) (make-pipe))
   (define-values (i2 o2) (make-pipe))
   (copy-port p o1 o2)

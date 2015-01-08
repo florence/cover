@@ -1,9 +1,22 @@
-#lang racket
+#lang racket/base
 (provide generate-coveralls-coverage)
-(require racket/runtime-path json "format-utils.rkt" "shared.rkt" racket/pretty)
+(require json
+         racket/file
+         racket/function
+         racket/list
+         racket/path
+         racket/port
+         racket/pretty
+         racket/runtime-path
+         racket/string
+         racket/system
+         "format-utils.rkt"
+         "shared.rkt")
+
 
 (module+ test
-  (require rackunit "../cover.rkt" racket/runtime-path))
+  (require rackunit "../cover.rkt" racket/runtime-path)
+  (require (for-syntax racket/base)))
 
 ;; Coveralls
 

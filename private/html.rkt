@@ -1,6 +1,12 @@
-#lang racket
+#lang racket/base
 (provide generate-html-coverage)
-(require racket/runtime-path
+(require racket/file
+         racket/format
+         racket/function
+         racket/list
+         racket/match
+         racket/runtime-path
+         racket/string
          syntax/modread
          syntax/parse
          unstable/sequence
@@ -10,7 +16,7 @@
 
 
 (module+ test
-  (require rackunit "../cover.rkt" racket/runtime-path)
+  (require rackunit "../cover.rkt" racket/runtime-path racket/set)
   (define-runtime-path root "..")
   (define-runtime-path tests/basic/prog.rkt "../tests/basic/prog.rkt"))
 

@@ -1,7 +1,10 @@
-#lang racket
-(require raco/command-name "cover.rkt" "format.rkt" "private/shared.rkt")
+#lang racket/base
+(require racket/list racket/cmdline raco/command-name
+         "main.rkt"
+         "private/shared.rkt")
+
 (module+ test
-  (require rackunit racket/runtime-path))
+  (require rackunit racket/runtime-path racket/set))
 
 (module+ main
 

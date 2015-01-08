@@ -1,6 +1,6 @@
 #lang racket/base
 (require "cover.rkt" "format.rkt" "private/contracts.rkt" "private/format-utils.rkt"
-         racket/contract)
+         "private/raw.rkt" racket/contract)
 (provide
  (contract-out
   [test-files! (->* () () #:rest (listof path-string?) any/c)]
@@ -12,4 +12,5 @@
             (#:byte? boolean?)
             (or/c 'yes 'no 'missing)))]
   [generate-coveralls-coverage (->* (coverage/c) (path-string?) any)]
-  [generate-html-coverage (->* (coverage/c) (path-string?) any)]))
+  [generate-html-coverage (->* (coverage/c) (path-string?) any)]
+  [generate-raw-coverage (->* (coverage/c) (path-string?) any)]))
