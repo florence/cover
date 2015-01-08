@@ -50,10 +50,8 @@
   (define coverage (remove-excluded-paths (get-test-coverage) exclude-paths))
   (printf "dumping coverage info into ~s\n" coverage-dir)
   (generate-coverage coverage coverage-dir)
-  (exit
-   (case passed
-     [(#t) 0]
-     [(#f) 1])))
+  (unless passed
+    (printf "some tests failed\n")))
 
 ;; TODO allow for arbitrary extensions
 (define extensions '(#rx"\\.rkt$" #rx"\\.ss$"))
