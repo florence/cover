@@ -10,3 +10,5 @@
   '(("cover" (submod cover/raco main) "a code coverage tool" 30)))
 
 (define scribblings '(("scribblings/cover.scrbl" (multi-page))))
+
+(define test-omit-paths (list "tests/error-file.rkt"))

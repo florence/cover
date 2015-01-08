@@ -8,5 +8,5 @@ before_install:
 
 script:
  - /usr/racket/bin/raco pkg install $TRAVIS_BUILD_DIR
- - /usr/racket/bin/raco test $TRAVIS_BUILD_DIR
+ - /usr/racket/bin/raco test -Q $TRAVIS_BUILD_DIR
  - /usr/racket/bin/raco cover -c coveralls -d $TRAVIS_BUILD_DIR/coverage -p $TRAVIS_BUILD_DIR

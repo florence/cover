@@ -9,6 +9,7 @@
          unstable/syntax
          racket/runtime-path
          rackunit
+         unstable/error
          "private/shared.rkt")
 
 
@@ -40,17 +41,20 @@
     (for ([p paths])
       (vprintf "running file: ~s\n" p)
       (define old-check (current-check-handler))
-      (parameterize* ([current-namespace ns]
-                      [current-check-handler
-                       (lambda x
-                         (set! tests-failed #t)
-                         (vprintf "file ~s had failed tests\n" p)
-                         (apply old-check x))])
-        (eval `(dynamic-require '(file ,p) #f))
-        (namespace-require `(file ,p))
-        (define submod `(submod (file ,p) test))
-        (when (module-declared? submod)
-          (namespace-require submod))))
+      (with-handlers ([void (lambda (x)
+                              (set! tests-failed #t)
+                              (error-display x))])
+        (parameterize* ([current-namespace ns]
+                        [current-check-handler
+                         (lambda x
+                           (set! tests-failed #t)
+                           (vprintf "file ~s had failed tests\n" p)
+                           (apply old-check x))])
+          (eval `(dynamic-require '(file ,p) #f))
+          (namespace-require `(file ,p))
+          (define submod `(submod (file ,p) test))
+          (when (module-declared? submod)
+            (namespace-require submod)))))
     (not tests-failed)))
 
 (define (make-better-test-compile)
