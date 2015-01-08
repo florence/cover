@@ -19,7 +19,7 @@
 ;; PathString * -> Boolean
 ;; Test files and build coverage map
 ;; returns true if all tests passed
-(define (test-files! . paths)
+(define (test-files!  #:submod [submod-name 'test] . paths)
   (for ([path paths])
     (define p
       (if (absolute-path? path)
@@ -52,7 +52,7 @@
                            (apply old-check x))])
           (eval `(dynamic-require '(file ,p) #f))
           (namespace-require `(file ,p))
-          (define submod `(submod (file ,p) test))
+          (define submod `(submod (file ,p) ,submod-name))
           (when (module-declared? submod)
             (namespace-require submod)))))
     (not tests-failed)))

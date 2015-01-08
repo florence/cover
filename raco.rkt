@@ -12,6 +12,7 @@
   (define output-format "html")
   (define exclude-paths '())
   (define include-exts '())
+  (define submod 'test)
 
   (define args
      (command-line
@@ -36,6 +37,9 @@
       [("-i" "--include-extentions") f
        "include these extentions in files to cover."
        (set! include-exts (cons f include-exts))]
+      [("-s" "--submodule") s
+       "Run the given submodule instead of the test submodule"
+       (set! submod (string->symbol s))]
       #:args (file . files)
       (cons file files)))
   (define files (expand-directories args include-exts))
@@ -46,7 +50,7 @@
       [("raw") generate-raw-coverage]
       [else (error 'cover "given unknown coverage output format: ~s" output-format)]))
   (printf "generating test coverage for ~s\n" files)
-  (define passed (apply test-files! files))
+  (define passed (keyword-apply test-files! '(#:submod) (list submod) files))
   (define coverage (remove-excluded-paths (get-test-coverage) exclude-paths))
   (printf "dumping coverage info into ~s\n" coverage-dir)
   (generate-coverage coverage coverage-dir)
