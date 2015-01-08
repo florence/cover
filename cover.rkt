@@ -10,6 +10,7 @@
          racket/runtime-path
          rackunit
          unstable/error
+         racket/port
          "private/shared.rkt")
 
 
@@ -36,7 +37,8 @@
   (parameterize ([use-compiled-file-paths
                   (cons (build-path "compiled" "better-test")
                         (use-compiled-file-paths))]
-                 [current-compile (make-better-test-compile)])
+                 [current-compile (make-better-test-compile)]
+                 [current-output-port (open-output-nowhere)])
     (define tests-failed #f)
     (for ([p paths])
       (vprintf "running file: ~s\n" p)
