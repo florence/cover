@@ -1,6 +1,11 @@
 #lang racket/base
 (require racket/list racket/cmdline raco/command-name
+         setup/getinfo
+         racket/match
+         racket/contract/base
+         racket/function
          "main.rkt"
+         (only-in "private/contracts.rkt" coverage-gen/c)
          "private/shared.rkt")
 
 (module+ test
@@ -44,11 +49,8 @@
       (cons file files)))
   (define files (expand-directories args include-exts))
   (define generate-coverage
-    (case output-format
-      [("html") generate-html-coverage]
-      [("coveralls") generate-coveralls-coverage]
-      [("raw") generate-raw-coverage]
-      [else (error 'cover "given unknown coverage output format: ~s" output-format)]))
+    (hash-ref (get-formats) output-format
+              (lambda _ (error 'cover "given unknown coverage output format: ~s" output-format))))
   (printf "generating test coverage for ~s\n" files)
   (define passed (keyword-apply test-files! '(#:submod) (list submod) files))
   (define coverage (remove-excluded-paths (get-test-coverage) exclude-paths))
@@ -148,3 +150,37 @@
                   (build-path "a"))
     (check-equal? (->relative "/test/a/b")
                   (build-path "a" "b"))))
+
+
+(define (get-formats)
+  (define dirs (find-relevant-directories '(cover-formats) 'all-available))
+  (for*/hash ([d (in-list dirs)]
+              [f (in-value (get-info/full/skip d))]
+              #:when f
+              [v (in-value (f 'cover-formats (const #f)))]
+              #:when v
+              [l (in-list v)])
+    (with-handlers ([exn:misc:match? (make-cover-load-error d l)])
+      (match-define (list (? string? name) (? module-path? path) (? symbol? ident)) l)
+      (define f (dynamic-require path ident (make-cover-require-error ident path)))
+      (values
+       name
+       (contract coverage-gen/c f 'cover ident ident #f)))))
+
+(define ((make-cover-load-error dir v) . _)
+  (error 'cover "unable to load coverage format from ~s. Found unusable value ~s"
+         dir v))
+(define ((make-cover-require-error ident path))
+  (error 'cover "unable to load symbol ~s from ~s" ident path))
+
+(define (get-info/full/skip dir)
+  (with-handlers ([exn:fail? (const #f)])
+    (get-info/full dir)))
+
+(module+ test
+  (test-begin
+   ;; we expect that a standard install has "html", "coveralls", and "raw"
+   (define h (get-formats))
+   (check-true (hash-has-key? h "html"))
+   (check-true (hash-has-key? h "coveralls"))
+   (check-true (hash-has-key? h "raw"))))

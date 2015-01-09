@@ -12,3 +12,7 @@
 (define scribblings '(("scribblings/cover.scrbl" (multi-page))))
 
 (define test-omit-paths (list "tests/error-file.rkt"))
+
+(define cover-formats '(("html" cover generate-html-coverage)
+                        ("coveralls" cover generate-coveralls-coverage)
+                        ("raw" cover generate-raw-coverage)))

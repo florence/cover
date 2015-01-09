@@ -11,5 +11,6 @@ Cover is a test coverage tool. It is designed to be used in addition to raco tes
 
 @include-section["basics.scrbl"]
 @include-section["api.scrbl"]
+@include-section["plugins.scrbl"]
 
 @index-section[]

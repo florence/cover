@@ -13,6 +13,6 @@
        (->* (exact-positive-integer?)
             (#:byte? boolean?)
             (or/c 'yes 'no 'missing)))]
-  [generate-coveralls-coverage (->* (coverage/c) (path-string?) any)]
-  [generate-html-coverage (->* (coverage/c) (path-string?) any)]
-  [generate-raw-coverage (->* (coverage/c) (path-string?) any)]))
+  [generate-coveralls-coverage coverage-gen/c]
+  [generate-html-coverage coverage-gen/c]
+  [generate-raw-coverage coverage-gen/c]))
