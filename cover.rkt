@@ -15,12 +15,13 @@
 
 
 
-(define ns (make-base-namespace))
+(define ns #f)
 
 ;; PathString * -> Boolean
 ;; Test files and build coverage map
 ;; returns true if all tests passed
 (define (test-files!  #:submod [submod-name 'test] . paths)
+  (unless ns (unloaded-error))
   (for ([path paths])
     (define p
       (if (absolute-path? path)
@@ -91,10 +92,9 @@
   (parameterize ([current-namespace ns])
     (namespace-require `(file ,(path->string cov)))
     (namespace-require `(file ,(path->string strace)))
-    (namespace-require 'rackunit)))
-
-;; A little hack to setup coverage for the first time
-(clear-coverage!)
+    (namespace-require 'rackunit))
+  (load-annotate-top!)
+  (load-raw-coverage!))
 
 ;; -> [Hashof PathString (Listof (List Boolean srcloc))]
 ;; returns a hash of file to a list, where the first of the list is if
@@ -151,9 +151,23 @@
                   null))
   out)
 
+(define ann-top #f)
 (define (get-annotate-top)
-  (get-ns-var 'annotate-top))
+  (or ann-top (unloaded-error)))
+(define (load-annotate-top!)
+  (set! ann-top (get-ns-var 'annotate-top)))
+
+(define raw-cover #f)
 (define (get-raw-coverage)
-  (get-ns-var 'coverage))
+  (or raw-cover (unloaded-error)))
+(define (load-raw-coverage!)
+  (set! raw-cover (get-ns-var 'coverage)))
+
+(define (unloaded-error)
+  (error 'cover "Test coverage not loaded."))
+
 (define (get-ns-var sym)
   (namespace-variable-value sym #t #f ns))
+
+;; A little hack to setup coverage for the first time
+(clear-coverage!)
