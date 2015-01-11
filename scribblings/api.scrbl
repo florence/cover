@@ -29,7 +29,8 @@ coverage information for that file @racket[make-covered?] returns
 a functions that determins if some @racket[1] indexed character or byte location
 in that file is covered. There are three possible results:
 @itemize[@item{@racket['missing] --- The location is not in the
-coverage information, is a comment, or is in a submodule}
+coverage information, is in a submodule, or lexes (in the sense of that languages
+@racket[_color-lexer]) as a comment or whitespace.}
 @item{@racket['yes] --- The location is not @racket['missing] and is
 covered} @item{@racket['no] --- The location is not @racket['missing]
 and is not covered}]
