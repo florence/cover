@@ -9,7 +9,7 @@ In addition to a raco tool Cover provides racket bindings for running
 tests and collecting coverage information. The following are the basic
 functions of test coverage.
 
-@defproc[(test-files! (#:submod submod symbol? 'test) (files path-string?) ...) any/c]{
+@defproc[(test-files! (#:submod submod symbol? 'test) (files path-string?) ...) any]{
 
 Runs all given @racket[files] and there submodule @racket[submod] (if it exists),
 storing the coverage information. Returns false if tests failed. Test coverage
