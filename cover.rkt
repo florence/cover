@@ -38,7 +38,7 @@
                               (set! tests-failed #t)
                               (error-display x))])
         (parameterize* ([current-namespace ns]
-                        [current-check-handler
+                        [(get-check-handler-parameter)
                          (lambda x
                            (set! tests-failed #t)
                            (vprintf "file ~s had failed tests\n" p)
@@ -102,13 +102,13 @@
   ;(dict-clear! coverage)
   (set! ns (make-base-namespace))
   ;(namespace-attach-module (current-namespace) cov ns)
-  (namespace-attach-module (current-namespace) 'rackunit ns)
   (parameterize ([current-namespace ns])
     (namespace-require `(file ,(path->string cov)))
     (namespace-require `(file ,(path->string strace)))
     (namespace-require 'rackunit))
   (load-annotate-top!)
-  (load-raw-coverage!))
+  (load-raw-coverage!)
+  (load-current-check-handler!))
 
 ;; -> [Hashof PathString (Listof (List Boolean srcloc))]
 ;; returns a hash of file to a list, where the first of the list is if
@@ -176,6 +176,12 @@
   (or raw-cover (unloaded-error)))
 (define (load-raw-coverage!)
   (set! raw-cover (get-ns-var 'coverage)))
+
+(define cch #f)
+(define (load-current-check-handler!)
+  (set! cch (get-ns-var 'current-check-handler)))
+(define (get-check-handler-parameter)
+  (or cch (unloaded-error)))
 
 (define (unloaded-error)
   (error 'cover "Test coverage not loaded."))
