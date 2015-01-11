@@ -11,7 +11,7 @@ functions of test coverage.
 
 @defproc[(test-files! (#:submod submod symbol? 'test) (files path-string?) ...) any/c]{
 
-Runs all given @racket[files] and there submodule @racket[submod] (if it exitsts),
+Runs all given @racket[files] and there submodule @racket[submod] (if it exists),
 storing the coverage information. Returns false if tests failed. Test coverage
 information is still collected when test fail. Test coverage info is added to
 existing coverage info.}
@@ -26,7 +26,7 @@ existing coverage info.}
          ]{
 Given some location in a file and the
 coverage information for that file @racket[make-covered?] returns
-a functions that determins if some @racket[1] indexed character or byte location
+a functions that determines if some @racket[1] indexed character or byte location
 in that file is covered. There are three possible results:
 @itemize[@item{@racket['missing] --- The location is not in the
 coverage information, is in a submodule, or lexes (in the sense of that languages
@@ -47,7 +47,7 @@ formats. Equivalent to the specifications of the @Flag{c} argument to
                          #:value (hash/c (and/c path-string? absolute-path?)
                                          file-coverage/c)]
                 @defthing[file-coverage/c contract? #:value (listof (list/c boolean? srcloc?))])]{
-Coverage infomation is a hash map mapping absolute
+Coverage information is a hash map mapping absolute
 file paths to a list detailing the coverage of that file. The coverage
 information is a list of lists, mapping a boolean to a range of
 characters within the file. True means the @racket[srcloc] structure

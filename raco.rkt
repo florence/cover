@@ -39,8 +39,8 @@
       [("-e" "--exclude-from-output") t
        "exclude any paths named this from the coverage report."
        (set! exclude-paths (cons t exclude-paths))]
-      [("-i" "--include-extentions") f
-       "include these extentions in files to cover."
+      [("-i" "--include-extensions") f
+       "include these extensions in files to cover."
        (set! include-exts (cons f include-exts))]
       [("-s" "--submodule") s
        "Run the given submodule instead of the test submodule"

@@ -32,7 +32,7 @@ The @exec{raco cover} command accepts the following flags:
                outputted coverage. This flag may appear any number of times.}
          @item{@Flag{p} or @DFlag{exclude-pkg-defaults}
                Equivalent to @exec{-e tests -e info.rkt -e scribblings}}
-         @item{@Flag{i} or @DFlag{include-extentions}
+         @item{@Flag{i} or @DFlag{include-extensions}
                --- include the given regular expression in the list of file patterns
                    used when expanding directories, searching for files to cover.}
          @item{@Flag{v} or @DFlag{verbose}
