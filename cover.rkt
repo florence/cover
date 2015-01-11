@@ -10,6 +10,7 @@
          racket/runtime-path
          rackunit
          unstable/error
+         racket/list
          racket/port
          "private/shared.rkt")
 
@@ -22,20 +23,9 @@
 ;; returns true if all tests passed
 (define (test-files!  #:submod [submod-name 'test] . paths)
   (unless ns (unloaded-error))
-  (for ([path paths])
-    (define p
-      (if (absolute-path? path)
-          path
-          (path->string (simplify-path (build-path (current-directory) path)))))
-    (let loop ()
-      (define-values (loc type) (get-module-path (build-path p)))
-      (case type
-        [(zo so)
-         (vprintf "deleting compiled file: ~s\n" loc)
-         (delete-file loc)
-         (loop)]
-        [else (void)])))
-  (parameterize ([use-compiled-file-paths
+  (define abs (map ->absolute paths))
+  (parameterize ([current-load/use-compiled (make-cover-load/use-compiled paths)]
+                 [use-compiled-file-paths
                   (cons (build-path "compiled" "cover")
                         (use-compiled-file-paths))]
                  [current-compile (make-cover-compile)]
@@ -59,6 +49,30 @@
           (when (module-declared? submod)
             (namespace-require submod)))))
     (not tests-failed)))
+
+(define o (current-output-port))
+(define (make-cover-load/use-compiled paths)
+  (define load/use-compiled (current-load/use-compiled))
+  (define load (current-load))
+  (lambda (path sym)
+    (define abs (->absolute path))
+    (define lst (explode-path abs))
+    (define dir-list (take lst (sub1 (length lst))))
+    (parameterize ([current-load-relative-directory (apply build-path dir-list)])
+      (if (member abs paths)
+          (load path sym)
+          (load/use-compiled path sym)))))
+
+(define (->absolute path)
+  (if (absolute-path? path)
+      (if (string? path) path (path->string path))
+      (path->string (simplify-path (build-path (current-directory) path)))))
+(module+ test
+  (parameterize ([current-directory (build-path "/")])
+    (check-equal? (->absolute "a") "/a")
+    (check-equal? (->absolute "/a") "/a")
+    (check-equal? (->absolute (build-path "a")) "/a")
+    (check-equal? (->absolute (build-path "/a")) "/a")))
 
 (define (make-cover-compile)
   (define compile (current-compile))
