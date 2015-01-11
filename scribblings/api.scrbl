@@ -50,7 +50,7 @@ formats. Equivalent to the specifications of the @Flag{c} argument to
 Coverage infomation is a hash map mapping absolute
 file paths to a list detailing the coverage of that file. The coverage
 information is a list of lists, mapping a boolean to a range of
-characters within the file. True means @racket[srcloc] structure
+characters within the file. True means the @racket[srcloc] structure
 represents an expression that was run, and False means the structure
 represents an expression that was not run. Not that not all
 expressions may be represented directly in this coverage
