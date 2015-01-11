@@ -36,9 +36,9 @@
          (loop)]
         [else (void)])))
   (parameterize ([use-compiled-file-paths
-                  (cons (build-path "compiled" "better-test")
+                  (cons (build-path "compiled" "cover")
                         (use-compiled-file-paths))]
-                 [current-compile (make-better-test-compile)]
+                 [current-compile (make-cover-compile)]
                  [current-output-port (open-output-nowhere)])
     (define tests-failed #f)
     (for ([p paths])
@@ -60,7 +60,7 @@
             (namespace-require submod)))))
     (not tests-failed)))
 
-(define (make-better-test-compile)
+(define (make-cover-compile)
   (define compile (current-compile))
   (define reg (namespace-module-registry ns))
   (define phase (namespace-base-phase ns))
