@@ -12,9 +12,8 @@
          unstable/error
          racket/list
          racket/port
-         "private/shared.rkt")
-
-
+         "private/shared.rkt"
+         "private/file-utils.rkt")
 
 (define ns #f)
 
@@ -63,17 +62,6 @@
       (if (member abs paths)
           (load path sym)
           (load/use-compiled path sym)))))
-
-(define (->absolute path)
-  (if (absolute-path? path)
-      (if (string? path) path (path->string path))
-      (path->string (simplify-path (build-path (current-directory) path)))))
-(module+ test
-  (parameterize ([current-directory (build-path "/")])
-    (check-equal? (->absolute "a") "/a")
-    (check-equal? (->absolute "/a") "/a")
-    (check-equal? (->absolute (build-path "a")) "/a")
-    (check-equal? (->absolute (build-path "/a")) "/a")))
 
 (define (make-cover-compile)
   (define compile (current-compile))

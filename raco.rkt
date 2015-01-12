@@ -7,6 +7,7 @@
          "main.rkt"
          (only-in "private/contracts.rkt" coverage-gen/c)
          "private/shared.rkt"
+         "private/file-utils.rkt"
          (only-in (submod compiler/commands/test paths) collection-paths)
          pkg/lib)
 
@@ -102,25 +103,67 @@
                        "private/contracts.rkt"
                        "private/html.rkt"
                        "private/format-utils.rkt"
+                       "private/file-utils.rkt"
                        "private/shared.rkt"
                        "private/raw.rkt"))))
 
 ;; -> (HorribyNestedListsOf PathString)
-(define (expand-directory exts)
-  (for/list ([p (directory-list)])
-    (cond [(directory-exists? p)
-           (parameterize ([current-directory (build-path (current-directory) p)])
-             (expand-directory exts))]
-          [(ormap (lambda (r) (regexp-match r (path->string p))) exts)
-           (path->string (build-path (current-directory) p))]
-          [else null])))
+(define (expand-directory exts [omit-paths null])
+  (define new-omits (get-info-var (current-directory) 'test-omit-paths))
+  (define expanded-omits
+    (case new-omits
+      [(#f) null]
+      [(all) (->absolute (current-directory))]
+      [else (map ->absolute new-omits)]))
+  (define full-omits (append expanded-omits omit-paths))
+  (if (should-omit? (current-directory) full-omits)
+      null
+      (for/list ([p (directory-list)])
+        (cond [(directory-exists? p)
+               (parameterize ([current-directory (build-path (current-directory) p)])
+                 (expand-directory exts full-omits))]
+              [(ormap (lambda (r) (regexp-match r (path->string p))) exts)
+               (define path (path->string (build-path (current-directory) p)))
+               (if (should-omit? path full-omits) null path)]
+              [else null]))))
 (module+ test
   (define-runtime-path cur ".")
   (parameterize ([current-directory (build-path cur "tests/basic")])
     (check-equal? (list->set (map (compose path->string ->relative)
                                   (flatten (expand-directory extensions))))
                   (set "prog.rkt"
-                       "not-run.rkt"))))
+                       "not-run.rkt")))
+  (parameterize ([current-directory cur])
+    (define omit (map ->absolute (get-info-var cur 'test-omit-paths)))
+    (define dirs (map ->absolute (flatten (expand-directory extensions))))
+    (for ([o omit])
+      (check-false (member o dirs)
+                   (format "~s ~s" o dirs)))))
+
+;; path symbol -> any
+(define (get-info-var path sym)
+  (define f (get-info/full path))
+  (and f (f sym)))
+
+;; path (listof absolute-paths) -> boolean
+(define (should-omit? path omits)
+  (define epath (explode-path (->absolute path)))
+  (for/or ([o omits])
+    (define eo (explode-path (->absolute o)))
+    (let loop ([eo eo] [ep epath])
+      (cond [(and (null? eo) (null? ep)) #t]
+            [(null? eo) #t]
+            [(null? ep) #f]
+            [(equal? (car eo) (car ep))
+             (loop (cdr eo) (cdr ep))]
+            [else #f]))))
+
+(module+ test
+  (check-true (should-omit? "/Test/t.rkt" '("/Test")))
+  (check-true (should-omit? "/Test/t.rkt" '("/Test/t.rkt")))
+  (check-true (should-omit? "/Users/florence/playground/cover/tests/error-file.rkt"
+                            '("/Users/florence/playground/cover/tests/error-file.rkt")))
+  (check-false (should-omit? "/Test/t.rkt" '("/OtherDir"))))
 
 ;; Coverage -> Coverage
 (define (remove-excluded-paths cover paths)
@@ -149,23 +192,6 @@
     (check-not-false (is-excluded-path? "/test/test/x.rkt" '("test")))
     (check-false (is-excluded-path? "/test/x.rkt" '("test")))
     (check-false (is-excluded-path? "/test/t/x.rkt" '("test")))))
-
-;; PathString -> Path
-(define (->relative path)
-  (if (relative-path? path)
-      (build-path path)
-      (let-values ([(_ lst)
-                    (split-at (explode-path path)
-                              (length (explode-path (current-directory))))])
-        (apply build-path lst))))
-
-(module+ test
-  (parameterize ([current-directory (build-path "/test")])
-    (check-equal? (->relative "a")
-                  (build-path "a"))
-    (check-equal? (->relative "/test/a/b")
-                  (build-path "a" "b"))))
-
 
 (define (get-formats)
   (define dirs (find-relevant-directories '(cover-formats) 'all-available))
