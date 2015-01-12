@@ -2,7 +2,7 @@
 (define name "cover")
 (define collection "cover")
 (define deps '("base" "errortrace-lib" "rackunit-lib"
-               "syntax-color-lib"))
+               "syntax-color-lib" "compiler-lib"))
 (define build-deps
   '("racket-doc" "scribble-lib" "typed-racket-doc"))
 

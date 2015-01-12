@@ -38,4 +38,11 @@ The @exec{raco cover} command accepts the following flags:
                --- enable verbose logging}
          @item{@Flag{s} or @DFlag{submod}
                --- run the given submodule instead of the test submodule.}
-         ]
+         @item{@Flag{c} or @DFlag{collection}
+               --- Interprets the arguments as collections whose content should be
+               tested (in the same way as directory content).}
+         @item{@Flag{p} or @DFlag{package}
+               --- Interprets the arguments as packages whose contents should be tested
+               (in the same way as directory content). All package scopes are searched
+               for the first, most specific
+               @tech[#:doc '(lib "pkg/scribblings/pkg.scrbl")]{package scope}.}]

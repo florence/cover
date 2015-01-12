@@ -6,7 +6,10 @@
          racket/function
          "main.rkt"
          (only-in "private/contracts.rkt" coverage-gen/c)
-         "private/shared.rkt")
+         "private/shared.rkt"
+         (only-in (submod compiler/commands/test paths) collection-paths)
+         pkg/lib)
+
 
 (module+ test
   (require rackunit racket/runtime-path racket/set))
@@ -18,6 +21,7 @@
   (define exclude-paths '())
   (define include-exts '())
   (define submod 'test)
+  (define expansion-type 'dir)
 
   (define args
      (command-line
@@ -45,9 +49,20 @@
       [("-s" "--submodule") s
        "Run the given submodule instead of the test submodule"
        (set! submod (string->symbol s))]
+      #:once-any
+      [("-c" "--collection") "Interprets the arguments as collections whose content should be tested (in the same way as directory content)."
+       (set! expansion-type 'collection)]
+      [("-p" "--package") "Interprets the arguments as packages whose contents should be tested (in the same way as directory content)."
+       (set! expansion-type 'package)]
       #:args (file . files)
       (cons file files)))
-  (define files (expand-directories args include-exts))
+  (define path-expand
+    (case expansion-type
+      [(dir) expand-directories]
+      [(collection) (lambda (a b) (expand-directories (flatten (map collection-paths a)) b))]
+      [(package) (lambda (a b)
+                   (expand-directories (map pkg-directory a) b))]))
+  (define files (path-expand args include-exts))
   (define generate-coverage
     (hash-ref (get-formats) output-format
               (lambda _ (error 'cover "given unknown coverage output format: ~s" output-format))))
