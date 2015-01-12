@@ -175,9 +175,9 @@
 (define (mode-xml mode body)
   (define class
     (case mode
-      [(yes) "covered"]
-      [(no) "uncovered"]
-      [(missing) "missing"]))
+      [(covered) "covered"]
+      [(uncovered) "uncovered"]
+      [(irrelevant) "irrelevant"]))
   `(span ((class ,class)) ,body))
 
 (module+ test
@@ -198,7 +198,7 @@
           ,@(for/list ([l (rest (string-split (file->string f) "\n"))])
               `(li ()
                 ,@(for/list ([c l])
-                    `(span ((class ,(if (equal? c #\space) "missing" "covered")))
+                    `(span ((class ,(if (equal? c #\space) "irrelevant" "covered")))
                       ,(encode-char c))))))))
 
 
@@ -247,10 +247,10 @@
     (values (e->n e) (a->n e)))
   (define (a->n e)
     (case (is-covered? e)
-      [(yes no) 1]
+      [(covered uncovered) 1]
       [else 0]))
   (define (e->n e)
-    (if (eq? (is-covered? e) 'yes) 1 0))
+    (if (eq? (is-covered? e) 'covered) 1 0))
   (define-values (covered count)
     (let recur ([e e])
       (syntax-parse e

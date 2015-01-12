@@ -12,7 +12,7 @@
    (-> file-coverage/c path-string?
        (->* (exact-positive-integer?)
             (#:byte? boolean?)
-            (or/c 'yes 'no 'missing)))]
+            (or/c 'covered 'uncovered 'irrelevant)))]
   [generate-coveralls-coverage coverage-gen/c]
   [generate-html-coverage coverage-gen/c]
   [generate-raw-coverage coverage-gen/c]))

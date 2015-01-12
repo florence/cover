@@ -120,20 +120,20 @@
   (define file-coverage (hash-ref coverage file))
   (define (process-coverage value rst-of-line)
     (case (covered? value)
-      ['yes (if (equal? 'no rst-of-line) rst-of-line 'yes)]
-      ['no 'no]
+      ['covered (if (equal? 'uncovered rst-of-line) rst-of-line 'covered)]
+      ['uncovered 'uncovered]
       [else rst-of-line]))
   (define (process-coverage-value value)
     (case value
-      ['yes 1]
-      ['no 0]
+      ['covered 1]
+      ['uncovered 0]
       [else (json-null)]))
 
   (define-values (line-cover _)
     (for/fold ([coverage '()] [count 1]) ([line split-src])
       (cond [(zero? (string-length line)) (values (cons (json-null) coverage) (add1 count))]
             [else (define nw-count (+ count (string-length line) 1))
-                  (define all-covered (foldr process-coverage 'missing (range count nw-count)))
+                  (define all-covered (foldr process-coverage 'irrelevant (range count nw-count)))
                   (values (cons (process-coverage-value all-covered) coverage) nw-count)])))
   (reverse line-cover))
 

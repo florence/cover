@@ -39,7 +39,7 @@ Test coverage info is added to existing coverage info.}
 @defproc[(make-covered? (coverage file-coverage/c) (path path-string?))
          (->* (exact-positive-integer?)
               (#:byte? boolean?)
-              (or/c 'yes 'no 'missing))
+              (or/c 'covered 'uncovered 'irrelevant))
          ]{
 Given some location in a file and the
 coverage information for that file @racket[make-covered?] returns
@@ -47,11 +47,12 @@ a functions that determines if some @racket[1] indexed character or byte locatio
 in that file is covered. By default it checks character locations.
 
 There are three possible results:
-@itemize[@item{@racket['missing] --- The location is not considered relevant to coverage information.
-It might be in a submodule or lexes (in the sense of that languages
+@itemize[@item{@racket['irrelevant] --- The location is not considered relevant to coverage information.
+It is either not in the coverage information, is in a submodule, or lexes (in the sense of that languages
 @racket[_color-lexer]) as a comment or whitespace.}
-@item{@racket['yes] --- The location is not @racket['missing] and is
-covered} @item{@racket['no] --- The location is not @racket['missing]
+@item{@racket['covered] --- The location is not @racket['irrelevant] and is
+covered}
+@item{@racket['uncovered] --- The location is not @racket['uncovered]
 and is not covered}]
                                    }
 

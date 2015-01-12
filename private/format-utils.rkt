@@ -18,7 +18,7 @@
 
 ;;;;; utils
 
-;;; a Cover is (U 'yes 'no 'missing)
+;;; a Cover is (U 'covered 'uncovered 'irrelevant)
 
 ;; [Hashof PathString [Hashof Natural Cover]]
 
@@ -47,7 +47,7 @@
      (define cache
        (for/hash ([i (range 1 (add1 file-length))])
          (values i
-                 (cond [(irrelevant? i) 'missing]
+                 (cond [(irrelevant? i) 'irrelevant]
                        [else (raw-covered? i c)]))))
      cache)))
 
@@ -113,9 +113,9 @@
              (values m start)
              (values mode last-start))])))
   (case mode
-    [(#t) 'yes]
-    [(#f) 'no]
-    [else 'missing]))
+    [(#t) 'covered]
+    [(#f) 'uncovered]
+    [else 'irrelevant]))
 
 ;; use for determining character/byte offsets for a given
 ;; 1 indexed character location
@@ -146,14 +146,14 @@
    (test-files! f)
    (define coverage (hash-ref (get-test-coverage) f))
    (define covered? (make-covered? coverage f))
-   (check-equal? (covered? 14) 'missing)
-   (check-equal? (covered? 14 #:byte? #t) 'missing)
-   (check-equal? (covered? 17) 'missing)
-   (check-equal? (covered? 28) 'missing)
-   (check-equal? (covered? 35) 'yes)
-   (check-equal? (covered? 50) 'no)
-   (check-equal? (covered? 51 #:byte? #t) 'no)
-   (check-equal? (covered? 52) 'missing)
-   (check-equal? (covered? 53) 'missing)
-   (check-equal? (covered? 54) 'missing)
+   (check-equal? (covered? 14) 'irrelevant)
+   (check-equal? (covered? 14 #:byte? #t) 'irrelevant)
+   (check-equal? (covered? 17) 'irrelevant)
+   (check-equal? (covered? 28) 'irrelevant)
+   (check-equal? (covered? 35) 'covered)
+   (check-equal? (covered? 50) 'uncovered)
+   (check-equal? (covered? 51 #:byte? #t) 'uncovered)
+   (check-equal? (covered? 52) 'irrelevant)
+   (check-equal? (covered? 53) 'irrelevant)
+   (check-equal? (covered? 54) 'irrelevant)
    (clear-coverage!)))
