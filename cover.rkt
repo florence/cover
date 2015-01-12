@@ -34,9 +34,10 @@
     (for ([p paths])
       (vprintf "running file: ~s\n" p)
       (define old-check (current-check-handler))
-      (with-handlers ([void (lambda (x)
-                              (set! tests-failed #t)
-                              (error-display x))])
+      (with-handlers ([(lambda (x) (not (exn:break? x)))
+                       (lambda (x)
+                         (set! tests-failed #t)
+                         (error-display x))])
         (parameterize* ([current-namespace ns]
                         [(get-check-handler-parameter)
                          (lambda x
