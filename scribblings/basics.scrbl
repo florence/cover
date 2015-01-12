@@ -24,10 +24,10 @@ The @exec{raco cover} command accepts the following flags:
                               output file.}]}
 
          @item{@Flag{d} or @DFlag{directory}
-               --- Specifies the directory output the coverage too.
+               --- Specifies the directory to output coverage information to.
                defaults to @filepath{coverage}.}
          @item{@Flag{e} or @DFlag{exclude-from-output}
-               --- excludes any directories by given name from the coverage report.
+               --- excludes any directories by name from the coverage report.
                Files in these directories are still run, they are just excluded from the
                outputted coverage. This flag may appear any number of times.}
          @item{@Flag{p} or @DFlag{exclude-pkg-defaults}

@@ -5,7 +5,7 @@
 @author[(author+email "Spencer Florence" "spencer@florence.io")
         (author+email "Ryan Plessner" "rpless@ccs.neu.edu")]
 
-Cover is a test coverage tool. It is designed to be used in addition to raco test
+Cover is a test coverage tool. It is designed to be used in addition to raco test.
 
 @table-of-contents[]
 
