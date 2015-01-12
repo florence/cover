@@ -16,3 +16,5 @@
 (define cover-formats '(("html" cover generate-html-coverage)
                         ("coveralls" cover generate-coveralls-coverage)
                         ("raw" cover generate-raw-coverage)))
+
+(define version "1.0.0")
