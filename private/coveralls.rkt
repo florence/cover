@@ -42,9 +42,12 @@
                   (if (verbose)
                       (current-output-port)
                       (open-output-nowhere))])
-    (void (system* (path->string post)
-                   coverage-file
-                   (if (verbose) "-v" "")))))
+    (define result
+      (system* (path->string post)
+               coverage-file
+               (if (verbose) "-v" "")))
+    (unless result
+      (error 'coveralls "request to coveralls failed"))))
 
 ;; Maps service name to the environment variable that indicates that the service is to be used.
 (define BUILD-TYPES (hash "travis-ci" "TRAVIS_JOB_ID"))
