@@ -34,7 +34,7 @@
     (for ([p paths])
       (vprintf "running file: ~s\n" p)
       (define old-check (current-check-handler))
-      (with-handlers ([(lambda (x) (not (exn:break? x)))
+      (with-handlers ([(lambda (x) (or (not (exn? x)) (exn:fail? x)))
                        (lambda (x)
                          (set! tests-failed #t)
                          (error-display x))])
