@@ -10,7 +10,7 @@ exists). It will then dump the coverage information into a directory, by default
 
 The @exec{raco cover} command accepts the following flags:
 
-@itemize[@item{@Flag{c} or @DFlag{coverage}
+@itemize[@item{@Flag{f} or @DFlag{format}
                --- Sets the coverage output type. This flag defaults to html.
                valid formats are:
                @itemize[@item{html: Generates one html file per tested file.}

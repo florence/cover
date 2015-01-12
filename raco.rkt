@@ -26,7 +26,7 @@
       [("-d" "--directory") d
        "Specify output directory. Defaults to ./coverage."
        (set! coverage-dir d)]
-      [("-c" "--coverage") format
+      [("-f" "--format") format
        "Specify that coverage should be run and optional what format. Defaults to html."
        (set! output-format format)]
       [("-v" "--verbose")
