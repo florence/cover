@@ -17,4 +17,4 @@
                         ("coveralls" cover generate-coveralls-coverage)
                         ("raw" cover generate-raw-coverage)))
 
-(define version "1.0.0")
+(define version "1.1.0")
