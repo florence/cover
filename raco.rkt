@@ -36,7 +36,7 @@
         "exclude info.rkt, the tests directory, and the scribblings directory from the coverage report"
         (set! exclude-paths (append '("info.rkt" "tests" "scribblings") exclude-paths))]
       #:multi
-      [("-e" "--exclude-from-output") t
+      [("-n" "--no-output-for-path") t
        "exclude any paths named this from the coverage report."
        (set! exclude-paths (cons t exclude-paths))]
       [("-i" "--include-extensions") f
