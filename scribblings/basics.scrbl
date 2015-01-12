@@ -22,7 +22,8 @@ The @exec{raco cover} command accepts the following flags:
                               This is also suitable for pushing to coveralls from Travis CI.}
                         @item{raw: @racket[write]s the raw output @racket[get-test-coverage] to the
                               output file.}]}
-
+         @item{@Flag{b} or @DFlag{exclude-pkg-basics}
+              Equivalent to @exec{-e tests -e info.rkt -e scribblings}}
          @item{@Flag{d} or @DFlag{directory}
                --- Specifies the directory to output coverage information to.
                defaults to @filepath{coverage}.}
@@ -30,8 +31,6 @@ The @exec{raco cover} command accepts the following flags:
                --- excludes any directories by name from the coverage report.
                Files in these directories are still run, they are just excluded from the
                outputted coverage. This flag may appear any number of times.}
-         @item{@Flag{p} or @DFlag{exclude-pkg-defaults}
-               Equivalent to @exec{-e tests -e info.rkt -e scribblings}}
          @item{@Flag{i} or @DFlag{include-extensions}
                --- include the given regular expression in the list of file patterns
                    used when expanding directories, searching for files to cover.}

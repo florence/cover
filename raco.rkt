@@ -32,7 +32,7 @@
       [("-v" "--verbose")
        "Verbose mode"
        (verbose #t)]
-      [("-p" "--exclude-pkg-defaults")
+      [("-b" "--exclude-pkg-basics")
         "exclude info.rkt, the tests directory, and the scribblings directory from the coverage report"
         (set! exclude-paths (append '("info.rkt" "tests" "scribblings") exclude-paths))]
       #:multi
