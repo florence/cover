@@ -6,7 +6,7 @@
   [coverage/c contract?]
   [file-coverage/c contract?]
   [test-files! (->* () (#:submod symbol?)
-                    #:rest (lisdtof path-string?)
+                    #:rest (listof path-string?)
                     ;; TODO when we figure out the contract issue we will change this
                     #;
                     (listof (or/c path-string?
