@@ -4,7 +4,7 @@
          racket/match
          racket/contract/base
          racket/function
-         "main.rkt"
+         "cover.rkt"
          (only-in "private/contracts.rkt" coverage-gen/c)
          "private/shared.rkt"
          "private/file-utils.rkt"

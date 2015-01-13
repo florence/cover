@@ -61,7 +61,7 @@
           (define to-run (if (module-declared? submod) submod file))
           (vprintf "running ~s\n" to-run)
           (namespace-require to-run)
-          (vprintf "finished running ~s" to-run))))
+          (vprintf "finished running ~s\n" to-run))))
     (vprintf "ran ~s\n" paths)
     (not tests-failed)))
 
@@ -131,7 +131,7 @@
     (filter values
             (for/list ([(stx covered?) (get-raw-coverage)])
               (and (syntax? stx)
-                   (let* ([orig-src  (syntax-source stx)]
+                   (let* ([orig-src (syntax-source stx)]
                           [src (if (path? orig-src) (path->string orig-src) orig-src)]
                           [pos (syntax-position stx)]
                           [span (syntax-span stx)])

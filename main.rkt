@@ -6,8 +6,11 @@
   [coverage/c contract?]
   [file-coverage/c contract?]
   [test-files! (->* () (#:submod symbol?)
-                    #:rest (listof (or/c path-string?
-                                         (list/c path-string? (vectorof string?))))
+                    #:rest (lisdtof path-string?)
+                    ;; TODO when we figure out the contract issue we will change this
+                    #;
+                    (listof (or/c path-string?
+                                  (list/c path-string? (vectorof string?))))
                     any)]
   [clear-coverage! (-> any)]
   [get-test-coverage (-> coverage/c)]
