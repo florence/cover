@@ -46,3 +46,7 @@ The @exec{raco cover} command accepts the following flags:
                (in the same way as directory content). All package scopes are searched
                for the first, most specific
                @tech[#:doc '(lib "pkg/scribblings/pkg.scrbl")]{package scope}.}]
+
+
+In addition  @exec{raco cover} supports the @racket[_test-omit-paths]
+and @racket[_test-command-line-arguments] @filepath{info.rkt} options like @exec{raco test}.
