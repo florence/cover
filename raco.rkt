@@ -79,18 +79,27 @@
 (define extensions '(#rx"\\.rkt$" #rx"\\.ss$"))
 (define (expand-directories files [exts null])
   (define comped (map regexp exts))
-  (flatten
-   (for/list ([f files])
-     (if (not (directory-exists? f))
-         f
-         (parameterize ([current-directory
-                         (if (absolute-path? f)
-                             f
-                             (build-path (current-directory) f))])
-           (expand-directory (append extensions comped)))))))
+  (define paths+vectors
+    (flatten
+     (for/list ([f files])
+       (if (not (directory-exists? f))
+           f
+           (parameterize ([current-directory
+                           (if (absolute-path? f)
+                               f
+                               (build-path (current-directory) f))])
+             (expand-directory (append extensions comped)))))))
+  (let loop ([paths paths+vectors])
+    (match paths
+      [(list) null]
+      [(list x) (list x)]
+      [(list* a (? vector? b) r)
+       (cons (list a b) (loop r))]
+      [(list* a r)
+       (cons a (loop r))])))
 
 (module+ test
-  (define-runtime-path root".")
+  (define-runtime-path root ".")
   (define-runtime-path private "private")
   (define-runtime-path main.rkt "main.rkt")
   (parameterize ([current-directory root])
@@ -107,8 +116,8 @@
                        "private/shared.rkt"
                        "private/raw.rkt"))))
 
-;; -> (HorribyNestedListsOf PathString)
-(define (expand-directory exts [omit-paths null])
+;; -> (HorribyNestedListsOf (or PathString (list path-string vector))
+(define (expand-directory exts [omit-paths null] [args null])
   (define new-omits (get-info-var (current-directory) 'test-omit-paths))
   (define expanded-omits
     (case new-omits
@@ -116,15 +125,24 @@
       [(all) (->absolute (current-directory))]
       [else (map ->absolute new-omits)]))
   (define full-omits (append expanded-omits omit-paths))
+  (define new-argv (get-info-var (current-directory) 'test-command-line-arguments))
+  (define expanded-argv
+    (if (not new-argv)
+        null
+        (map (lambda (x)
+               (list (->absolute (car x))
+                     (list->vector (cadr x))))
+             new-argv)))
+  (define full-argv (append expanded-argv args))
   (if (should-omit? (current-directory) full-omits)
       null
       (for/list ([p (directory-list)])
         (cond [(directory-exists? p)
                (parameterize ([current-directory (build-path (current-directory) p)])
-                 (expand-directory exts full-omits))]
+                 (expand-directory exts full-omits full-argv))]
               [(ormap (lambda (r) (regexp-match r (path->string p))) exts)
                (define path (path->string (build-path (current-directory) p)))
-               (if (should-omit? path full-omits) null path)]
+               (if (should-omit? path full-omits) null (path-add-argv path full-argv))]
               [else null]))))
 (module+ test
   (define-runtime-path cur ".")
@@ -135,15 +153,19 @@
                        "not-run.rkt")))
   (parameterize ([current-directory cur])
     (define omit (map ->absolute (get-info-var cur 'test-omit-paths)))
-    (define dirs (map ->absolute (flatten (expand-directory extensions))))
+    (define dirs (map ->absolute (filter list? (flatten (expand-directory extensions)))))
     (for ([o omit])
       (check-false (member o dirs)
                    (format "~s ~s" o dirs)))))
 
+(define (path-add-argv path argvs)
+  (define x (assoc path argvs))
+  (or x path))
+
 ;; path symbol -> any
 (define (get-info-var path sym)
-  (define f (get-info/full path))
-  (and f (f sym)))
+  (define f (get-info/full/skip path))
+  (and f (f sym (const #f))))
 
 ;; path (listof absolute-paths) -> boolean
 (define (should-omit? path omits)

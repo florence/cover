@@ -22,32 +22,47 @@
 ;; returns true if all tests passed
 (define (test-files!  #:submod [submod-name 'test] . paths)
   (unless ns (unloaded-error))
-  (define abs (map ->absolute paths))
+  (define abs
+    (for/list ([p paths])
+      (if (list? p)
+          (cons (->absolute (car p)) (cdr p))
+          (->absolute p))))
   (parameterize ([current-load/use-compiled (make-cover-load/use-compiled paths)]
                  [use-compiled-file-paths
                   (cons (build-path "compiled" "cover")
                         (use-compiled-file-paths))]
                  [current-compile (make-cover-compile)]
-                 [current-output-port (open-output-nowhere)])
+                 [current-output-port
+                  (if (verbose) (current-output-port) (open-output-nowhere))])
     (define tests-failed #f)
     (for ([p paths])
-      (vprintf "running file: ~s\n" p)
+      (vprintf "attempting to run ~s\n" p)
       (define old-check (current-check-handler))
+      (define path (if (list? p) (car p) p))
+      (define argv (if (list? p) (cadr p) #()))
+      (vprintf "running file: ~s with args: ~s\n" path argv)
+      (struct an-exit ())
+      (define exited (an-exit))
       (with-handlers ([(lambda (x) (or (not (exn? x)) (exn:fail? x)))
                        (lambda (x)
-                         (set! tests-failed #t)
-                         (error-display x))])
-        (parameterize* ([current-namespace ns]
+                         (unless (eq? exited x)
+                           (set! tests-failed #t)
+                           (error-display x)))])
+        (parameterize* ([current-command-line-arguments argv]
+                        [exit-handler (lambda (x) (raise exited))]
+                        [current-namespace ns]
                         [(get-check-handler-parameter)
                          (lambda x
                            (set! tests-failed #t)
                            (vprintf "file ~s had failed tests\n" p)
                            (apply old-check x))])
-          (eval `(dynamic-require '(file ,p) #f))
-          (namespace-require `(file ,p))
-          (define submod `(submod (file ,p) ,submod-name))
-          (when (module-declared? submod)
-            (namespace-require submod)))))
+          (define file `(file ,path))
+          (define submod `(submod ,file ,submod-name))
+          (define to-run (if (module-declared? submod) submod file))
+          (vprintf "running ~s\n" to-run)
+          (namespace-require to-run)
+          (vprintf "finished running ~s" to-run))))
+    (vprintf "ran ~s\n" paths)
     (not tests-failed)))
 
 (define o (current-output-port))
@@ -89,9 +104,12 @@
 ;; clear coverage map
 (define (clear-coverage!)
   ;(dict-clear! coverage)
-  (set! ns (make-base-namespace))
-  ;(namespace-attach-module (current-namespace) cov ns)
+  (set! ns (make-empty-namespace))
+  (namespace-attach-module (current-namespace) ''#%builtin ns)
+  (namespace-attach-module (current-namespace) ''#%kernel ns)
+  (namespace-attach-module (current-namespace) 'racket/base ns)
   (parameterize ([current-namespace ns])
+    (namespace-require 'racket/base)
     (namespace-require `(file ,(path->string cov)))
     (namespace-require `(file ,(path->string strace)))
     (namespace-require 'rackunit))

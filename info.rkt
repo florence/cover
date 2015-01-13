@@ -17,4 +17,6 @@
                         ("coveralls" cover generate-coveralls-coverage)
                         ("raw" cover generate-raw-coverage)))
 
+(define test-command-line-arguments '(("tests/arg.rkt" ("a"))))
+
 (define version "1.1.0")

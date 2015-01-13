@@ -5,7 +5,10 @@
  (contract-out
   [coverage/c contract?]
   [file-coverage/c contract?]
-  [test-files! (->* () (#:submod symbol?) #:rest (listof path-string?) any)]
+  [test-files! (->* () (#:submod symbol?)
+                    #:rest (listof (or/c path-string?
+                                         (list/c path-string? (vectorof string?))))
+                    any)]
   [clear-coverage! (-> any)]
   [get-test-coverage (-> coverage/c)]
   [make-covered?
