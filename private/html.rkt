@@ -30,7 +30,7 @@
 (define (get-files coverage dir)
   (define file-list
     (for/list ([(k v) coverage])
-      (vprintf "building html coverage for: ~a" k)
+      (vprintf "building html coverage for: ~a\n" k)
       (define exploded (explode-path k))
       (define-values (_ dir-list)
         (split-at exploded
@@ -76,7 +76,7 @@
 (define (write-files f)
   (for ([l f])
     (match-define (list f d e) l)
-    (vprintf "writing html coverage: ~s" f)
+    (vprintf "writing html coverage: ~s\n" f)
     (make-directory* d)
     (with-output-to-file f
       #:exists 'replace
