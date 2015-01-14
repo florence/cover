@@ -105,13 +105,8 @@
 ;; -> Void
 ;; clear coverage map
 (define (clear-coverage!)
-  ;(dict-clear! coverage)
-  (set! ns (make-empty-namespace))
-  (namespace-attach-module (current-namespace) ''#%builtin ns)
-  (namespace-attach-module (current-namespace) ''#%kernel ns)
-  (namespace-attach-module (current-namespace) 'racket/base ns)
+  (set! ns (make-base-namespace))
   (parameterize ([current-namespace ns])
-    (namespace-require 'racket/base)
     (namespace-require `(file ,(path->string cov)))
     (namespace-require `(file ,(path->string strace)))
     (namespace-require 'rackunit))
