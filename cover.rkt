@@ -57,9 +57,8 @@
                            (vprintf "file ~s had failed tests\n" p)
                            (apply old-check x))])
           (define file `(file ,path))
-          (run-mod file)
           (define submod `(submod ,file ,submod-name))
-          (when (module-declared? submod) (run-mod submod)))))
+          (run-mod (if (module-declared? submod #t) submod file)))))
     (vprintf "ran ~s\n" paths)
     (not tests-failed)))
 
