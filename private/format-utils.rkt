@@ -41,7 +41,11 @@
   (with-input-from-file f
     (thunk
      (define lexer
-       ((read-language) 'color-lexer racket-lexer))
+       (with-handlers ([exn:fail:read? (const racket-lexer)])
+         (define f (read-language))
+         (if f
+             (f 'color-lexer racket-lexer)
+             racket-lexer)))
      (define irrelevant? (make-irrelevant? lexer f))
      (define file-length (string-length (file->string f)))
      (define cache

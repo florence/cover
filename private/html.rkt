@@ -238,7 +238,9 @@
   (define (is-covered? e)
     ;; we don't need to look at the span because the coverage is expression based
     (define p (syntax-position e))
-    (covered? p #:byte? #t))
+    (if p
+        (covered? p #:byte? #t)
+        'missing))
 
   (define e
     (with-module-reading-parameterization

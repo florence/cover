@@ -4,7 +4,7 @@
 (define deps '("base" "errortrace-lib" "rackunit-lib"
                "syntax-color-lib" "compiler-lib"))
 (define build-deps
-  '("racket-doc" "scribble-lib" "typed-racket-doc"))
+  '("racket-doc" "scribble-lib" "typed-racket-doc" "htdp-lib"))
 
 (define raco-commands
   '(("cover" (submod cover/raco main) "a code coverage tool" 30)))
