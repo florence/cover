@@ -16,9 +16,22 @@
 
 (module+ test
   (require rackunit "../cover.rkt" racket/runtime-path)
-  (require (for-syntax racket/base)))
+  (require (for-syntax racket/base))
+  (define-runtime-path tests/prog.rkt"../tests/prog.rkt")
+  (define-runtime-path root "..")
+  
+  (define-syntax (with-env stx)
+    (syntax-case stx ()
+      [(test-with-env (env ...) test ...)
+       #'(parameterize ([current-environment-variables
+                         (make-environment-variables
+                          (string->bytes/utf-8 env) ...)])
+           test ...)])))
 
 ;; Coveralls
+
+;; Maps service name to the environment variable that indicates that the service is to be used.
+(define BUILD-TYPES (hash "travis-ci" "TRAVIS_JOB_ID"))
 
 ;; Coverage [path-string] -> Void
 (define-runtime-path post "curl.sh")
@@ -26,10 +39,7 @@
   (make-directory* dir)
   (define coverage-path dir)
   (define coverage-file (build-path coverage-path "coverage.json"))
-  (define json (generate-coveralls-json coverage (hasheq)))
-  (define meta-data (determine-build-type))
-  (define meta-with-git-info (hash-merge meta-data (get-git-info)))
-  (define data (hash-merge json meta-with-git-info))
+  (define data (generate-coveralls-report coverage))
   (vprintf "writing json to file ~s\n" coverage-file)
   (with-output-to-file coverage-file
     (thunk (write-json data))
@@ -49,8 +59,28 @@
     (unless result
       (error 'coveralls "request to coveralls failed"))))
 
-;; Maps service name to the environment variable that indicates that the service is to be used.
-(define BUILD-TYPES (hash "travis-ci" "TRAVIS_JOB_ID"))
+(define (generate-coveralls-report coverage)
+  (define json (generate-source-files coverage))
+  (define build-type (determine-build-type))
+  (define git-info (get-git-info))
+  (hash-merge json (hash-merge build-type git-info)))
+
+(module+ test
+  (test-begin
+   (parameterize ([current-directory root])
+     (after
+      (define file (path->string (simplify-path tests/prog.rkt)))
+      (test-files! (path->string (simplify-path tests/prog.rkt)))
+      (define coverage (get-test-coverage))
+      (define report 
+        (with-env ("COVERALLS_REPO_TOKEN" "abc") (generate-coveralls-report coverage)))
+      (check-equal?
+       (hash-ref report 'source_files)
+       (list (hasheq 'source (file->string tests/prog.rkt)
+                             'coverage (line-coverage coverage file)
+                             'name "tests/prog.rkt")))
+      (check-equal? (hash-ref report 'repo_token) "abc")
+      (clear-coverage!)))))
 
 ;; -> [Hasheq String String
 ;; Determine the type of build (e.g. repo token, travis, etc) and return the appropriate metadata
@@ -66,13 +96,6 @@
         [repo-token (hasheq 'service_name "cover" 'repo_token repo-token)]
         [else (error "No repo token or ci service detected")]))
 (module+ test
-  (define-syntax (with-env stx)
-    (syntax-case stx ()
-      [(test-with-env (env ...) test ...)
-       #'(parameterize ([current-environment-variables
-                         (make-environment-variables
-                          (string->bytes/utf-8 env) ...)])
-           test ...)]))
   (with-env ()
     (check-exn void determine-build-type))
   (with-env ("COVERALLS_REPO_TOKEN" "abc")
@@ -85,20 +108,18 @@
                           'service_job_id "abc"
                           'repo_token #f))))
 
-;; Coverage [Hasheq String String] -> JSexpr
+;; Coverage -> JSexpr
 ;; Generates a string that represents a valid coveralls json_file object
-(define (generate-coveralls-json coverage meta)
+(define (generate-source-files coverage)
   (define src-files
     (for/list ([file (hash-keys coverage)])
       (define local-file (path->string (find-relative-path (current-directory) file)))
       (define src (file->string file))
       (define c (line-coverage coverage file))
       (hasheq 'source src 'coverage c 'name local-file)))
-  (hash-set meta 'source_files src-files))
+  (hasheq 'source_files src-files))
 
 (module+ test
-  (define-runtime-path tests/prog.rkt"../tests/prog.rkt")
-  (define-runtime-path root "..")
   (test-begin
    (parameterize ([current-directory root])
      (after
@@ -106,7 +127,7 @@
       (test-files! (path->string (simplify-path tests/prog.rkt)))
       (define coverage (get-test-coverage))
       (check-equal?
-       (generate-coveralls-json coverage (hasheq))
+       (generate-source-files coverage)
        (hasheq 'source_files
                (list (hasheq 'source (file->string tests/prog.rkt)
                              'coverage (line-coverage coverage file)
