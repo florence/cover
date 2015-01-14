@@ -64,7 +64,7 @@
 
 (define (run-mod to-run)
   (vprintf "running ~s\n" to-run)
-  (namespace-require to-run)
+  (eval `(dynamic-require ',to-run #f))
   (vprintf "finished running ~s\n" to-run))
 
 (define o (current-output-port))
@@ -87,17 +87,20 @@
   (define annotate-top (get-annotate-top))
   (lambda (e immediate-eval?)
     (define to-compile
-      (cond [(eq? reg (namespace-module-registry (current-namespace)))
+      (cond [(or (compiled-expression? (if (syntax? e) (syntax-e e) e))
+                 (not (eq? reg (namespace-module-registry (current-namespace))))
+                 (not (equal? phase (namespace-base-phase (current-namespace)))))
+             e]
+            [else
              (vprintf "compiling ~s with coverage annotations\n"
                       (if (not (syntax? e))
                           e
                           (or (syntax-source-file-name e)
                               (syntax-source e)
                               (syntax->datum e))))
-             (annotate-top
-              (if (syntax? e) (expand e) (datum->syntax #f e))
-              phase)]
-            [else e]))
+             (annotate-top (namespace-syntax-introduce
+                            (if (syntax? e) (expand-syntax e) (datum->syntax #f e)))
+                           phase)]))
     (compile to-compile immediate-eval?)))
 
 (define-runtime-path cov "coverage.rkt")
