@@ -1,13 +1,18 @@
 langauge: c
+sudo: false
 env:
-  - RACKET_VERSION=6.1.1
+  global:
+    - RACKET_DIR=~/racket
+  matrix:
+    - RACKET_VERSION=6.1.1
 
 before_install:
   - git clone https://github.com/greghendershott/travis-racket.git ../travis-racket
   - cat ../travis-racket/install-racket.sh | bash
+  - export PATH="${RACKET_DIR}/bin:${PATH}"
 
-install: /usr/racket/bin/raco pkg install $TRAVIS_BUILD_DIR
+install: raco pkg install $TRAVIS_BUILD_DIR
 
 script:
- - /usr/racket/bin/raco test -Q $TRAVIS_BUILD_DIR
- - /usr/racket/bin/raco cover -f coveralls -d $TRAVIS_BUILD_DIR/coverage -b $TRAVIS_BUILD_DIR
+ - raco test -Q $TRAVIS_BUILD_DIR
+ - raco cover -f coveralls -d $TRAVIS_BUILD_DIR/coverage -b $TRAVIS_BUILD_DIR
