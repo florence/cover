@@ -150,6 +150,11 @@
 
 (define (hash-merge h1 h2) (for/fold ([res h1]) ([(k v) h2]) (hash-set res k v)))
 
+(module+ test
+  (let ()
+    (check-equal? (hash-merge (hash 'foo 3 'bar 5) (hash 'baz 6))
+                  (hash 'foo 3 'bar 5 'baz 6))))
+
 
 ;; Git Magic
 
