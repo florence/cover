@@ -32,7 +32,7 @@
     (coverage-cache-file path c file/str->byte-offset))
   (lambda (loc #:byte? [byte? #f])
     (hash-ref file-location-coverage-cache (if (not byte?) loc (- loc (file/byte->str-offset loc)))
-              (lambda () (error 'covered? "char ~s was not cache for file ~s" loc path)))))
+              'missing)))
 
 
 ;; Path FileCoverage OffsetFunc -> [Hashof Natural Cover]
