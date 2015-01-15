@@ -26,17 +26,16 @@
 (define (make-covered? c path)
   (define vec
     (list->vector (string->list (file->string path))))
-  (define file/str->byte-offset (make-str->byte-offset vec))
   (define file/byte->str-offset (make-byte->str-offset vec))
   (define file-location-coverage-cache
-    (coverage-cache-file path c file/str->byte-offset))
+    (coverage-cache-file path c))
   (lambda (loc #:byte? [byte? #f])
     (hash-ref file-location-coverage-cache (if (not byte?) loc (- loc (file/byte->str-offset loc)))
               'missing)))
 
 
 ;; Path FileCoverage OffsetFunc -> [Hashof Natural Cover]
-(define (coverage-cache-file f c raw-offset)
+(define (coverage-cache-file f c)
   (vprintf "caching coverage info for ~s\n" f)
   (with-input-from-file f
     (thunk
@@ -120,17 +119,6 @@
     [(#t) 'covered]
     [(#f) 'uncovered]
     [else 'irrelevant]))
-
-;; use for determining character/byte offsets for a given
-;; 1 indexed character location
-(define ((make-str->byte-offset str) offset)
-    (let loop ([s 0] [b 0])
-      (cond [(or (= (sub1 offset) s)
-                 (>= s (vector-length str)))
-             (- b s)]
-            [else
-             (define l (char-utf-8-length (vector-ref str s)))
-             (loop (add1 s) (+ b l))])))
 
 ;; used for determining character/byte offsets for a given
 ;; 1 indexed byte locaiton
