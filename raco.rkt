@@ -81,7 +81,7 @@
   (define comped (map regexp exts))
   (define paths+vectors
     (flatten
-     (for/list ([f files])
+     (for/list ([f (in-list files)])
        (if (not (directory-exists? f))
            f
            (parameterize ([current-directory
@@ -231,8 +231,8 @@
        (contract coverage-gen/c f 'cover ident ident #f)))))
 
 (define ((make-cover-load-error dir v) . _)
-  (error 'cover "unable to load coverage format from ~s. Found unusable value ~s"
-         dir v))
+  (error 'cover "unable to load coverage format from ~s. Found unusable value ~s" dir v))
+
 (define ((make-cover-require-error ident path))
   (error 'cover "unable to load symbol ~s from ~s" ident path))
 

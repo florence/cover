@@ -4,6 +4,7 @@
 ;; tests that file and checks its coverage against an
 ;; .rktl file of the same name
 (require (only-in "../main.rkt" test-files! clear-coverage! get-test-coverage)
+         "../private/file-utils.rkt"
          racket/runtime-path rackunit)
 
 (define (test-dir d)
@@ -65,3 +66,14 @@
 (module+ test
   (define-runtime-path-list test-dirs '("basic" "simple-multi"))
   (for-each (compose test-dir path->string) test-dirs))
+
+(module+ test
+  (define-runtime-path prog.rkt "prog.rkt")
+  (test-begin
+   (after
+    (test-files! (->absolute prog.rkt))
+    (define abs (get-test-coverage))
+    (test-files! (->relative prog.rkt))
+    (define rel (get-test-coverage))
+    (check-equal? abs rel)
+    (clear-coverage!))))

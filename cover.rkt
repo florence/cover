@@ -41,22 +41,23 @@
       (define path (if (list? p) (car p) p))
       (define argv (if (list? p) (cadr p) #()))
       (vprintf "running file: ~s with args: ~s\n" path argv)
-      (struct an-exit ())
-      (define exited (an-exit))
+      (struct an-exit (code))
       (with-handlers ([(lambda (x) (or (not (exn? x)) (exn:fail? x)))
                        (lambda (x)
-                         (unless (eq? exited x)
-                           (set! tests-failed #t)
-                           (error-display x)))])
+                         (cond [(an-exit? x)
+                                (vprintf "file ~s exited code ~s" p (an-exit-code x))]
+                               [else
+                                (set! tests-failed #t)
+                                (error-display x)]))])
         (parameterize* ([current-command-line-arguments argv]
-                        [exit-handler (lambda (x) (raise exited))]
+                        [exit-handler (lambda (x) (raise (an-exit x)))]
                         [current-namespace ns]
                         [(get-check-handler-parameter)
                          (lambda x
                            (set! tests-failed #t)
                            (vprintf "file ~s had failed tests\n" p)
                            (apply old-check x))])
-          (define file `(file ,path))
+          (define file `(file ,(if (path? path) (path->string path) path)))
           (define submod `(submod ,file ,submod-name))
           (run-mod (if (module-declared? submod #t) submod file)))))
     (vprintf "ran ~s\n" paths)
@@ -164,7 +165,7 @@
 
   (define out (make-hash))
 
-  (for ([v filtered])
+  (for ([v (in-list filtered)])
     (define file (srcloc-source (cadr v)))
     (hash-update! out
                   file
