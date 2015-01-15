@@ -57,7 +57,7 @@
 ;; TODO should we only ignore test (and main) submodules?
 (define (make-irrelevant? lexer f)
   (define s (mutable-set))
-  (define-values (for-lex for-str) (replicate-input-port (current-input-port)))
+  (define-values (for-lex for-str) (replicate-file-port f (current-input-port)))
   (define str (apply vector (string->list (port->string for-str))))
   (define init-offset (- (string-length (file->string f))
                          (vector-length str)))
@@ -94,13 +94,12 @@
       [_else (void)]))
   (lambda (i) (set-member? s i)))
 
-(define (replicate-input-port p)
-  (define-values (i1 o1) (make-pipe))
-  (define-values (i2 o2) (make-pipe))
-  (copy-port p o1 o2)
-  (close-output-port o1)
-  (close-output-port o2)
-  (values i1 i2))
+(define (replicate-file-port f p)
+  (define f1 (open-input-file f))
+  (define f2 (open-input-file f))
+  (file-position f1 (file-position p))
+  (file-position f2 (file-position p))
+  (values f1 f2))
 
 
 (define (raw-covered? i c)
