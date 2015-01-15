@@ -49,7 +49,7 @@
      (define irrelevant? (make-irrelevant? lexer f))
      (define file-length (string-length (file->string f)))
      (define cache
-       (for/hash ([i (range 1 (add1 file-length))])
+       (for/hash ([i (in-range 1 (add1 file-length))])
          (values i
                  (cond [(irrelevant? i) 'irrelevant]
                        [else (raw-covered? i c)]))))

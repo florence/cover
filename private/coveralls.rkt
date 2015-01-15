@@ -112,7 +112,7 @@
 ;; Generates a string that represents a valid coveralls json_file object
 (define (generate-source-files coverage)
   (define src-files
-    (for/list ([file (hash-keys coverage)])
+    (for/list ([file (in-list (hash-keys coverage))])
       (define local-file (path->string (find-relative-path (current-directory) file)))
       (define src (file->string file))
       (define c (line-coverage coverage file))
@@ -154,7 +154,7 @@
       [else (json-null)]))
 
   (define-values (line-cover _)
-    (for/fold ([coverage '()] [count 1]) ([line split-src])
+    (for/fold ([coverage '()] [count 1]) ([line (in-list split-src)])
       (cond [(zero? (string-length line)) (values (cons (json-null) coverage) (add1 count))]
             [else (define nw-count (+ count (string-length line) 1))
                   (define all-covered (foldr process-coverage 'irrelevant (range count nw-count)))
@@ -195,7 +195,7 @@
 (define (parse-git-remote raw)
   (define lines (string-split raw "\n"))
   (define fetch-only (filter (λ (line) (regexp-match #rx"\\(fetch\\)" line)) lines))
-  (for/list ([line fetch-only])
+  (for/list ([line (in-list fetch-only)])
     (define split (string-split line))
     (hasheq 'name (list-ref split 0)
             'url (list-ref split 1))))
@@ -212,6 +212,6 @@
   (define command (string-append "git --no-pager log -1 --pretty=format:" format))
   (define log (with-output-to-string (thunk (system command))))
   (define lines (string-split log "\n"))
-  (for/hasheq ([field '(id author_name author_email committer_name committer_email message)]
-               [line lines])
+  (for/hasheq ([field (in-list '(id author_name author_email committer_name committer_email message))]
+               [line (in-list lines)])
     (values field line)))

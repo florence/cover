@@ -23,7 +23,7 @@
 (define (test-files!  #:submod [submod-name 'test] . paths)
   (unless ns (unloaded-error))
   (define abs
-    (for/list ([p paths])
+    (for/list ([p (in-list paths)])
       (if (list? p)
           (cons (->absolute (car p)) (cdr p))
           (->absolute p))))
@@ -35,7 +35,7 @@
                  [current-output-port
                   (if (verbose) (current-output-port) (open-output-nowhere))])
     (define tests-failed #f)
-    (for ([p paths])
+    (for ([p (in-list paths)])
       (vprintf "attempting to run ~s\n" p)
       (define old-check (current-check-handler))
       (define path (if (list? p) (car p) p))
@@ -129,7 +129,7 @@
   ;; remove those that cannot be annotated
   (define can-annotate
     (filter values
-            (for/list ([(stx covered?) (get-raw-coverage)])
+            (for/list ([(stx covered?) (in-hash (get-raw-coverage))])
               (and (syntax? stx)
                    (let* ([orig-src (syntax-source stx)]
                           [src (if (path? orig-src) (path->string orig-src) orig-src)]

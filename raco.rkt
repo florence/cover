@@ -136,7 +136,7 @@
   (define full-argv (append expanded-argv args))
   (if (should-omit? (current-directory) full-omits)
       null
-      (for/list ([p (directory-list)])
+      (for/list ([p (in-list (directory-list))])
         (cond [(directory-exists? p)
                (parameterize ([current-directory (build-path (current-directory) p)])
                  (expand-directory exts full-omits full-argv))]
@@ -189,7 +189,7 @@
 
 ;; Coverage -> Coverage
 (define (remove-excluded-paths cover paths)
-  (for/hash ([(k v) cover]
+  (for/hash ([(k v) (in-hash cover)]
              #:unless (is-excluded-path? k paths))
     (values k v)))
 
