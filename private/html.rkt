@@ -1,6 +1,7 @@
 #lang racket/base
 (provide generate-html-coverage)
 (require racket/file
+         racket/path
          racket/format
          racket/function
          racket/list
@@ -49,7 +50,7 @@
                         (list "main.css")))))
       (define xexpr (make-html-file (hash-ref coverage k) k path-to-css))
       (list output-file output-dir xexpr)))
-  (define index (build-index coverage (map first file-list)))
+  (define index (generate-index coverage))
   (cons (list (build-path dir "index.html") dir index)
         file-list))
 
@@ -82,32 +83,6 @@
       #:exists 'replace
       (thunk (write-xexpr e)))))
 
-(define (build-index coverage file-list)
-  (vprintf "building index.html\n")
-  (define %ages (get-percentages/top coverage))
-  `(html
-    (head ()
-          (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
-    (body
-     ,(%s->xexpr %ages)
-     (div ()
-          ,@(for/list ([file file-list])
-              (define f (path->string (apply build-path (rest (explode-path file)))))
-              `(p () (a ([href ,f]) ,f)))))))
-
-(module+ test
-  (define-runtime-path prog.rkt "../tests/basic/prog.rkt")
-  (test-begin
-   (after
-    (test-files! (path->string (simplify-path prog.rkt)))
-    (define coverage (get-test-coverage))
-    (check-equal?
-     (build-index coverage '("./tests/basic/prog.rkt"))
-     `(html (head () (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
-       (body ,(%s->xexpr 1)
-             (div () (p () (a ([href "tests/basic/prog.rkt"]) "tests/basic/prog.rkt"))))))
-    (clear-coverage!))))
-
 (define-runtime-path css "main.css")
 (define (move-support-files! dir)
   (copy-file css (build-path dir "main.css") #t))
@@ -115,13 +90,14 @@
 ;; FileCoverage PathString PathString -> Xexpr
 (define (make-html-file coverage path path-to-css)
   (define covered? (make-covered? coverage path))
-  (define %age (get-percentages/file path covered?))
+  (define cover-info (expression-coverage/file path covered?))
+  (define-values (covered total) (values (first cover-info) (second cover-info)))
   `(html ()
     (head ()
           (meta ([charset "utf-8"]))
           (link ([rel "stylesheet"] [type "text/css"] [href ,path-to-css])))
     (body ()
-          ,(%s->xexpr %age)
+          ,(if (zero? total) "No Coverage Information" (%s->xexpr (/ covered total)))
           (div ([class "code"])
                ,(file->html path covered?)))))
 
@@ -201,40 +177,123 @@
                     `(span ((class ,(if (equal? c #\space) "irrelevant" "covered")))
                       ,(encode-char c))))))))
 
+;; Index File
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;; percentage
-;; A Percentage is a Real∈[0,1]
-;; a Type is one of: (update this as needed)
-;; 'expr
+;; Coverage PathString -> Xexpr
+;; Generate the index html page for the given coverage information
+(define (generate-index coverage)
+  (define expression-coverage (expression-coverage/all coverage))
+  `(html
+    (head ()
+          (meta ([charset "utf-8"]))
+          (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
+    (body ()
+          (div ([class "report-container"])
+               ,(div:total-coverage expression-coverage)
+               ,(div:file-reports expression-coverage)))))
 
-;; Coverage -> Percentage
-(define (get-percentages/top coverage)
-  (file-percentages->top expr-percentage coverage))
+;; [Hash FilePath ExpressionInfo] -> Xexpr
+(define (div:total-coverage expr-coverages)
+  (define total-coverage-percentage (expression-coverage-percentage/all expr-coverages))
+  (define coverage-as-string
+    (if (equal? +nan.0 total-coverage-percentage)
+        "No Coverage Information"
+        (real->decimal-string total-coverage-percentage)))
+  `(div ([class "total-coverage"])
+        ,(string-append "Total Project Coverage: " coverage-as-string "%")))
+
+;; [Hash FilePath ExpressionInfo] -> Xexpr
+(define (div:file-reports expr-coverages)
+  `(div ([class "file-list"])
+        ,@(for/list ([(path expr-info) expr-coverages])
+            (div:file-report path expr-info))))
+;; TODO: FIGURE OUT ORDERING ISSUE
+#;(module+ test
+  (test-begin 
+   (check-equal? (div:file-reports (hash "foo.rkt" (list 0 10)
+                                         "bar.rkt" (list 10 10)))
+                 `(div ()
+                       ,(div:file-report "foo.rkt" (list 0 10))
+                       ,(div:file-report "bar.rkt" (list 10 10))))))
+
+;; PathString ExpressionInfo -> Xexpr
+;; create a div that holds a link to the file report and expression
+;; coverage information
+(define (div:file-report path expr-coverage-info)
+  (define local-file 
+    (path->string (find-relative-path (current-directory) (string->path path))))
+  (define percentage 
+    (cond
+      [(zero? (second expr-coverage-info)) "No Coverage Info"]
+      [else (real->decimal-string 
+             (exact->inexact (* 100 (/ (first expr-coverage-info) 
+                                       (second expr-coverage-info)))))]))
+  `(div ([class "file-info"])
+        (div () (a ([href ,(coverage-report-link path)]) ,local-file))
+        (div () ,percentage)
+        (div () ,(real->decimal-string (first expr-coverage-info)))
+        (div () ,(real->decimal-string (second expr-coverage-info)))))
+
 (module+ test
-  (test-begin
-   (after
-    (test-files! (path->string (simplify-path tests/basic/prog.rkt)))
-    (check-equal? (get-percentages/top (get-test-coverage)) 1)
-    (clear-coverage!))))
+  (test-begin (check-equal? (div:file-report "foo.rkt" (list 0 0))
+                            '(div ((class "file-info"))
+                                  (div () (a ((href "foo.html")) "foo.rkt"))
+                                  (div () "No Coverage Info")
+                                  (div () "0.00")
+                                  (div () "0.00"))))
+  (test-begin (check-equal? (div:file-report "foo.rkt" (list 10 10))
+                            '(div ((class "file-info"))
+                                  (div () (a ((href "foo.html")) "foo.rkt"))
+                                  (div () "100.00")
+                                  (div () "10.00")
+                                  (div () "10.00")))))
 
-(define (file-percentages->top get-% coverage)
-  (define per-file
-    (for/list ([(f v) coverage])
-      (define covered? (make-covered? v f))
-      (call-with-values (thunk (get-% f covered?)) list)))
-  (define total (for/sum ([v per-file]) (second v)))
-  (for/sum ([v per-file])
-    (* (first v) (/ (second v) total))))
+(define (coverage-report-link path)
+  (define local-file (find-relative-path (current-directory) path))
+  (path->string (path-replace-suffix local-file ".html")))
 
-;; PathString Covered? -> Percentage
-(define (get-percentages/file path covered?)
-  (first (call-with-values (thunk (expr-percentage path covered?)) list)))
+;; File Coverage Reports
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; percentage generators. each one has the type:
-;; FilePath Covered? -> Real∈[0,1] Natural
-;; there the Real is the percentage covered
-;; and the Natural is the number of things of that type in the file
-(define (expr-percentage path covered?)
+;; Percentage
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; A Percentage is a Real∈[0,100]
+
+;; [Hash FilePath ExpressionInfo] -> Percentage
+;; Get the total expression conversion percentage for the whole project
+(define (expression-coverage-percentage/all all-expr-info)
+  (define total-covered (for/sum ([v (hash-values all-expr-info)]) (first v)))
+  (define total-exprs (for/sum ([v (hash-values all-expr-info)]) (second v)))
+  (if (zero? total-exprs)
+      +nan.0
+      (* (/ total-covered total-exprs) 100)))
+
+(module+ test
+  (test-begin 
+   (check-equal? 
+    (expression-coverage-percentage/all (hash "foo.rkt" (list 0 10)
+                                              "bar.rkt" (list 10 10)))
+    50)))
+
+;; Expression Coverage
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; ExpressionInfo is a (List Nat Nat) where:
+;; the first element is the number of covered expressions
+;; the second element is the total number of expressions
+
+;; Coverage -> [Hash FilePath ExpressionInfo]
+;; returns a hash that maps file paths to an ExpressionInfo
+(define (expression-coverage/all coverage)
+  (for/hash ([(file data) coverage])
+    (values file (expression-coverage/file file (make-covered? data file)))))
+
+;; FilePath Covered? -> ExpressionInfo
+;; Takes a file path and a Covered? and 
+;; gets the number of expressions covered and the total number of expressions.
+(define (expression-coverage/file path covered?)
   (define (is-covered? e)
     ;; we don't need to look at the span because the coverage is expression based
     (define p (syntax-position e))
@@ -245,15 +304,13 @@
   (define e
     (with-module-reading-parameterization
         (thunk (with-input-from-file path read-syntax))))
-  (define (ret e)
-    (values (e->n e) (a->n e)))
+  (define (ret e) (values (e->n e) (a->n e)))
   (define (a->n e)
     (case (is-covered? e)
       [(covered uncovered) 1]
       [else 0]))
-  (define (e->n e)
-    (if (eq? (is-covered? e) 'covered) 1 0))
-  (define-values (covered count)
+  (define (e->n e) (if (eq? (is-covered? e) 'covered) 1 0))
+  (define-values (covered total)
     (let recur ([e e])
       (syntax-parse e
         [(v ...)
@@ -264,13 +321,4 @@
                    (+ count cnt)))]
         [e:expr (ret #'e)]
         [_ (values 0 0)])))
-  (values (/ covered count) count))
-
-(module+ test
-  (test-begin
-   (define f (path->string (simplify-path tests/basic/prog.rkt)))
-   (test-files! f)
-   (define covered? (make-covered? (hash-ref (get-test-coverage) f) f))
-   (define-values (result _) (expr-percentage f covered?))
-   (check-equal? result 1)
-   (clear-coverage!)))
+  (list covered total))

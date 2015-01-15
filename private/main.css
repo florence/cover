@@ -1,13 +1,24 @@
 .code {
-    font-family: "Lucida Console", Monaco, monospace;
+  font-family: "Lucida Console", Monaco, monospace;
 }
 
 .uncovered {
-    color:red;
+  color:red;
 }
 
 .covered {
-    color:green;
+  color:green;
 }
 
 .irrelevant {}
+
+div.report-container {
+  width: 60%;
+  margin: 0 20%;
+}
+
+.file-info div {
+  display: inline-block;
+  margin-bottom: 1em;
+  padding-right: 2em;
+}

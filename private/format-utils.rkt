@@ -22,7 +22,9 @@
 
 ;; [Hashof PathString [Hashof Natural Cover]]
 
-;; Natural FileCoverage PathString -> Cover
+;; A Covered? is a [Nat [#:byte? Boolean] -> Cover]
+
+;; FileCoverage PathString -> Covered?
 (define (make-covered? c path)
   (define vec
     (list->vector (string->list (file->string path))))
