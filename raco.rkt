@@ -83,7 +83,7 @@
     (flatten
      (for/list ([f (in-list files)])
        (if (not (directory-exists? f))
-           f
+           (->absolute f)
            (parameterize ([current-directory
                            (if (absolute-path? f)
                                f
@@ -190,7 +190,9 @@
 ;; Coverage -> Coverage
 (define (remove-excluded-paths cover paths)
   (for/hash ([(k v) (in-hash cover)]
-             #:unless (is-excluded-path? k paths))
+             #:unless (and (is-excluded-path? k paths)
+                           (vprintf "excluding path ~s from output\n" k)))
+    (vprintf "including path ~s in output\n" k)
     (values k v)))
 
 (module+ test

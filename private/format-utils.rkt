@@ -81,8 +81,9 @@
   (let loop ([stx stx] [first? #t])
     (define (loop* stx) (loop stx #f))
     (syntax-parse stx
-      #:datum-literals (module module* module+)
-      [((~or module module* module+) e ...)
+      #:datum-literals (module module* module+ begin-for-syntax define-syntax define-syntaxes)
+      [((~or module module* module+ begin-for-syntax define-syntax define-syntaxes)
+        e ...)
        #:when (not first?)
        (define ?start (syntax-position stx))
        (when ?start

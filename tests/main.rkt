@@ -64,7 +64,7 @@
      (<= start i (+ start range))]))
 
 (module+ test
-  (define-runtime-path-list test-dirs '("basic" "simple-multi"))
+  (define-runtime-path-list test-dirs '("basic" "simple-multi" "syntax"))
   (for-each (compose test-dir path->string) test-dirs))
 
 (module+ test
