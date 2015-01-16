@@ -48,8 +48,7 @@ in that file is covered. By default it checks character locations.
 
 There are three possible results:
 @itemize[@item{@racket['irrelevant] --- The location is not considered relevant to coverage information.
-It is either not in the coverage information; is in a submodule; is a @racket[define-syntax],
-@racket[define-syntaxes], or @racket[begin-for-syntax] form;
+It is either not in the coverage information; is in a submodule; is a @racket[begin-for-syntax] form;
 or lexes (in the sense of that languages, @racket[_color-lexer]) as a comment or whitespace.}
 @item{@racket['covered] --- The location is not @racket['irrelevant] and is
 covered}
