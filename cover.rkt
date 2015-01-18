@@ -1,5 +1,15 @@
 #lang racket/base
 (provide test-files! clear-coverage! get-test-coverage)
+
+#|
+
+This module implements code coverage. It works by compiling and running the given modules with in a
+separate namespace errortrace annotations that write coverage information to a hashmap exported from
+in "coverage.rkt". This raw coverage information is converted to a usable form by
+`get-test-coverage`.
+
+|#
+
 (require (for-syntax racket/base))
 (require racket/dict
          syntax/modcode
@@ -15,11 +25,12 @@
          "private/shared.rkt"
          "private/file-utils.rkt")
 
+;; namespace used for coverage
 (define ns #f)
 
 ;; PathString * -> Boolean
 ;; Test files and build coverage map
-;; returns true if all tests passed
+;; returns true if no tests reported as failed, and no files errored.
 (define (test-files!  #:submod [submod-name 'test] . paths)
   (unless ns (unloaded-error))
   (define abs
@@ -63,12 +74,16 @@
     (vprintf "ran ~s\n" paths)
     (not tests-failed)))
 
+;; ModulePath -> Void
+;; evaluate the current module in the current namespace
 (define (run-mod to-run)
   (vprintf "running ~s\n" to-run)
   (eval `(dynamic-require ',to-run #f))
   (vprintf "finished running ~s\n" to-run))
 
-(define o (current-output-port))
+;; [Listof Path] -> Loader
+;; returns a value that can be set of `current-load/use-compiled`
+;; forces the given files to be recompiled whenever load/use-compiled is called
 (define (make-cover-load/use-compiled paths)
   (define load/use-compiled (current-load/use-compiled))
   (define load (current-load))
@@ -81,6 +96,9 @@
           (load path sym)
           (load/use-compiled path sym)))))
 
+;; -> Compiler
+;; returns a value that can be set of `current-compiled`
+;; compiles anything begin compiled in `ns` to be compiled with coverage annotations
 (define (make-cover-compile)
   (define compile (current-compile))
   (define reg (namespace-module-registry ns))
@@ -106,17 +124,48 @@
 
 (define-runtime-path cov "coverage.rkt")
 (define-runtime-path strace "strace.rkt")
+
 ;; -> Void
-;; clear coverage map
+;; clear coverage map. Effectively recreates and rebuilds `ns`
 (define (clear-coverage!)
   (set! ns (make-base-namespace))
   (parameterize ([current-namespace ns])
     (namespace-require `(file ,(path->string cov)))
     (namespace-require `(file ,(path->string strace)))
     (namespace-require 'rackunit))
+  (load-names!))
+
+;; -> Void
+;; loads any needed names from `ns` before it can get polluted.
+(define (load-names!)
   (load-annotate-top!)
   (load-raw-coverage!)
   (load-current-check-handler!))
+
+(define ann-top #f)
+(define (get-annotate-top)
+  (or ann-top (unloaded-error)))
+(define (load-annotate-top!)
+  (set! ann-top (get-ns-var 'annotate-top)))
+
+(define raw-cover #f)
+(define (get-raw-coverage)
+  (or raw-cover (unloaded-error)))
+(define (load-raw-coverage!)
+  (set! raw-cover (get-ns-var 'coverage)))
+
+(define cch #f)
+(define (load-current-check-handler!)
+  (set! cch (get-ns-var 'current-check-handler)))
+(define (get-check-handler-parameter)
+  (or cch (unloaded-error)))
+
+(define (unloaded-error)
+  (error 'cover "Test coverage not loaded."))
+
+(define (get-ns-var sym)
+  (namespace-variable-value sym #t #f ns))
+
 
 ;; -> [Hashof PathString (Listof (List Boolean srcloc))]
 ;; returns a hash of file to a list, where the first of the list is if
@@ -173,29 +222,5 @@
                   null))
   out)
 
-(define ann-top #f)
-(define (get-annotate-top)
-  (or ann-top (unloaded-error)))
-(define (load-annotate-top!)
-  (set! ann-top (get-ns-var 'annotate-top)))
-
-(define raw-cover #f)
-(define (get-raw-coverage)
-  (or raw-cover (unloaded-error)))
-(define (load-raw-coverage!)
-  (set! raw-cover (get-ns-var 'coverage)))
-
-(define cch #f)
-(define (load-current-check-handler!)
-  (set! cch (get-ns-var 'current-check-handler)))
-(define (get-check-handler-parameter)
-  (or cch (unloaded-error)))
-
-(define (unloaded-error)
-  (error 'cover "Test coverage not loaded."))
-
-(define (get-ns-var sym)
-  (namespace-variable-value sym #t #f ns))
-
-;; A little hack to setup coverage for the first time
+;; A little hack to setup coverage namespace for the first time
 (clear-coverage!)
