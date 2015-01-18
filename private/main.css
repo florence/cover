@@ -10,7 +10,36 @@
   color:green;
 }
 
+.total-coverage {
+  font-size: 2em;
+}
+
 .irrelevant {}
+
+table.file-list {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+td, th {
+  text-align: center;
+  padding: 10px 10px;
+  border-bottom: 1px solid;
+  font-size: 1.2em;
+}
+
+td.file-name, th.file-name {
+  text-align: left;
+}
+
+td a, td a:visited {
+  text-decoration: none;
+  color: #07A;
+}
+
+tr.stripe {
+  background-color: #F5F5EC;
+}
 
 div.report-container {
   width: 60%;

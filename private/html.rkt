@@ -2,6 +2,7 @@
 (provide generate-html-coverage)
 (require racket/file
          racket/path
+         racket/math
          racket/format
          racket/function
          racket/list
@@ -191,7 +192,7 @@
     (body ()
           (div ([class "report-container"])
                ,(div:total-coverage expression-coverage)
-               ,(div:file-reports expression-coverage)))))
+               ,(table:file-reports expression-coverage)))))
 
 ;; [Hash FilePath ExpressionInfo] -> Xexpr
 (define (div:total-coverage expr-coverages)
@@ -204,50 +205,49 @@
         ,(string-append "Total Project Coverage: " coverage-as-string "%")))
 
 ;; [Hash FilePath ExpressionInfo] -> Xexpr
-(define (div:file-reports expr-coverages)
-  `(div ([class "file-list"])
-        ,@(for/list ([(path expr-info) expr-coverages])
-            (div:file-report path expr-info))))
-;; TODO: FIGURE OUT ORDERING ISSUE
-#;(module+ test
-  (test-begin 
-   (check-equal? (div:file-reports (hash "foo.rkt" (list 0 10)
-                                         "bar.rkt" (list 10 10)))
-                 `(div ()
-                       ,(div:file-report "foo.rkt" (list 0 10))
-                       ,(div:file-report "bar.rkt" (list 10 10))))))
+(define (table:file-reports expr-coverages)
+  `(table ([class "file-list"])
+          (thead ()
+                 (tr ()
+                     (th ([class "file-name"]) "File")
+                     (th () "Coverage Percentage")
+                     (th () "Covered Expressions")
+                     (th () "Total Expressions")))
+          (tbody ()
+                 ,@(for/list ([(path expr-info) expr-coverages] [line-num (in-naturals)])
+                     (tr:file-report path expr-info (zero? (modulo line-num 2)))))))
 
-;; PathString ExpressionInfo -> Xexpr
+;; PathString ExpressionInfo Boolean -> Xexpr
 ;; create a div that holds a link to the file report and expression
 ;; coverage information
-(define (div:file-report path expr-coverage-info)
+(define (tr:file-report path expr-coverage-info stripe?)
   (define local-file 
     (path->string (find-relative-path (current-directory) (string->path path))))
   (define percentage 
     (cond
-      [(zero? (second expr-coverage-info)) "No Coverage Info"]
-      [else (real->decimal-string 
-             (exact->inexact (* 100 (/ (first expr-coverage-info) 
-                                       (second expr-coverage-info)))))]))
-  `(div ([class "file-info"])
-        (div () (a ([href ,(coverage-report-link path)]) ,local-file))
-        (div () ,percentage)
-        (div () ,(real->decimal-string (first expr-coverage-info)))
-        (div () ,(real->decimal-string (second expr-coverage-info)))))
+      [(zero? (second expr-coverage-info)) +nan.0]
+      [else (exact->inexact (* 100 (/ (first expr-coverage-info) 
+                                       (second expr-coverage-info))))]))
+  (define styles `([class ,(string-append "file-info" (if stripe? " stripe" ""))]))
+  `(tr ,styles
+        (td ([class "file-name"]) (a ([href ,(coverage-report-link path)]) ,local-file))
+        (td () ,(if (nan? percentage) "No Coverage Info" (real->decimal-string percentage)))
+        (td () ,(real->decimal-string (first expr-coverage-info)))
+        (td () ,(real->decimal-string (second expr-coverage-info)))))
 
 (module+ test
-  (test-begin (check-equal? (div:file-report "foo.rkt" (list 0 0))
-                            '(div ((class "file-info"))
-                                  (div () (a ((href "foo.html")) "foo.rkt"))
-                                  (div () "No Coverage Info")
-                                  (div () "0.00")
-                                  (div () "0.00"))))
-  (test-begin (check-equal? (div:file-report "foo.rkt" (list 10 10))
-                            '(div ((class "file-info"))
-                                  (div () (a ((href "foo.html")) "foo.rkt"))
-                                  (div () "100.00")
-                                  (div () "10.00")
-                                  (div () "10.00")))))
+  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 0 0) #f)
+                            '(tr ((class "file-info"))
+                                  (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
+                                  (td () "No Coverage Info")
+                                  (td () "0.00")
+                                  (td () "0.00"))))
+  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 10 10) #f)
+                            '(tr ((class "file-info"))
+                                  (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
+                                  (td () "100.00")
+                                  (td () "10.00")
+                                  (td () "10.00")))))
 
 (define (coverage-report-link path)
   (define local-file (find-relative-path (current-directory) path))
@@ -275,7 +275,10 @@
    (check-equal? 
     (expression-coverage-percentage/all (hash "foo.rkt" (list 0 10)
                                               "bar.rkt" (list 10 10)))
-    50)))
+    50))
+  
+  (test-begin (check-equal? (expression-coverage-percentage/all (hash "foo.rkt" (list 0 0)))
+                            +nan.0)))
 
 ;; Expression Coverage
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
