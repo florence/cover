@@ -31,7 +31,7 @@
 
 (define (get-files coverage dir)
   (define file-list
-    (for/list ([(k v) coverage])
+    (for/list ([(k v) (in-hash coverage)])
       (vprintf "building html coverage for: ~a\n" k)
       (define exploded (explode-path k))
       (define-values (_ dir-list)
@@ -76,7 +76,7 @@
       (clear-coverage!)))))
 
 (define (write-files f)
-  (for ([l f])
+  (for ([l (in-list f)])
     (match-define (list f d e) l)
     (vprintf "writing html coverage: ~s\n" f)
     (make-directory* d)
@@ -126,10 +126,10 @@
   (define file (file->string path))
   (define-values (lines _)
     (for/fold ([ls null] [pos 1])
-              ([line (string-split file "\n")])
+              ([line (in-list (string-split file "\n"))])
       (define-values (rline npos)
         (for/fold ([r null] [pos pos])
-                  ([c line])
+                  ([c (in-string line)])
           (values
            (cons (mode-xml (covered? pos)
                            (encode-char c))
@@ -169,7 +169,7 @@
   (test f
         `(ol ()
           (li ()
-              ,@(for/list ([c (first (string-split (file->string f) "\n"))])
+              ,@(for/list ([c (in-string (first (string-split (file->string f) "\n")))])
                  `(span ((class "covered"))
                    ,(encode-char c))))
           ,@(for/list ([l (rest (string-split (file->string f) "\n"))])
@@ -214,7 +214,7 @@
                      (th () "Covered Expressions")
                      (th () "Total Expressions")))
           (tbody ()
-                 ,@(for/list ([(path expr-info) expr-coverages] [line-num (in-naturals)])
+                 ,@(for/list ([(path expr-info) (in-hash expr-coverages)] [line-num (in-naturals)])
                      (tr:file-report path expr-info (zero? (modulo line-num 2)))))))
 
 ;; PathString ExpressionInfo Boolean -> Xexpr
@@ -264,8 +264,8 @@
 ;; [Hash FilePath ExpressionInfo] -> Percentage
 ;; Get the total expression conversion percentage for the whole project
 (define (expression-coverage-percentage/all all-expr-info)
-  (define total-covered (for/sum ([v (hash-values all-expr-info)]) (first v)))
-  (define total-exprs (for/sum ([v (hash-values all-expr-info)]) (second v)))
+  (define total-covered (for/sum ([v (in-list (hash-values all-expr-info))]) (first v)))
+  (define total-exprs (for/sum ([v (in-list (hash-values all-expr-info))]) (second v)))
   (if (zero? total-exprs)
       +nan.0
       (* (/ total-covered total-exprs) 100)))
@@ -290,7 +290,7 @@
 ;; Coverage -> [Hash FilePath ExpressionInfo]
 ;; returns a hash that maps file paths to an ExpressionInfo
 (define (expression-coverage/all coverage)
-  (for/hash ([(file data) coverage])
+  (for/hash ([(file data) (in-hash coverage)])
     (values file (expression-coverage/file file (make-covered? data file)))))
 
 ;; FilePath Covered? -> ExpressionInfo
