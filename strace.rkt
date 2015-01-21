@@ -9,9 +9,13 @@
 (define test-coverage-enabled (make-parameter #t))
 
 (define (initialize-test-coverage-point stx)
-  (hash-set! coverage stx #f))
+  (hash-set! coverage stx (mcons #f #f)))
+
 (define (test-covered stx)
-  (thunk (hash-set! coverage stx #t)))
+  (define v (hash-ref coverage stx #f))
+  (and v
+       (with-syntax ([v v])
+         #'(#%plain-app set-mcar! v #t))))
 
 (define profile-key (gensym))
 

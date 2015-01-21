@@ -123,6 +123,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
     (compile to-compile immediate-eval?)))
 
 (define-runtime-path cov "coverage.rkt")
+(define abs-cover (->absolute cov))
 (define-runtime-path strace "strace.rkt")
 
 ;; -> Void
@@ -187,7 +188,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
                           [span (syntax-span stx)])
                      (and pos
                           span
-                          (list covered?
+                          (list (mcar covered?)
                                 (make-srcloc src #f #f pos span))))))))
 
   ;; actions-ht : (list src number number) -> (list boolean syntax)
@@ -224,3 +225,24 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 
 ;; A little hack to setup coverage namespace for the first time
 (clear-coverage!)
+
+
+;; here live tests for actually saving compiled files
+(module+ test
+  (require rackunit racket/runtime-path compiler/cm compiler/compiler)
+  (define-runtime-path prog.rkt "tests/prog.rkt")
+  (define-runtime-path-list compiled
+    (list
+     "tests/compiled/prog_rkt.zo"
+     "tests/compiled/prog_rkt.dep"))
+  (test-begin
+   (for-each (lambda (f) (when (file-exists? f) (delete-file f)))
+                compiled)
+   (check-false (ormap file-exists? compiled))
+   (check-not-exn
+    (lambda ()
+      (parameterize ([current-compile (make-cover-compile)]
+                     [current-namespace ns])
+        (managed-compile-zo prog.rkt))))
+   (check-true (andmap file-exists? compiled)))
+  )
