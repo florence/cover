@@ -117,8 +117,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
                           (or (syntax-source-file-name e)
                               (syntax-source e)
                               (syntax->datum e))))
-             (annotate-top (namespace-syntax-introduce
-                            (if (syntax? e) (expand-syntax e) (datum->syntax #f e)))
+             (annotate-top (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
                            phase)]))
     (compile to-compile immediate-eval?)))
 
@@ -179,17 +178,8 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
   ;;            #f => code was not run
   ;; remove those that cannot be annotated
   (define can-annotate
-    (filter values
-            (for/list ([(stx covered?) (in-hash (get-raw-coverage))])
-              (and (syntax? stx)
-                   (let* ([orig-src (syntax-source stx)]
-                          [src (if (path? orig-src) (path->string orig-src) orig-src)]
-                          [pos (syntax-position stx)]
-                          [span (syntax-span stx)])
-                     (and pos
-                          span
-                          (list (mcar covered?)
-                                (make-srcloc src #f #f pos span))))))))
+    (hash-map (get-raw-coverage)
+              (lambda (x y) (list y x))))
 
   ;; actions-ht : (list src number number) -> (list boolean syntax)
   (define actions-ht (make-hash))
@@ -236,13 +226,14 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
      "tests/compiled/prog_rkt.zo"
      "tests/compiled/prog_rkt.dep"))
   (test-begin
-   (for-each (lambda (f) (when (file-exists? f) (delete-file f)))
-                compiled)
-   (check-false (ormap file-exists? compiled))
-   (check-not-exn
-    (lambda ()
-      (parameterize ([current-compile (make-cover-compile)]
-                     [current-namespace ns])
-        (managed-compile-zo prog.rkt))))
-   (check-true (andmap file-exists? compiled)))
-  )
+   (after
+    (for-each (lambda (f) (when (file-exists? f) (delete-file f)))
+              compiled)
+    (check-false (ormap file-exists? compiled))
+    (check-not-exn
+     (lambda ()
+       (parameterize ([current-compile (make-cover-compile)]
+                      [current-namespace ns])
+         (managed-compile-zo prog.rkt))))
+    (check-true (andmap file-exists? compiled))
+    (clear-coverage!))))
