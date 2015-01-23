@@ -124,14 +124,15 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 (define-runtime-path cov "coverage.rkt")
 (define abs-cover (->absolute cov))
 (define-runtime-path strace "strace.rkt")
+(define abs-strace (->absolute strace))
 
 ;; -> Void
 ;; clear coverage map. Effectively recreates and rebuilds `ns`
 (define (clear-coverage!)
   (set! ns (make-base-namespace))
   (parameterize ([current-namespace ns])
-    (namespace-require `(file ,(path->string cov)))
-    (namespace-require `(file ,(path->string strace)))
+    (namespace-require `(file ,abs-cover))
+    (namespace-require `(file ,abs-strace))
     (namespace-require 'rackunit))
   (load-names!))
 

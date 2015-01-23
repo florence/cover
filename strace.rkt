@@ -6,10 +6,11 @@
          syntax/parse
          racket/unit
          racket/runtime-path
+         "private/file-utils.rkt"
          "coverage.rkt")
 
-(define cover-name (generate-temporary #'coverage))
-(define srcloc-name (generate-temporary #'make-srcloc))
+(define cover-name #'coverage)
+(define srcloc-name  #'make-srcloc)
 
 (define (with-mark src dest phase) dest)
 (define test-coverage-enabled (make-parameter #t))
@@ -60,16 +61,22 @@
        #'(make-srcloc src a b pos span)))))
 
 (define (in:annotate-top stx phase)
-  (define e
-    (syntax-parse stx
-      #:literal-sets (kernel-literals)
-      [((~and a module) name lang b ...)
-       (with-syntax ([cover cover-name] [srcloc srcloc-name])
-         (namespace-syntax-introduce
-          #'(a name lang
-              (#%require (rename cover/coverage cover coverage))
-              (#%require (rename racket/base srcloc make-srcloc))
-              r1 r2
-              b ...)))]
-      [_ #f]))
+  (define e (add-cover-require stx phase))
   (if e (annotate-top e phase) stx))
+
+(define-runtime-path coverage.rkt "coverage.rkt")
+(define (add-cover-require expr [top #t])
+  (syntax-parse expr
+      #:literal-sets (kernel-literals)
+      [(module name lang (#%module-begin b ...))
+       (with-syntax ([cover cover-name]
+                     [srcloc srcloc-name]
+                     [(body ...) (map (lambda (e) (add-cover-require e #f)) (syntax->list #'(b ...)))])
+         (namespace-syntax-introduce
+          (quasisyntax/loc expr
+              (module name lang
+                (#%module-begin
+                 (#%require (rename (file #,(->absolute coverage.rkt)) cover coverage))
+                 (#%require (rename racket/base srcloc make-srcloc))
+                 body ...)))))]
+      [_ (if top #f expr)]))
