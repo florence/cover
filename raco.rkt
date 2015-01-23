@@ -118,13 +118,8 @@
 
 ;; -> (HorribyNestedListsOf (or PathString (list path-string vector))
 (define (expand-directory exts [omit-paths null] [args null])
-  (define new-omits (get-info-var (current-directory) 'test-omit-paths))
-  (define expanded-omits
-    (case new-omits
-      [(#f) null]
-      [(all) (->absolute (current-directory))]
-      [else (map ->absolute new-omits)]))
-  (define full-omits (append expanded-omits omit-paths))
+  (define new-omits (get-new-omits))
+  (define full-omits (append new-omits omit-paths))
   (define new-argv (get-info-var (current-directory) 'test-command-line-arguments))
   (define expanded-argv
     (if (not new-argv)
@@ -157,6 +152,16 @@
     (for ([o omit])
       (check-false (member o dirs)
                    (format "~s ~s" o dirs)))))
+
+(define (get-new-omits)
+  (append (get-omits 'test-omit-paths)
+          (get-omits 'cover-omit-paths)))
+(define (get-omits s)
+  (define new-omits (get-info-var (current-directory) s))
+  (case new-omits
+    [(#f) null]
+    [(all) (->absolute (current-directory))]
+    [else (map ->absolute new-omits)]))
 
 (define (path-add-argv path argvs)
   (define x (assoc path argvs))

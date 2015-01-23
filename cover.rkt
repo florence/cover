@@ -38,15 +38,15 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
       (if (list? p)
           (cons (->absolute (car p)) (cdr p))
           (->absolute p))))
-  (parameterize ([current-load/use-compiled (make-cover-load/use-compiled paths)]
+  (define abs-paths (map (lambda (p) (if (list? p) (first p) p)) abs))
+  (parameterize ([current-load/use-compiled (make-cover-load/use-compiled abs-paths)]
                  [use-compiled-file-paths
                   (cons (build-path "compiled" "cover")
                         (use-compiled-file-paths))]
-                 [current-compile (make-cover-compile)]
                  [current-output-port
                   (if (verbose) (current-output-port) (open-output-nowhere))])
     (define tests-failed #f)
-    (for ([p (in-list paths)])
+    (for ([p (in-list abs)])
       (vprintf "attempting to run ~s\n" p)
       (define old-check (current-check-handler))
       (define path (if (list? p) (car p) p))
@@ -72,6 +72,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
           (define submod `(submod ,file ,submod-name))
           (run-mod (if (module-declared? submod #t) submod file)))))
     (vprintf "ran ~s\n" paths)
+    (remove-unneeded-results abs-paths)
     (not tests-failed)))
 
 ;; ModulePath -> Void
@@ -81,24 +82,26 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
   (eval `(dynamic-require ',to-run #f))
   (vprintf "finished running ~s\n" to-run))
 
-;; [Listof Path] -> Loader
+;; [Listof Path] -> Loader Compiler
 ;; returns a value that can be set of `current-load/use-compiled`
 ;; forces the given files to be recompiled whenever load/use-compiled is called
 (define (make-cover-load/use-compiled paths)
   (define load/use-compiled (current-load/use-compiled))
   (define load (current-load))
+  (define compile (current-compile))
+  (define cover-compile (make-cover-compile))
   (lambda (path sym)
     (define abs (->absolute path))
     (define lst (explode-path abs))
     (define dir-list (take lst (sub1 (length lst))))
     (parameterize ([current-load-relative-directory (apply build-path dir-list)])
       (if (member abs paths)
-          (load path sym)
-          (load/use-compiled path sym)))))
+          (parameterize ([current-compile cover-compile])
+            (load path sym))
+          (parameterize ([current-compile compile])
+            (load/use-compiled path sym))))))
 
 ;; -> Compiler
-;; returns a value that can be set of `current-compiled`
-;; compiles anything begin compiled in `ns` to be compiled with coverage annotations
 (define (make-cover-compile)
   (define compile (current-compile))
   (define reg (namespace-module-registry ns))
@@ -117,22 +120,23 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
                           (or (syntax-source-file-name e)
                               (syntax-source e)
                               (syntax->datum e))))
-             (annotate-top (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
-                           phase)]))
+               (annotate-top (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
+                            phase)]))
     (compile to-compile immediate-eval?)))
 
-(define-runtime-path cov "coverage.rkt")
-(define abs-cover (->absolute cov))
-(define-runtime-path strace "strace.rkt")
-(define abs-strace (->absolute strace))
+(define (remove-unneeded-results paths)
+  (define c (get-raw-coverage))
+  (for ([s (in-list (hash-keys c))]
+        #:when (not (member (srcloc-source s) paths)))
+    (hash-remove! c s)))
 
 ;; -> Void
 ;; clear coverage map. Effectively recreates and rebuilds `ns`
 (define (clear-coverage!)
   (set! ns (make-base-namespace))
   (parameterize ([current-namespace ns])
-    (namespace-require `(file ,abs-cover))
-    (namespace-require `(file ,abs-strace))
+    (namespace-require 'cover/coverage)
+    (namespace-require 'cover/strace)
     (namespace-require 'rackunit))
   (load-names!))
 

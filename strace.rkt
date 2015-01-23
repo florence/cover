@@ -7,6 +7,7 @@
          racket/unit
          racket/runtime-path
          "private/file-utils.rkt"
+         "private/shared.rkt"
          "coverage.rkt")
 
 (define cover-name #'coverage)
@@ -61,10 +62,9 @@
        #'(make-srcloc src a b pos span)))))
 
 (define (in:annotate-top stx phase)
-  (define e (add-cover-require stx phase))
-  (if e (annotate-top e phase) stx))
+  (define e (add-cover-require stx))
+  (if e (annotate-clean (annotate-top e phase)) stx))
 
-(define-runtime-path coverage.rkt "coverage.rkt")
 (define (add-cover-require expr [top #t])
   (define inspector (variable-reference->module-declaration-inspector
                      (#%variable-reference)))
@@ -72,11 +72,9 @@
     #:literal-sets (kernel-literals)
     [(module name lang mb)
      (with-syntax ([cover cover-name]
-                   [srcloc srcloc-name]
-                   )
+                   [srcloc srcloc-name])
        (syntax-parse (syntax-disarm #'mb inspector)
-         #:literal-sets (kernel-literals)
-         [(#%module-begin  b ...)
+         [(#%module-begin b ...)
           (with-syntax ([(body ...)
                          (map (lambda (e) (add-cover-require e #f)) (syntax->list #'(b ...)))])
             (syntax-rearm
@@ -84,8 +82,18 @@
               (quasisyntax/loc expr
                 (module name lang
                   (#%module-begin
-                   (#%require (rename (file #,(->absolute coverage.rkt)) cover coverage))
+                   (#%require (rename cover/coverage cover coverage))
                    (#%require (rename racket/base srcloc make-srcloc))
                    body ...))))
              expr))]))]
       [_ (if top #f expr)]))
+
+;; in order to write modules to disk the top level needs to
+;; be a module. so we trust that the module is loaded and trim the expression
+(define (annotate-clean e)
+  (syntax-parse e
+    #:literal-sets (kernel-literals)
+    [(begin e mod)
+     (eval #'e)
+     #'mod]
+    [_ e]))
