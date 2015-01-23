@@ -55,7 +55,7 @@
   (cons (list (build-path dir "index.html") dir index)
         file-list))
 
-(module+ test
+#;(module+ test
   (test-begin
    (parameterize ([current-directory root])
      (after
@@ -105,7 +105,7 @@
 (define (%s->xexpr %)
   `(p () ,(~a "expr" ': " " (~r (* 100 %) #:precision 2) "%") (br ())))
 
-(module+ test
+#;(module+ test
   (test-begin
    (define f (path->string (simplify-path tests/basic/prog.rkt)))
    (test-files! f)
@@ -124,40 +124,12 @@
 
 (define (file->html path covered?)
   (define file (file->string path))
-  (define-values (lines _)
-    (for/fold ([ls null] [pos 1])
-              ([line (in-list (string-split file "\n"))])
-      (define-values (rline npos)
-        (for/fold ([r null] [pos pos])
-                  ([c (in-string line)])
-          (values
-           (cons (mode-xml (covered? pos)
-                           (encode-char c))
-                 r)
-           (add1 pos))))
-      (values
-       (cons `(li () ,@(reverse rline)) ls)
-       (add1 npos))))
-  `(ol ()
-    ,@(reverse lines)))
+  (define lines (string-split file "\n"))
+  `(div ()
+        ,(div:line-numbers (length lines))
+        ,(div:file-lines lines covered?)))
 
-(define (encode-char c)
-  (case c
-    [(#\space) 'nbsp]
-    [else (string c)]))
-(module+ test
-  (check-equal? (encode-char #\space)
-                'nbsp))
-
-(define (mode-xml mode body)
-  (define class
-    (case mode
-      [(covered) "covered"]
-      [(uncovered) "uncovered"]
-      [(irrelevant) "irrelevant"]))
-  `(span ((class ,class)) ,body))
-
-(module+ test
+#;(module+ test
   (define (test file out)
     (test-files! file)
     (define cov (hash-ref (get-test-coverage) file))
@@ -177,6 +149,64 @@
                 ,@(for/list ([c l])
                     `(span ((class ,(if (equal? c #\space) "irrelevant" "covered")))
                       ,(encode-char c))))))))
+
+;; File Report
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Nat -> Xexpr
+;; create a div with line numbers in it
+(define (div:line-numbers line-count)
+  `(div ([class "line-numbers"]) 
+        ,@(for/list ([num (in-range line-count)])
+            `(div () ,(number->string num)))))
+
+;; [List String] Covered? -> Xexpr
+(define (div:file-lines file-lines covered?)
+  (define-values (line-divs _) 
+    (for/fold ([lines '()] [pos 1]) ([line (in-list file-lines)])
+      (values (cons (div:file-line line pos covered?) lines)
+              (add1 (+ pos (string-length line))))))
+  `(div ([class "file-lines"]) ,@(reverse line-divs)))
+
+;; String Nat Covered? -> Xexpr
+;; Build a single line into an Xexpr
+(define (div:file-line line pos covered?)
+  (cond [(zero? (string-length line)) '(br ())]
+        [else 
+         (define (build-span str type) `(span ([class ,(symbol->string type)]) ,str))
+         (define-values (xexpr acc/str coverage-type)
+           (for/fold ([covered-exp '()] [expr/acc ""] [current-cover-type #f])
+                     ([c (in-string line)] [offset (in-naturals)])
+             (cond [(equal? c #\space) 
+                    (define new-expr 
+                      (cons 'nbsp 
+                            (if current-cover-type 
+                                (cons (build-span expr/acc current-cover-type) covered-exp)
+                                covered-exp)))
+                    (values new-expr "" #f)]
+                   [(equal? current-cover-type (covered? (+ pos offset)))
+                    (values covered-exp (string-append expr/acc (string c)) current-cover-type)]
+                   [else 
+                    (define new-expr
+                      (if current-cover-type 
+                          (cons (build-span expr/acc current-cover-type) covered-exp)
+                          covered-exp))
+                    (values new-expr (string c) (covered? (+ pos offset)))])))
+         (define result 
+           (if coverage-type 
+               (cons (build-span acc/str coverage-type) xexpr)
+               xexpr))
+         `(div ([class "line"]) ,@(reverse result))]))
+
+(module+ test
+  (define mock-covered? 
+    (λ (pos) (cond [(<= 1 pos 6) 'covered]
+                   [(= 6 pos) 'missing]
+                   [else 'uncovered])))
+  (check-equal?  (div:file-line "hello world" 1 mock-covered?)
+                '(div ([class "line"]) (span ([class "covered"]) "hello")
+                      nbsp
+                      (span ([class "uncovered"]) "world"))))
 
 ;; Index File
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -252,9 +282,6 @@
 (define (coverage-report-link path)
   (define local-file (find-relative-path (current-directory) path))
   (path->string (path-replace-suffix local-file ".html")))
-
-;; File Coverage Reports
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Percentage
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
