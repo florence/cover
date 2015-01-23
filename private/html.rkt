@@ -20,7 +20,11 @@
 (module+ test
   (require rackunit "../cover.rkt" racket/runtime-path racket/set)
   (define-runtime-path root "..")
-  (define-runtime-path tests/basic/prog.rkt "../tests/basic/prog.rkt"))
+  (define-runtime-path tests/basic/prog.rkt "../tests/basic/prog.rkt")
+  (define (mock-covered? pos) 
+    (cond [(<= 1 pos 6) 'covered]
+          [(= 6 pos) 'missing]
+          [else 'uncovered])))
 
 ;;; Coverage [PathString] -> Void
 (define (generate-html-coverage coverage [d "coverage"])
@@ -55,7 +59,7 @@
   (cons (list (build-path dir "index.html") dir index)
         file-list))
 
-#;(module+ test
+(module+ test
   (test-begin
    (parameterize ([current-directory root])
      (after
@@ -105,7 +109,7 @@
 (define (%s->xexpr %)
   `(p () ,(~a "expr" ': " " (~r (* 100 %) #:precision 2) "%") (br ())))
 
-#;(module+ test
+(module+ test
   (test-begin
    (define f (path->string (simplify-path tests/basic/prog.rkt)))
    (test-files! f)
@@ -129,26 +133,18 @@
         ,(div:line-numbers (length lines))
         ,(div:file-lines lines covered?)))
 
-#;(module+ test
-  (define (test file out)
-    (test-files! file)
-    (define cov (hash-ref (get-test-coverage) file))
-    (define covered? (make-covered? cov file))
-    (check-equal? (file->html file covered?)
-                  out)
-    (clear-coverage!))
-  (define f (path->string (simplify-path tests/basic/prog.rkt)))
-  (test f
-        `(ol ()
-          (li ()
-              ,@(for/list ([c (in-string (first (string-split (file->string f) "\n")))])
-                 `(span ((class "covered"))
-                   ,(encode-char c))))
-          ,@(for/list ([l (rest (string-split (file->string f) "\n"))])
-              `(li ()
-                ,@(for/list ([c l])
-                    `(span ((class ,(if (equal? c #\space) "irrelevant" "covered")))
-                      ,(encode-char c))))))))
+(module+ test
+  (test-begin
+   (define f (path->string (simplify-path tests/basic/prog.rkt)))
+   (test-files! f)
+   (define cov (hash-ref (get-test-coverage) f))
+   (define covered? (make-covered? cov f))
+   (define lines (string-split (file->string f) "\n"))
+   (check-equal? (file->html f covered?) 
+                 `(div ()
+                       ,(div:line-numbers (length lines))
+                       ,(div:file-lines lines covered?)))
+   (clear-coverage!)))
 
 ;; File Report
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -157,8 +153,14 @@
 ;; create a div with line numbers in it
 (define (div:line-numbers line-count)
   `(div ([class "line-numbers"]) 
-        ,@(for/list ([num (in-range line-count)])
+        ,@(for/list ([num (in-range 1 (add1 line-count))])
             `(div () ,(number->string num)))))
+
+(module+ test
+  (check-equal? 
+   (div:line-numbers 5)
+   `(div ([class "line-numbers"]) 
+         ,@(build-list 5 (λ (n) `(div () ,(number->string (add1 n))))))))
 
 ;; [List String] Covered? -> Xexpr
 (define (div:file-lines file-lines covered?)
@@ -168,29 +170,34 @@
               (add1 (+ pos (string-length line))))))
   `(div ([class "file-lines"]) ,@(reverse line-divs)))
 
+(module+ test
+  (define lines '("hello world" "goodbye"))
+  (check-equal? (div:file-lines lines mock-covered?)
+                `(div ([class "file-lines"])
+                      ,(div:file-line (first lines) 1 mock-covered?)
+                      ,(div:file-line (second lines) 12 mock-covered?))))
+
 ;; String Nat Covered? -> Xexpr
 ;; Build a single line into an Xexpr
 (define (div:file-line line pos covered?)
   (cond [(zero? (string-length line)) '(br ())]
         [else 
          (define (build-span str type) `(span ([class ,(symbol->string type)]) ,str))
+         (define (add-expr cover-type expr cover-exprs)
+           (if cover-type 
+               (cons (build-span expr cover-type) cover-exprs)
+               cover-exprs))
+         
          (define-values (xexpr acc/str coverage-type)
            (for/fold ([covered-exp '()] [expr/acc ""] [current-cover-type #f])
                      ([c (in-string line)] [offset (in-naturals)])
              (cond [(equal? c #\space) 
-                    (define new-expr 
-                      (cons 'nbsp 
-                            (if current-cover-type 
-                                (cons (build-span expr/acc current-cover-type) covered-exp)
-                                covered-exp)))
+                    (define new-expr (cons 'nbsp (add-expr current-cover-type expr/acc covered-exp)))
                     (values new-expr "" #f)]
                    [(equal? current-cover-type (covered? (+ pos offset)))
                     (values covered-exp (string-append expr/acc (string c)) current-cover-type)]
                    [else 
-                    (define new-expr
-                      (if current-cover-type 
-                          (cons (build-span expr/acc current-cover-type) covered-exp)
-                          covered-exp))
+                    (define new-expr (add-expr current-cover-type expr/acc covered-exp))
                     (values new-expr (string c) (covered? (+ pos offset)))])))
          (define result 
            (if coverage-type 
@@ -199,11 +206,8 @@
          `(div ([class "line"]) ,@(reverse result))]))
 
 (module+ test
-  (define mock-covered? 
-    (λ (pos) (cond [(<= 1 pos 6) 'covered]
-                   [(= 6 pos) 'missing]
-                   [else 'uncovered])))
-  (check-equal?  (div:file-line "hello world" 1 mock-covered?)
+  (check-equal? (div:file-line "" 1 mock-covered?) '(br ()))
+  (check-equal? (div:file-line "hello world" 1 mock-covered?)
                 '(div ([class "line"]) (span ([class "covered"]) "hello")
                       nbsp
                       (span ([class "uncovered"]) "world"))))
@@ -233,6 +237,11 @@
         (real->decimal-string total-coverage-percentage)))
   `(div ([class "total-coverage"])
         ,(string-append "Total Project Coverage: " coverage-as-string "%")))
+
+(module+ test 
+  (test-begin (check-equal? (div:total-coverage (hash "foo.rkt" (list 0 10)
+                                                      "bar.rkt" (list 10 10)))
+                            '(div ([class "total-coverage"]) "Total Project Coverage: 50.00%"))))
 
 ;; [Hash FilePath ExpressionInfo] -> Xexpr
 (define (table:file-reports expr-coverages)
@@ -272,16 +281,23 @@
                                   (td () "No Coverage Info")
                                   (td () "0.00")
                                   (td () "0.00"))))
-  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 10 10) #f)
-                            '(tr ((class "file-info"))
+  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 10 10) #t)
+                            '(tr ((class "file-info stripe"))
                                   (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
                                   (td () "100.00")
                                   (td () "10.00")
                                   (td () "10.00")))))
 
+;; Path -> String
+;; Generate a link to the coverage report
 (define (coverage-report-link path)
   (define local-file (find-relative-path (current-directory) path))
   (path->string (path-replace-suffix local-file ".html")))
+
+(module+ test
+  (test-begin
+   (check-equal? (coverage-report-link "format-utils.rkt")
+                 "format-utils.html")))
 
 ;; Percentage
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
