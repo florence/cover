@@ -66,17 +66,26 @@
 
 (define-runtime-path coverage.rkt "coverage.rkt")
 (define (add-cover-require expr [top #t])
-  (syntax-parse expr
-      #:literal-sets (kernel-literals)
-      [(module name lang (#%module-begin b ...))
-       (with-syntax ([cover cover-name]
-                     [srcloc srcloc-name]
-                     [(body ...) (map (lambda (e) (add-cover-require e #f)) (syntax->list #'(b ...)))])
-         (namespace-syntax-introduce
-          (quasisyntax/loc expr
-              (module name lang
-                (#%module-begin
-                 (#%require (rename (file #,(->absolute coverage.rkt)) cover coverage))
-                 (#%require (rename racket/base srcloc make-srcloc))
-                 body ...)))))]
+  (define inspector (variable-reference->module-declaration-inspector
+                     (#%variable-reference)))
+  (syntax-parse (syntax-disarm expr inspector)
+    #:literal-sets (kernel-literals)
+    [(module name lang mb)
+     (with-syntax ([cover cover-name]
+                   [srcloc srcloc-name]
+                   )
+       (syntax-parse (syntax-disarm #'mb inspector)
+         #:literal-sets (kernel-literals)
+         [(#%module-begin  b ...)
+          (with-syntax ([(body ...)
+                         (map (lambda (e) (add-cover-require e #f)) (syntax->list #'(b ...)))])
+            (syntax-rearm
+             (namespace-syntax-introduce
+              (quasisyntax/loc expr
+                (module name lang
+                  (#%module-begin
+                   (#%require (rename (file #,(->absolute coverage.rkt)) cover coverage))
+                   (#%require (rename racket/base srcloc make-srcloc))
+                   body ...))))
+             expr))]))]
       [_ (if top #f expr)]))
