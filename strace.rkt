@@ -65,28 +65,29 @@
   (define e (add-cover-require stx))
   (if e (annotate-clean (annotate-top e phase)) stx))
 
-(define (add-cover-require expr [top #t])
+(define (add-cover-require expr)
   (define inspector (variable-reference->module-declaration-inspector
                      (#%variable-reference)))
-  (syntax-parse (syntax-disarm expr inspector)
-    #:literal-sets (kernel-literals)
-    [(module name lang mb)
-     (with-syntax ([cover cover-name]
-                   [srcloc srcloc-name])
-       (syntax-parse (syntax-disarm #'mb inspector)
-         [(#%module-begin b ...)
-          (with-syntax ([(body ...)
-                         (map (lambda (e) (add-cover-require e #f)) (syntax->list #'(b ...)))])
-            (syntax-rearm
-             (namespace-syntax-introduce
-              (quasisyntax/loc expr
-                (module name lang
-                  (#%module-begin
-                   (#%require (rename cover/coverage cover coverage))
-                   (#%require (rename racket/base srcloc make-srcloc))
-                   body ...))))
-             expr))]))]
-      [_ (if top #f expr)]))
+  (let loop ([expr expr] [top #t])
+    (syntax-parse (syntax-disarm expr inspector)
+      #:literal-sets (kernel-literals)
+      [(module name lang mb)
+       (with-syntax ([cover cover-name]
+                     [srcloc srcloc-name])
+         (syntax-parse (syntax-disarm #'mb inspector)
+           [(#%module-begin b ...)
+            (with-syntax ([(body ...)
+                           (map (lambda (e) (loop e #f)) (syntax->list #'(b ...)))])
+              (syntax-rearm
+               (namespace-syntax-introduce
+                (quasisyntax/loc expr
+                  (module name lang
+                    (#%module-begin
+                     (#%require (rename cover/coverage cover coverage))
+                     (#%require (rename racket/base srcloc make-srcloc))
+                     body ...))))
+               expr))]))]
+      [_ (if top #f expr)])))
 
 ;; in order to write modules to disk the top level needs to
 ;; be a module. so we trust that the module is loaded and trim the expression

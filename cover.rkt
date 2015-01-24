@@ -107,22 +107,25 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
   (define reg (namespace-module-registry ns))
   (define phase (namespace-base-phase ns))
   (define annotate-top (get-annotate-top))
-  (lambda (e immediate-eval?)
-    (define to-compile
-      (cond [(or (compiled-expression? (if (syntax? e) (syntax-e e) e))
-                 (not (eq? reg (namespace-module-registry (current-namespace))))
-                 (not (equal? phase (namespace-base-phase (current-namespace)))))
-             e]
-            [else
-             (vprintf "compiling ~s with coverage annotations\n"
-                      (if (not (syntax? e))
-                          e
-                          (or (syntax-source-file-name e)
-                              (syntax-source e)
-                              (syntax->datum e))))
+  ;; define so its named in stack traces
+  (define cover-compile
+    (lambda (e immediate-eval?)
+      (define to-compile
+        (cond [(or (compiled-expression? (if (syntax? e) (syntax-e e) e))
+                   (not (eq? reg (namespace-module-registry (current-namespace))))
+                   (not (equal? phase (namespace-base-phase (current-namespace)))))
+               e]
+              [else
+               (vprintf "compiling ~s with coverage annotations\n"
+                        (if (not (syntax? e))
+                            e
+                            (or (syntax-source-file-name e)
+                                (syntax-source e)
+                                (syntax->datum e))))
                (annotate-top (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
-                            phase)]))
-    (compile to-compile immediate-eval?)))
+                             phase)]))
+      (compile to-compile immediate-eval?)))
+  cover-compile)
 
 (define (remove-unneeded-results paths)
   (define c (get-raw-coverage))
@@ -235,7 +238,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
     (for-each (lambda (f) (when (file-exists? f) (delete-file f)))
               compiled)
     (check-false (ormap file-exists? compiled))
-    (check-not-exn
+    (#;check-not-exn
      (lambda ()
        (parameterize ([current-compile (make-cover-compile)]
                       [current-namespace ns])
