@@ -3,8 +3,8 @@
 (require errortrace/stacktrace
          racket/function
          racket/syntax
-         syntax/parse
          racket/unit
+         syntax/kerncase
          racket/runtime-path
          "private/file-utils.rkt"
          "private/shared.rkt"
@@ -69,12 +69,11 @@
   (define inspector (variable-reference->module-declaration-inspector
                      (#%variable-reference)))
   (let loop ([expr expr] [top #t])
-    (syntax-parse (syntax-disarm expr inspector)
-      #:literal-sets (kernel-literals)
+    (kernel-syntax-case (syntax-disarm expr inspector) #f
       [(module name lang mb)
        (with-syntax ([cover cover-name]
                      [srcloc srcloc-name])
-         (syntax-parse (syntax-disarm #'mb inspector)
+         (syntax-case (syntax-disarm #'mb inspector) ()
            [(#%module-begin b ...)
             (with-syntax ([(body ...)
                            (map (lambda (e) (loop e #f)) (syntax->list #'(b ...)))])
@@ -92,8 +91,7 @@
 ;; in order to write modules to disk the top level needs to
 ;; be a module. so we trust that the module is loaded and trim the expression
 (define (annotate-clean e)
-  (syntax-parse e
-    #:literal-sets (kernel-literals)
+  (kernel-syntax-case e #f
     [(begin e mod)
      (eval #'e)
      #'mod]

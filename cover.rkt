@@ -40,9 +40,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
           (->absolute p))))
   (define abs-paths (map (lambda (p) (if (list? p) (first p) p)) abs))
   (parameterize ([current-load/use-compiled (make-cover-load/use-compiled abs-paths)]
-                 [use-compiled-file-paths
-                  (cons (build-path "compiled" "cover")
-                        (use-compiled-file-paths))]
+                 
                  [current-output-port
                   (if (verbose) (current-output-port) (open-output-nowhere))])
     (define tests-failed #f)
@@ -88,20 +86,25 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 (define (make-cover-load/use-compiled paths)
   (define load/use-compiled (current-load/use-compiled))
   (define load (current-load))
-  (define compile (current-compile))
   (define cover-compile (make-cover-compile))
+  (define cover-use-compiled-file-paths
+    (cons (build-path "compiled" "cover")
+          (use-compiled-file-paths)))
   (lambda (path sym)
     (define abs (->absolute path))
     (define lst (explode-path abs))
     (define dir-list (take lst (sub1 (length lst))))
     (parameterize ([current-load-relative-directory (apply build-path dir-list)])
       (if (member abs paths)
-          (parameterize ([current-compile cover-compile])
+          (parameterize ([current-compile cover-compile]
+                         [use-compiled-file-paths
+                          cover-use-compiled-file-paths])
             (load path sym))
-          (parameterize ([current-compile compile])
-            (load/use-compiled path sym))))))
+          (load/use-compiled path sym)))))
 
 ;; -> Compiler
+;; makes a value sutable for current-compile, such that compile
+;; annotates the source code. should only be used by `make-cover-load/uze-compiled`
 (define (make-cover-compile)
   (define compile (current-compile))
   (define reg (namespace-module-registry ns))
@@ -238,9 +241,10 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
     (for-each (lambda (f) (when (file-exists? f) (delete-file f)))
               compiled)
     (check-false (ormap file-exists? compiled))
-    (#;check-not-exn
+    (check-not-exn
      (lambda ()
-       (parameterize ([current-compile (make-cover-compile)]
+       (parameterize ([current-load/use-compiled
+                       (make-cover-load/use-compiled (list (->absolute prog.rkt)))]
                       [current-namespace ns])
          (managed-compile-zo prog.rkt))))
     (check-true (andmap file-exists? compiled))
