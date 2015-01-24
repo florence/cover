@@ -184,35 +184,10 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 ;; based on <pkgs>/drracket/drracket/private/debug.rkt
 (define (get-test-coverage)
   (vprintf "generating test coverage\n")
-  ;; can-annotate : (listof (list boolean srcloc))
-  ;; boolean is #t => code was run
-  ;;            #f => code was not run
-  ;; remove those that cannot be annotated
-  (define can-annotate
-    (hash-map (get-raw-coverage)
-              (lambda (x y) (list y x))))
-
-  ;; actions-ht : (list src number number) -> (list boolean syntax)
-  (define actions-ht (make-hash))
-
-  (for-each
-   (λ (pr)
-     (let* ([on? (car pr)]
-            [key (cadr pr)]
-            [old (hash-ref actions-ht key 'nothing)])
-       (cond
-        [(eq? old 'nothing)
-         (hash-set! actions-ht key on?)]
-        [old ;; recorded as executed
-         (void)]
-        [(not old) ;; recorded as unexected
-         (when on?
-           (hash-set! actions-ht key #t))])))
-   can-annotate)
 
   ;; filtered : (listof (list boolean srcloc))
   ;; remove redundant expressions
-  (define filtered (hash-map actions-ht (λ (k v) (list v k))))
+  (define filtered (hash-map (get-raw-coverage) (λ (k v) (list v k))))
 
   (define out (make-hash))
 
