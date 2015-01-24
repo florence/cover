@@ -4,7 +4,8 @@
 (define deps '(("base" #:version "6.1.1") "errortrace-lib" "rackunit-lib"
                "syntax-color-lib" "compiler-lib"))
 (define build-deps
-  '("racket-doc" "scribble-lib" "typed-racket-doc" "htdp-lib"))
+  '("racket-doc" "scribble-lib" "typed-racket-doc" "htdp-lib"
+    "net-doc" "scribble-doc"))
 
 (define raco-commands
   '(("cover" (submod cover/raco main) "a code coverage tool" 30)))
@@ -20,4 +21,4 @@
 
 (define test-command-line-arguments '(("tests/arg.rkt" ("a"))))
 
-(define version "1.1.0")
+(define version "1.2.0")

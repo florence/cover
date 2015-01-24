@@ -48,5 +48,20 @@ The @exec{raco cover} command accepts the following flags:
                @tech[#:doc '(lib "pkg/scribblings/pkg.scrbl")]{package scope}.}]
 
 
-In addition  @exec{raco cover} supports the @racket[_test-omit-paths]
-and @racket[_test-command-line-arguments] @filepath{info.rkt} options like @exec{raco test}.
+In addition @exec{raco cover} supports the @racket[_test-omit-paths] and
+@racket[_test-command-line-arguments] @filepath{info.rkt} options like @exec{raco test}.  In
+addition cover supports @racket[_cover-omit-paths], which is identical to @racket[_test-omit-paths],
+but is specific to cover.
+
+@section{Gotcha's}
+
+Sometimes the code that cover run will have a non obvious cyclic dependency on another file or
+collection. for example, the @racketmodname[net/dns] library has a build time dependency on
+@racketmodname[scribble/manual], which depends on @racket[planet], which depends on
+@racketmodname[net/dns]. Attempting to run @exec{raco cover} on @racketmodname[net/dns] will result in a
+linkage error. This is because Cover recompiled @racketmodname[net/dns] in memory, but @racket[planet]
+hasn't been recompiled and thus throws and bad linkage error. There are two ways to fix this. The
+first is to include @racketmodname[scribble/manual] and @racket[planet] in the code covered then
+exclude them from the output with the @Flag{e} flag. The other is to add the files that cause the
+cyclic dependencies to @racket[_test-omit-paths] or @racket[_cover-omit-paths] in that collections
+@filepath{info.rkt}.
