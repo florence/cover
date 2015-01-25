@@ -40,7 +40,6 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
           (->absolute p))))
   (define abs-paths (map (lambda (p) (if (list? p) (first p) p)) abs))
   (parameterize ([current-load/use-compiled (make-cover-load/use-compiled abs-paths)]
-                 
                  [current-output-port
                   (if (verbose) (current-output-port) (open-output-nowhere))])
     (define tests-failed #f)
@@ -70,7 +69,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
           (define submod `(submod ,file ,submod-name))
           (run-mod (if (module-declared? submod #t) submod file)))))
     (vprintf "ran ~s\n" paths)
-    (remove-unneeded-results abs-paths)
+    (remove-unneeded-results! abs-paths)
     (not tests-failed)))
 
 ;; ModulePath -> Void
@@ -130,7 +129,9 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
       (compile to-compile immediate-eval?)))
   cover-compile)
 
-(define (remove-unneeded-results paths)
+;; [Listof PathString] -> Void
+;; remove any files not in paths from the raw coverage
+(define (remove-unneeded-results! paths)
   (define c (get-raw-coverage))
   (for ([s (in-list (hash-keys c))]
         #:when (not (member (srcloc-source s) paths)))

@@ -102,19 +102,24 @@
   (define-runtime-path root ".")
   (define-runtime-path private "private")
   (define-runtime-path main.rkt "main.rkt")
-  (parameterize ([current-directory root])
+  (define out
+    (set "main.rkt"
+         "private/coveralls.rkt"
+         "private/contracts.rkt"
+         "private/html.rkt"
+         "private/format-utils.rkt"
+         "private/file-utils.rkt"
+         "private/shared.rkt"
+         "private/raw.rkt"))
+  (define (do-test ->)
+    (parameterize ([current-directory root])
     (check-equal? (list->set
                    (map (compose path->string ->relative)
                         (expand-directories (list (path->string main.rkt)
-                                                  (->relative (path->string private))))))
-                  (set "main.rkt"
-                       "private/coveralls.rkt"
-                       "private/contracts.rkt"
-                       "private/html.rkt"
-                       "private/format-utils.rkt"
-                       "private/file-utils.rkt"
-                       "private/shared.rkt"
-                       "private/raw.rkt"))))
+                                                  (->(path->string private))))))
+                  out)))
+  (do-test ->relative)
+  (do-test ->absolute))
 
 ;; -> (HorribyNestedListsOf (or PathString (list path-string vector))
 (define (expand-directory exts [omit-paths null] [args null])

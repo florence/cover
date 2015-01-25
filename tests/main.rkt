@@ -73,7 +73,7 @@
    (after
     (test-files! (->absolute prog.rkt))
     (define abs (get-test-coverage))
-    (test-files! (->relative prog.rkt))
+    (test-files! (build-path (->relative prog.rkt)))
     (define rel (get-test-coverage))
     (check-equal? abs rel)
     (clear-coverage!))))

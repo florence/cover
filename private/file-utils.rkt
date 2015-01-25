@@ -5,12 +5,13 @@
 
 ;; PathString -> Path
 (define (->relative path)
-  (if (relative-path? path)
-      (build-path path)
-      (let-values ([(_ lst)
-                    (split-at (explode-path path)
-                              (length (explode-path (current-directory))))])
-        (apply build-path lst))))
+  (simplify-path
+   (if (relative-path? path)
+       (build-path path)
+       (let-values ([(_ lst)
+                     (split-at (explode-path path)
+                               (length (explode-path (current-directory))))])
+         (apply build-path lst)))))
 
 (module+ test
   (parameterize ([current-directory (build-path "/test")])
@@ -21,7 +22,7 @@
 
 (define (->absolute path)
   (if (absolute-path? path)
-      (if (string? path) path (path->string path))
+      (path->string (simplify-path path))
       (path->string (simplify-path (build-path (current-directory) path)))))
 (module+ test
   (parameterize ([current-directory (build-path "/")])
