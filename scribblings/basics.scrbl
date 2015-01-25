@@ -23,7 +23,7 @@ The @exec{raco cover} command accepts the following flags:
                         @item{raw: @racket[write]s the raw output @racket[get-test-coverage] to the
                               output file.}]}
          @item{@Flag{b} or @DFlag{exclude-pkg-basics}
-              Equivalent to @exec{-n tests -n info.rkt -n scribblings}}
+               --- Equivalent to @exec{-n tests -n info.rkt -n scribblings}}
          @item{@Flag{d} or @DFlag{directory}
                --- Specifies the directory to output coverage information to.
                defaults to @filepath{coverage}.}
