@@ -5,6 +5,7 @@
 
 ;; like printf but only in verbose mode
 (define o (current-output-port))
-(define (vprintf . a)
+(define (vprintf #:printer [printer printf] . a)
   (when (verbose)
-    (apply fprintf o a)))
+    (parameterize ([current-output-port o])
+      (apply printer a))))

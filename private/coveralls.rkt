@@ -19,7 +19,7 @@
   (require (for-syntax racket/base))
   (define-runtime-path tests/prog.rkt"../tests/prog.rkt")
   (define-runtime-path root "..")
-  
+
   (define-syntax (with-env stx)
     (syntax-case stx ()
       [(test-with-env (env ...) test ...)
@@ -36,6 +36,9 @@
 ;; Coverage [path-string] -> Void
 (define-runtime-path post "curl.sh")
 (define (generate-coveralls-coverage coverage [dir "coverage"])
+  (send-coveralls-info (generate-and-save-data coverage dir)))
+
+(define (generate-and-save-data coverage dir)
   (make-directory* dir)
   (define coverage-path dir)
   (define coverage-file (build-path coverage-path "coverage.json"))
@@ -44,9 +47,22 @@
   (with-output-to-file coverage-file
     (thunk (write-json data))
     #:exists 'replace)
-  (when (verbose)
-    (printf "data written was:\n")
-    (pretty-print data))
+  (vprintf "data written was:\n")
+  (vprintf #:printer pretty-print data)
+  coverage-file)
+
+(module+ test
+  (test-begin
+   (with-env ("COVERALLS_REPO_TOKEN" "abc")
+     (define temp-dir (make-temporary-file "covertmp~a" 'directory))
+     (test-files! tests/prog.rkt)
+     (define coverage (get-test-coverage))
+     (define data-file (generate-and-save-data coverage temp-dir))
+     (define rfile (build-path temp-dir "coverage.json"))
+     (check-equal? data-file rfile)
+     (check-true (file-exists? rfile)))))
+
+(define (send-coveralls-info coverage-file)
   (vprintf "invoking coveralls API")
   (parameterize ([current-output-port
                   (if (verbose)
