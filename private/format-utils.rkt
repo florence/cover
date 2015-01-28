@@ -25,7 +25,7 @@
 
 ;; A Covered? is a [Nat [#:byte? Boolean] -> Cover]
 
-;; FileCoverage PathString -> Covered?
+;; FileCoverage PathString #:ignored-submods (maybe (listof symbol)) -> Covered?
 (define (make-covered? c path #:ignored-submods [submods #f])
   (define vec
     (list->vector (string->list (file->string path))))
@@ -38,6 +38,7 @@
 
 
 ;; Path FileCoverage OffsetFunc -> [Hashof Natural Cover]
+;; build a hash caching coverage info for that file
 (define (coverage-cache-file f c submods)
   (vprintf "caching coverage info for ~s\n" f)
   (with-input-from-file f
@@ -57,6 +58,8 @@
                        [else (raw-covered? i c)]))))
      cache)))
 
+;; Lexer(in the sence of color:text<%>) InputPort (Maybe (Listof Symbol)) -> (Natural -> Boolean)
+;; builds a function that determines if a given location in that port is irrelivent.
 (define (make-irrelevant? lexer f submods)
   (define s (mutable-set))
   (define-values (for-lex for-str) (replicate-file-port f (current-input-port)))
@@ -101,6 +104,8 @@
       [_else (void)]))
   (lambda (i) (set-member? s i)))
 
+;; Path FilePort -> FilePort FilePort
+;; creates two ports to that file at the same position at the first
 (define (replicate-file-port f p)
   (define f1 (open-input-file f))
   (define f2 (open-input-file f))
@@ -108,7 +113,8 @@
   (file-position f2 (file-position p))
   (values f1 f2))
 
-
+;; Natural Coverage -> (U 'covered 'uncovered 'irrelevant)
+;; lookup i in c. irrelevant if its not contained
 (define (raw-covered? i c)
   (define loc i)
   (define-values (mode _)
@@ -126,6 +132,7 @@
     [(#f) 'uncovered]
     [else 'irrelevant]))
 
+;; String -> (Natural -> Natural)
 ;; used for determining character/byte offsets for a given
 ;; 1 indexed byte locaiton
 (define ((make-byte->str-offset str) offset)
