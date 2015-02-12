@@ -106,7 +106,7 @@
     (set "main.rkt"
          "private/coveralls.rkt"
          "private/contracts.rkt"
-         "private/html.rkt"
+         "private/html/html.rkt"
          "private/format-utils.rkt"
          "private/file-utils.rkt"
          "private/shared.rkt"

@@ -13,14 +13,14 @@
          syntax/parse
          unstable/sequence
          (only-in xml write-xexpr)
-         "format-utils.rkt"
-         "shared.rkt")
+         "../format-utils.rkt"
+         "../shared.rkt")
 
 
 (module+ test
-  (require rackunit "../cover.rkt" racket/runtime-path racket/set "file-utils.rkt")
-  (define-runtime-path root "..")
-  (define-runtime-path tests/basic/prog.rkt "../tests/basic/prog.rkt")
+  (require rackunit "../../cover.rkt" racket/runtime-path racket/set "../file-utils.rkt")
+  (define-runtime-path root "../..")
+  (define-runtime-path tests/basic/prog.rkt "../../tests/basic/prog.rkt")
   (define (mock-covered? pos)
     (cond [(<= 1 pos 6) 'covered]
           [(= 6 pos) 'missing]
