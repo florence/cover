@@ -109,8 +109,10 @@
 
 
 (define-runtime-path css "main.css")
+(define-runtime-path jerbascript "app.js")
 (define (move-support-files! dir)
-  (copy-file css (build-path dir "main.css") #t))
+  (copy-file css (build-path dir "main.css") #t)
+  (copy-file jerbascript (build-path dir "app.js") #t))
 (module+ test
   (test-begin
    (define temp-dir (make-temporary-file "covertmp~a" 'directory))
@@ -246,7 +248,8 @@
   `(html
     (head ()
           (meta ([charset "utf-8"]))
-          (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
+          (link ([rel "stylesheet"] [type "text/css"] [href "main.css"]))
+          (script ([src "app.js"])))
     (body ()
           (div ([class "report-container"])
                ,(div:total-coverage expression-coverage)
@@ -270,41 +273,46 @@
   `(table ([class "file-list"])
           (thead ()
                  (tr ()
-                     (th ([class "file-name"]) "File")
-                     (th () "Coverage Percentage")
-                     (th () "Covered Expressions")
-                     (th () "Total Expressions")))
+                     (th ([class "file-name"]) "File" ,(file-sorter "file-name"))
+                     (th ([class "coverage-percentage"]) "Coverage Percentage" ,(file-sorter "coverage-percentage"))
+                     (th ([class "covered-expressions"]) "Covered Expressions" ,(file-sorter "covered-expressions"))
+                     (th ([class "total-expressions"]) "Total Expressions" ,(file-sorter "total-expressions"))))
           (tbody ()
-                 ,@(for/list ([(path expr-info) (in-hash expr-coverages)] [line-num (in-naturals)])
-                     (tr:file-report path expr-info (zero? (modulo line-num 2)))))))
+                 ,@(for/list ([(path expr-info) (in-hash expr-coverages)])
+                     (tr:file-report path expr-info)))))
 
-;; PathString ExpressionInfo Boolean -> Xexpr
+(define (file-sorter class-name)
+  `(div ([class "sorter"])
+        (div ([class "sort-icon-up"]))
+        (div ([class "sort-icon-down"]))))
+
+;; PathString ExpressionInfo -> Xexpr
 ;; create a div that holds a link to the file report and expression
 ;; coverage information
-(define (tr:file-report path expr-coverage-info stripe?)
+(define (tr:file-report path expr-coverage-info)
   (define local-file
     (path->string (find-relative-path (current-directory) (string->path path))))
   (define percentage (* 100 (/ (first expr-coverage-info) (second expr-coverage-info))))
-  (define styles `([class ,(string-append "file-info" (if stripe? " stripe" ""))]))
+  (define styles `([class "file-info"]))
   `(tr ,styles
        (td ([class "file-name"]) (a ([href ,(coverage-report-link path)]) ,local-file))
-       (td () ,(~r percentage #:precision 2))
-       (td () ,(~r (first expr-coverage-info) #:precision 2))
-       (td () ,(~r (second expr-coverage-info) #:precision 2))))
+       (td ([class "coverage-percentage"]) ,(~r percentage #:precision 2))
+       (td ([class "covered-expressions"]) ,(~r (first expr-coverage-info) #:precision 2))
+       (td ([class "total-expressions"]) ,(~r (second expr-coverage-info) #:precision 2))))
 
 (module+ test
-  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 0 1) #f)
+  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 0 1))
                             '(tr ((class "file-info"))
                                   (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
-                                  (td () "0")
-                                  (td () "0")
-                                  (td () "1"))))
-  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 10 10) #t)
-                            '(tr ((class "file-info stripe"))
+                                  (td ([class "coverage-percentage"]) "0")
+                                  (td ([class "covered-expressions"]) "0")
+                                  (td ([class "total-expressions"]) "1"))))
+  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 10 10))
+                            '(tr ((class "file-info"))
                                   (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
-                                  (td () "100")
-                                  (td () "10")
-                                  (td () "10")))))
+                                  (td ([class "coverage-percentage"]) "100")
+                                  (td ([class "covered-expressions"]) "10")
+                                  (td ([class "total-expressions"]) "10")))))
 
 ;; Path -> String
 ;; Generate a link to the coverage report
