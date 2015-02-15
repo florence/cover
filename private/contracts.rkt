@@ -3,6 +3,6 @@
 (require racket/contract)
 
 (define file-coverage/c (listof (list/c boolean? srcloc?)))
-(define coverage/c (hash/c (and/c path-string? absolute-path?)
-                           file-coverage/c))
+;; if its a file path, will be an absolute path
+(define coverage/c (hash/c any/c file-coverage/c))
 (define coverage-gen/c (->* (coverage/c) (path-string?) any))
