@@ -60,3 +60,33 @@ div.line-numbers {
 div.file-lines {
   display: inline-block;
 }
+
+/* Sorting Triangles */
+
+div.sorter {
+  display: inline-block;
+  margin-left: 0.5em;
+  margin-bottom: 0.1em;
+}
+
+.sort-icon-up {
+  cursor: pointer;
+  margin-bottom: 0.1em;
+
+  width: 0px;
+  height: 0px;
+  border-left: 0.25em solid transparent;
+  border-right: 0.25em solid transparent;
+  border-bottom: 0.25em solid black;
+}
+
+.sort-icon-down {
+  cursor: pointer;
+  margin-top: 0.1em;
+
+  width: 0px;
+  height: 0px;
+  border-left: 0.25em solid transparent;
+  border-right: 0.25em solid transparent;
+  border-top: 0.25em solid black;
+}

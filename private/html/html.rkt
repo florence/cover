@@ -13,14 +13,14 @@
          syntax/parse
          unstable/sequence
          (only-in xml write-xexpr)
-         "format-utils.rkt"
-         "shared.rkt")
+         "../format-utils.rkt"
+         "../shared.rkt")
 
 
 (module+ test
-  (require rackunit "../cover.rkt" racket/runtime-path racket/set "file-utils.rkt")
-  (define-runtime-path root "..")
-  (define-runtime-path tests/basic/prog.rkt "../tests/basic/prog.rkt")
+  (require rackunit "../../cover.rkt" racket/runtime-path racket/set "../file-utils.rkt")
+  (define-runtime-path root "../..")
+  (define-runtime-path tests/basic/prog.rkt "../../tests/basic/prog.rkt")
   (define (mock-covered? pos)
     (cond [(<= 1 pos 6) 'covered]
           [(= 6 pos) 'missing]
@@ -30,8 +30,10 @@
 (define (generate-html-coverage coverage [d "coverage"])
   (define dir (simplify-path d))
   (define fs (get-files coverage dir))
+  (define asset-path (build-path dir "assets/"))
   (write-files fs)
-  (move-support-files! dir))
+  (delete-directory/files asset-path #:must-exist? #f)
+  (copy-directory/files assets asset-path))
 (module+ test
   (after
    (parameterize ([current-directory root] [verbose #t])
@@ -56,13 +58,7 @@
       (define output-file
         (apply build-path (append coverage-dir-list (list relative-output-file))))
       (define output-dir (apply build-path coverage-dir-list))
-      (define path-to-css
-        (path->string
-         (apply build-path
-                (append (build-list (sub1 (length coverage-dir-list))
-                                    (const ".."))
-                        (list "main.css")))))
-      (define xexpr (make-html-file (hash-ref coverage k) k path-to-css))
+      (define xexpr (make-html-file (hash-ref coverage k) k))
       (list output-file output-dir xexpr)))
   (define index (generate-index coverage))
   (cons (list (build-path dir "index.html") dir index)
@@ -104,32 +100,22 @@
    (define dir (build-path temp-dir "x"))
    (define file (build-path dir "y.html"))
    (write-files (list (list file dir xexpr)))
-   (check-equal? (file->string file)
-                 "<body></body>")))
+   (check-equal? (file->string file) "<body></body>")))
 
 
-(define-runtime-path css "main.css")
+(define-runtime-path assets "assets")
 (define (move-support-files! dir)
-  (copy-file css (build-path dir "main.css") #t))
-(module+ test
-  (test-begin
-   (define temp-dir (make-temporary-file "covertmp~a" 'directory))
-   (define dir (build-path temp-dir "x"))
-   (define final-path (build-path dir "main.css"))
-   (make-directory* dir)
-   (move-support-files! dir)
-   (check-equal? (file->string final-path)
-                 (file->string css))))
+  (copy-directory/files assets (build-path dir "assets/")))
 
-;; FileCoverage PathString PathString -> Xexpr
-(define (make-html-file coverage path path-to-css)
+;; FileCoverage PathString -> Xexpr
+(define (make-html-file coverage path)
   (define covered? (make-covered? coverage path))
   (define cover-info (expression-coverage/file path covered?))
   (define-values (covered total) (values (first cover-info) (second cover-info)))
   `(html ()
     (head ()
           (meta ([charset "utf-8"]))
-          (link ([rel "stylesheet"] [type "text/css"] [href ,path-to-css])))
+          (link ([rel "stylesheet"] [type "text/css"] [href "assets/main.css"])))
     (body ()
           ,(%s->xexpr (/ covered total))
           (div ([class "code"]) ,(file->html path covered?)))))
@@ -143,11 +129,11 @@
    (test-files! f)
    (define cov (hash-ref (get-test-coverage) f))
    (define covered? (make-covered? cov f))
-   (check-equal? (make-html-file cov f "main.css")
+   (check-equal? (make-html-file cov f)
                  `(html ()
                    (head ()
                          (meta ([charset "utf-8"]))
-                         (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
+                         (link ([rel "stylesheet"] [type "text/css"] [href "assets/main.css"])))
                    (body ()
                          (p () "expr: 100%" (br ()))
                          (div ([class "code"])
@@ -246,7 +232,8 @@
   `(html
     (head ()
           (meta ([charset "utf-8"]))
-          (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
+          (link ([rel "stylesheet"] [type "text/css"] [href "assets/main.css"]))
+          (script ([src "assets/app.js"])))
     (body ()
           (div ([class "report-container"])
                ,(div:total-coverage expression-coverage)
@@ -270,41 +257,46 @@
   `(table ([class "file-list"])
           (thead ()
                  (tr ()
-                     (th ([class "file-name"]) "File")
-                     (th () "Coverage Percentage")
-                     (th () "Covered Expressions")
-                     (th () "Total Expressions")))
+                     (th ([class "file-name"]) "File" ,(file-sorter "file-name"))
+                     (th ([class "coverage-percentage"]) "Coverage Percentage" ,(file-sorter "coverage-percentage"))
+                     (th ([class "covered-expressions"]) "Covered Expressions" ,(file-sorter "covered-expressions"))
+                     (th ([class "total-expressions"]) "Total Expressions" ,(file-sorter "total-expressions"))))
           (tbody ()
-                 ,@(for/list ([(path expr-info) (in-hash expr-coverages)] [line-num (in-naturals)])
-                     (tr:file-report path expr-info (zero? (modulo line-num 2)))))))
+                 ,@(for/list ([(path expr-info) (in-hash expr-coverages)])
+                     (tr:file-report path expr-info)))))
 
-;; PathString ExpressionInfo Boolean -> Xexpr
+(define (file-sorter class-name)
+  `(div ([class "sorter"])
+        (div ([class "sort-icon-up"]))
+        (div ([class "sort-icon-down"]))))
+
+;; PathString ExpressionInfo -> Xexpr
 ;; create a div that holds a link to the file report and expression
 ;; coverage information
-(define (tr:file-report path expr-coverage-info stripe?)
+(define (tr:file-report path expr-coverage-info)
   (define local-file
     (path->string (find-relative-path (current-directory) (string->path path))))
   (define percentage (* 100 (/ (first expr-coverage-info) (second expr-coverage-info))))
-  (define styles `([class ,(string-append "file-info" (if stripe? " stripe" ""))]))
+  (define styles `([class "file-info"]))
   `(tr ,styles
        (td ([class "file-name"]) (a ([href ,(coverage-report-link path)]) ,local-file))
-       (td () ,(~r percentage #:precision 2))
-       (td () ,(~r (first expr-coverage-info) #:precision 2))
-       (td () ,(~r (second expr-coverage-info) #:precision 2))))
+       (td ([class "coverage-percentage"]) ,(~r percentage #:precision 2))
+       (td ([class "covered-expressions"]) ,(~r (first expr-coverage-info) #:precision 2))
+       (td ([class "total-expressions"]) ,(~r (second expr-coverage-info) #:precision 2))))
 
 (module+ test
-  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 0 1) #f)
+  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 0 1))
                             '(tr ((class "file-info"))
                                   (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
-                                  (td () "0")
-                                  (td () "0")
-                                  (td () "1"))))
-  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 10 10) #t)
-                            '(tr ((class "file-info stripe"))
+                                  (td ([class "coverage-percentage"]) "0")
+                                  (td ([class "covered-expressions"]) "0")
+                                  (td ([class "total-expressions"]) "1"))))
+  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 10 10))
+                            '(tr ((class "file-info"))
                                   (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
-                                  (td () "100")
-                                  (td () "10")
-                                  (td () "10")))))
+                                  (td ([class "coverage-percentage"]) "100")
+                                  (td ([class "covered-expressions"]) "10")
+                                  (td ([class "total-expressions"]) "10")))))
 
 ;; Path -> String
 ;; Generate a link to the coverage report
