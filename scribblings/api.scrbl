@@ -26,12 +26,19 @@ removed during macro expansion and are thus neither run or not run.
 Note that the @racket[srcloc]s are one indexed, meaning a @racket[1]
 represents the first character in the file.}
 
-@defproc[(test-files! (#:submod submod symbol? 'test) (files path-string?) ...) any]{
+@defproc[(test-files! (#:submod submod symbol? 'test)
+                      (files (or/c path-string?
+                                  (list/c path-string
+                                          (and/c (negate impersonator?)
+                                                 (vectorof string? #:immutable #t))))) ...)
+                      any]{
 
-Runs all given @racket[files] and their submodule @racket[submod] (if it exists), storing the coverage information.
-The function returns false if any tests fail.
-Test coverage information is still collected when test fail.
-Test coverage info is added to existing coverage info.}
+Runs all given @racket[files] and their submodule @racket[submod] (if it exists), storing the
+coverage information.  If the path is paired with a vector then that vector is used as the
+@racket[current-command-line-arguments] when executing that file. This vector must be immuatable and
+not wrapped by a @racket[chaperone] or @racket[impersonator]. The function returns false if any
+tests fail.  Test coverage information is still collected when test fail.  Test coverage info is
+added to existing coverage info.}
 
 @defproc[(clear-coverage!) any]{Clears all coverage information.}
 

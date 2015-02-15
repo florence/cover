@@ -4,11 +4,10 @@
          racket/match
          racket/contract/base
          racket/function
-         "cover.rkt"
+         "main.rkt"
          (only-in "private/contracts.rkt" coverage-gen/c)
          "private/shared.rkt"
          "private/file-utils.rkt"
-         "private/format-utils.rkt"
          (only-in (submod compiler/commands/test paths) collection-paths)
          pkg/lib)
 
@@ -139,7 +138,7 @@
         null
         (map (lambda (x)
                (list (->absolute (car x))
-                     (list->vector (cadr x))))
+                     (vector->immutable-vector (list->vector (cadr x)))))
              new-argv)))
   (define full-argv (append expanded-argv args))
   (if (should-omit? (current-directory) full-omits)
