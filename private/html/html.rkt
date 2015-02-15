@@ -30,8 +30,10 @@
 (define (generate-html-coverage coverage [d "coverage"])
   (define dir (simplify-path d))
   (define fs (get-files coverage dir))
+  (define asset-path (build-path dir "assets/"))
   (write-files fs)
-  (move-support-files! dir))
+  (delete-directory/files asset-path #:must-exist? #f)
+  (copy-directory/files assets asset-path))
 (module+ test
   (after
    (parameterize ([current-directory root] [verbose #t])
@@ -56,13 +58,7 @@
       (define output-file
         (apply build-path (append coverage-dir-list (list relative-output-file))))
       (define output-dir (apply build-path coverage-dir-list))
-      (define path-to-css
-        (path->string
-         (apply build-path
-                (append (build-list (sub1 (length coverage-dir-list))
-                                    (const ".."))
-                        (list "main.css")))))
-      (define xexpr (make-html-file (hash-ref coverage k) k path-to-css))
+      (define xexpr (make-html-file (hash-ref coverage k) k))
       (list output-file output-dir xexpr)))
   (define index (generate-index coverage))
   (cons (list (build-path dir "index.html") dir index)
@@ -104,34 +100,22 @@
    (define dir (build-path temp-dir "x"))
    (define file (build-path dir "y.html"))
    (write-files (list (list file dir xexpr)))
-   (check-equal? (file->string file)
-                 "<body></body>")))
+   (check-equal? (file->string file) "<body></body>")))
 
 
-(define-runtime-path css "main.css")
-(define-runtime-path jerbascript "app.js")
+(define-runtime-path assets "assets")
 (define (move-support-files! dir)
-  (copy-file css (build-path dir "main.css") #t)
-  (copy-file jerbascript (build-path dir "app.js") #t))
-(module+ test
-  (test-begin
-   (define temp-dir (make-temporary-file "covertmp~a" 'directory))
-   (define dir (build-path temp-dir "x"))
-   (define final-path (build-path dir "main.css"))
-   (make-directory* dir)
-   (move-support-files! dir)
-   (check-equal? (file->string final-path)
-                 (file->string css))))
+  (copy-directory/files assets (build-path dir "assets/")))
 
-;; FileCoverage PathString PathString -> Xexpr
-(define (make-html-file coverage path path-to-css)
+;; FileCoverage PathString -> Xexpr
+(define (make-html-file coverage path)
   (define covered? (make-covered? coverage path))
   (define cover-info (expression-coverage/file path covered?))
   (define-values (covered total) (values (first cover-info) (second cover-info)))
   `(html ()
     (head ()
           (meta ([charset "utf-8"]))
-          (link ([rel "stylesheet"] [type "text/css"] [href ,path-to-css])))
+          (link ([rel "stylesheet"] [type "text/css"] [href "assets/main.css"])))
     (body ()
           ,(%s->xexpr (/ covered total))
           (div ([class "code"]) ,(file->html path covered?)))))
@@ -145,11 +129,11 @@
    (test-files! f)
    (define cov (hash-ref (get-test-coverage) f))
    (define covered? (make-covered? cov f))
-   (check-equal? (make-html-file cov f "main.css")
+   (check-equal? (make-html-file cov f)
                  `(html ()
                    (head ()
                          (meta ([charset "utf-8"]))
-                         (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
+                         (link ([rel "stylesheet"] [type "text/css"] [href "assets/main.css"])))
                    (body ()
                          (p () "expr: 100%" (br ()))
                          (div ([class "code"])
@@ -248,8 +232,8 @@
   `(html
     (head ()
           (meta ([charset "utf-8"]))
-          (link ([rel "stylesheet"] [type "text/css"] [href "main.css"]))
-          (script ([src "app.js"])))
+          (link ([rel "stylesheet"] [type "text/css"] [href "assets/main.css"]))
+          (script ([src "assets/app.js"])))
     (body ()
           (div ([class "report-container"])
                ,(div:total-coverage expression-coverage)
