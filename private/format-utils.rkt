@@ -1,5 +1,5 @@
 #lang racket/base
-(provide make-covered?)
+(provide make-covered? irrelevant-submodules)
 (require racket/file
          racket/function
          racket/list
@@ -26,7 +26,8 @@
 ;; A Covered? is a [Nat [#:byte? Boolean] -> Cover]
 
 ;; FileCoverage PathString #:ignored-submods (maybe (listof symbol)) -> Covered?
-(define (make-covered? c path #:ignored-submods [submods #f])
+(define (make-covered? c path)
+  (define submods (irrelevant-submodules))
   (define vec
     (list->vector (string->list (file->string path))))
   (define file/byte->str-offset (make-byte->str-offset vec))
@@ -36,8 +37,10 @@
     (hash-ref file-location-coverage-cache (if (not byte?) loc (- loc (file/byte->str-offset loc)))
               'missing)))
 
+;; (or/c #f (listof symbol))
+(define irrelevant-submodules (make-parameter #f))
 
-;; Path FileCoverage OffsetFunc -> [Hashof Natural Cover]
+;; Path FileCoverage -> [Hashof Natural Cover]
 ;; build a hash caching coverage info for that file
 (define (coverage-cache-file f c submods)
   (vprintf "caching coverage info for ~s\n" f)

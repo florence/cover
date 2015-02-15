@@ -3,7 +3,7 @@
 ;; for every .rkt file in those directories it loads
 ;; tests that file and checks its coverage against an
 ;; .rktl file of the same name
-(require (only-in "../main.rkt" test-files! clear-coverage! get-test-coverage)
+(require (only-in "../main.rkt" test-files! clear-coverage! get-test-coverage irrelevant-submodules)
          "../private/file-utils.rkt"
          racket/runtime-path rackunit)
 
@@ -65,7 +65,10 @@
 
 (module+ test
   (define-runtime-path-list test-dirs '("basic" "simple-multi" "syntax"))
-  (for-each (compose test-dir path->string) test-dirs))
+  (for-each (compose test-dir path->string) test-dirs)
+  (define-runtime-path submods "submods")
+  (parameterize ([irrelevant-submodules null])
+    (test-dir (path->string submods))))
 
 (module+ test
   (define-runtime-path prog.rkt "prog.rkt")

@@ -14,6 +14,7 @@
                     any)]
   [clear-coverage! (-> any)]
   [get-test-coverage (-> coverage/c)]
+  [irrelevant-submodules (parameter/c (or/c #f (listof symbol?)))]
   [make-covered?
    (-> file-coverage/c path-string?
        (->* (exact-positive-integer?)
