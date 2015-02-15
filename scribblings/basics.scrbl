@@ -38,6 +38,9 @@ The @exec{raco cover} command accepts the following flags:
                --- enable verbose logging}
          @item{@Flag{s} or @DFlag{submod}
                --- run the given submodule instead of the test submodule.}
+         @item{@Flag{e} or @DFlag{include-extensions}
+               --- Concider the given submodules irrelevant when generating coverage. If not
+               provided defaults to all submodules. Can be included more than once.}
          @item{@Flag{c} or @DFlag{collection}
                --- Interprets the arguments as collections whose content should be
                tested (in the same way as directory content).}
