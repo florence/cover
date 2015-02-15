@@ -1,6 +1,7 @@
 #lang racket/base
 (require "cover.rkt" "format.rkt" "private/contracts.rkt" "private/format-utils.rkt"
          "private/raw.rkt" racket/contract)
+
 (provide
  (contract-out
   [coverage/c contract?]
@@ -8,8 +9,9 @@
   [test-files! (->* () (#:submod symbol?)
                     #:rest
                     (listof (or/c path-string?
-                                  (list/c path-string? (vectorof string?
-                                                                 #:immutable #t))))
+                                  (list/c path-string?
+                                          (and/c (lambda (v) (not (impersonator? v)))
+                                                 (vectorof string? #:immutable #t)))))
                     any)]
   [clear-coverage! (-> any)]
   [get-test-coverage (-> coverage/c)]
