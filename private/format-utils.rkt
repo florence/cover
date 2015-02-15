@@ -1,11 +1,12 @@
 #lang racket/base
-(provide make-covered?)
+(provide make-covered? irrelevant-submodules)
 (require racket/file
          racket/function
          racket/list
          racket/match
          racket/port
          racket/set
+         racket/bool
          syntax-color/racket-lexer
          syntax/modread
          syntax/parse
@@ -24,20 +25,24 @@
 
 ;; A Covered? is a [Nat [#:byte? Boolean] -> Cover]
 
-;; FileCoverage PathString -> Covered?
+;; FileCoverage PathString #:ignored-submods (maybe (listof symbol)) -> Covered?
 (define (make-covered? c path)
+  (define submods (irrelevant-submodules))
   (define vec
     (list->vector (string->list (file->string path))))
   (define file/byte->str-offset (make-byte->str-offset vec))
   (define file-location-coverage-cache
-    (coverage-cache-file path c))
+    (coverage-cache-file path c submods))
   (lambda (loc #:byte? [byte? #f])
     (hash-ref file-location-coverage-cache (if (not byte?) loc (- loc (file/byte->str-offset loc)))
               'missing)))
 
+;; (or/c #f (listof symbol))
+(define irrelevant-submodules (make-parameter #f))
 
-;; Path FileCoverage OffsetFunc -> [Hashof Natural Cover]
-(define (coverage-cache-file f c)
+;; Path FileCoverage -> [Hashof Natural Cover]
+;; build a hash caching coverage info for that file
+(define (coverage-cache-file f c submods)
   (vprintf "caching coverage info for ~s\n" f)
   (with-input-from-file f
     (thunk
@@ -47,7 +52,7 @@
          (if f
              (f 'color-lexer racket-lexer)
              racket-lexer)))
-     (define irrelevant? (make-irrelevant? lexer f))
+     (define irrelevant? (make-irrelevant? lexer f submods))
      (define file-length (string-length (file->string f)))
      (define cache
        (for/hash ([i (in-range 1 (add1 file-length))])
@@ -56,8 +61,9 @@
                        [else (raw-covered? i c)]))))
      cache)))
 
-;; TODO should we only ignore test (and main) submodules?
-(define (make-irrelevant? lexer f)
+;; Lexer(in the sence of color:text<%>) InputPort (Maybe (Listof Symbol)) -> (Natural -> Boolean)
+;; builds a function that determines if a given location in that port is irrelivent.
+(define (make-irrelevant? lexer f submods)
   (define s (mutable-set))
   (define-values (for-lex for-str) (replicate-file-port f (current-input-port)))
   (define str (apply vector (string->list (port->string for-str))))
@@ -85,8 +91,12 @@
     (syntax-parse stx
       #:datum-literals (module module* module+ begin-for-syntax)
       [((~or module module* module+ begin-for-syntax)
+        n:id
         e ...)
-       #:when (not first?)
+       #:when (and (not first?)
+                   (submods
+                    . implies .
+                    (member (syntax-e #'n) submods)))
        (define ?start (syntax-position stx))
        (when ?start
          (define start (- ?start (* 2 (offset/mod ?start))))
@@ -97,6 +107,8 @@
       [_else (void)]))
   (lambda (i) (set-member? s i)))
 
+;; Path FilePort -> FilePort FilePort
+;; creates two ports to that file at the same position at the first
 (define (replicate-file-port f p)
   (define f1 (open-input-file f))
   (define f2 (open-input-file f))
@@ -104,7 +116,8 @@
   (file-position f2 (file-position p))
   (values f1 f2))
 
-
+;; Natural Coverage -> (U 'covered 'uncovered 'irrelevant)
+;; lookup i in c. irrelevant if its not contained
 (define (raw-covered? i c)
   (define loc i)
   (define-values (mode _)
@@ -122,6 +135,7 @@
     [(#f) 'uncovered]
     [else 'irrelevant]))
 
+;; String -> (Natural -> Natural)
 ;; used for determining character/byte offsets for a given
 ;; 1 indexed byte locaiton
 (define ((make-byte->str-offset str) offset)

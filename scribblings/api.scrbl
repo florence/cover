@@ -46,18 +46,23 @@ coverage information for that file @racket[make-covered?] returns
 a functions that determines if some @racket[1] indexed character or byte location
 in that file is covered. By default it checks character locations.
 
-There are three possible results:
-@itemize[@item{@racket['irrelevant] --- The location is not considered relevant to coverage information.
-It is either not in the coverage information; is in a submodule; is a @racket[begin-for-syntax] form;
-or lexes (in the sense of that languages, @racket[_color-lexer]) as a comment or whitespace.}
-@item{@racket['covered] --- The location is not @racket['irrelevant] and is
-covered}
-@item{@racket['uncovered] --- The location is not @racket['uncovered]
-and is not covered}]
-                                   }
+There are three possible results: @itemize[@item{@racket['irrelevant] --- The location is not
+considered relevant to coverage information.  It is either not in the coverage information; is in a
+submodule specified by @racket[irrelevant-submodules]; is a @racket[begin-for-syntax] form; or lexes
+(in the sense of that languages, @racket[_color-lexer]) as a comment or whitespace.}
+@item{@racket['covered] --- The location is not @racket['irrelevant] and is covered}
+@item{@racket['uncovered] --- The location is not @racket['uncovered] and is not covered}] }
+
+@defthing[irrelevant-submodules (parameter/c (or/c #f (listof symbol?)))]{
+
+A parameter that controls with submodules are considered irrelevant by @racket[make-covered?]. It
+defaults to @racket[#f], which tells @racket[make-covered?] to consider all submodules
+irrelevant. If its value is a list, then each element of that list is the name of a submodule to be
+considered irrelevant.}
 
 @deftogether[(@defproc[(generate-coveralls-coverage (c coverage/c) (p path-string? "coverage")) any]
               @defproc[(generate-html-coverage (c coverage/c) (p path-string? "coverage")) any])]{
-Generates coverage information in the coveralls and html
-formats. Equivalent to the specifications of the @Flag{c} argument to
-@exec{raco cover}.}
+
+Generates coverage information in the coveralls and html formats. Equivalent to the specifications
+of the @Flag{c} argument to @exec{raco cover}. Both use @racket[make-covered?] to determine file
+coverage.}

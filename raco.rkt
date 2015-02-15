@@ -8,6 +8,7 @@
          (only-in "private/contracts.rkt" coverage-gen/c)
          "private/shared.rkt"
          "private/file-utils.rkt"
+         "private/format-utils.rkt"
          (only-in (submod compiler/commands/test paths) collection-paths)
          pkg/lib)
 
@@ -23,6 +24,7 @@
   (define include-exts '())
   (define submod 'test)
   (define expansion-type 'dir)
+  (define irrel-submods #f)
 
   (define args
      (command-line
@@ -50,6 +52,11 @@
       [("-s" "--submodule") s
        "Run the given submodule instead of the test submodule"
        (set! submod (string->symbol s))]
+      [("-e" "--irrelevant-submodules") s
+       "Concider the given submodules irrelevant when generating coverage. If not provided defaults to all submodules."
+       (unless irrel-submods
+         (set! irrel-submods null))
+       (set! irrel-submods (cons (string->symbol s) irrel-submods))]
       #:once-any
       [("-c" "--collection") "Interprets the arguments as collections whose content should be tested (in the same way as directory content)."
        (set! expansion-type 'collection)]
@@ -71,7 +78,8 @@
   (define passed (keyword-apply test-files! '(#:submod) (list submod) files))
   (define coverage (remove-excluded-paths (get-test-coverage) exclude-paths))
   (printf "dumping coverage info into ~s\n" coverage-dir)
-  (generate-coverage coverage coverage-dir)
+  (parameterize ([irrelevant-submodules irrel-submods])
+    (generate-coverage coverage coverage-dir))
   (unless passed
     (printf "some tests failed\n")))
 
