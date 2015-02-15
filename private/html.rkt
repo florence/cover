@@ -275,7 +275,9 @@
                      (th () "Covered Expressions")
                      (th () "Total Expressions")))
           (tbody ()
-                 ,@(for/list ([(path expr-info) (in-hash expr-coverages)] [line-num (in-naturals)])
+                 ,@(for/list ([path (sort (hash-keys expr-coverages) string<?)]
+                              [line-num (in-naturals)])
+                     (define expr-info (hash-ref expr-coverages path))
                      (tr:file-report path expr-info (zero? (modulo line-num 2)))))))
 
 ;; PathString ExpressionInfo Boolean -> Xexpr
