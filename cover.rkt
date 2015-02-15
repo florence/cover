@@ -18,6 +18,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
          syntax/parse
          unstable/syntax
          racket/runtime-path
+         racket/match
          rackunit
          unstable/error
          racket/list
@@ -28,27 +29,32 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 ;; namespace used for coverage
 (define ns #f)
 
-;; PathString * -> Boolean
 ;; Test files and build coverage map
 ;; returns true if no tests reported as failed, and no files errored.
-(define (test-files!  #:submod [submod-name 'test] . paths)
+(define (test-files!  #:submod [submod-name 'test] . files)
   (unless ns (unloaded-error))
   (define abs
-    (for/list ([p (in-list paths)])
+    (for/list ([p (in-list files)])
       (if (list? p)
-          (cons (->absolute (car p)) (cdr p))
-          (->absolute p))))
-  (define abs-paths (map (lambda (p) (if (list? p) (first p) p)) abs))
-  (parameterize ([current-load/use-compiled (make-cover-load/use-compiled abs-paths)]
+          (cons (->absolute/port (car p)) (cdr p))
+          (->absolute/port p))))
+  (define abs-names
+    (for/list ([p abs])
+      (match p
+        [(cons p _) p]
+        [(? input-port? p)
+         (object-name p)]
+        [_ p])))
+  (parameterize ([current-load/use-compiled (make-cover-load/use-compiled abs-names)]
                  [current-output-port
                   (if (verbose) (current-output-port) (open-output-nowhere))])
     (define tests-failed #f)
     (for ([p (in-list abs)])
       (vprintf "attempting to run ~s\n" p)
       (define old-check (current-check-handler))
-      (define path (if (list? p) (car p) p))
+      (define the-file (if (list? p) (car p) p))
       (define argv (if (list? p) (cadr p) #()))
-      (vprintf "running file: ~s with args: ~s\n" path argv)
+      (vprintf "running file: ~s with args: ~s\n" the-file argv)
       (struct an-exit (code))
       (with-handlers ([(lambda (x) (or (not (exn? x)) (exn:fail? x)))
                        (lambda (x)
@@ -65,12 +71,23 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
                            (set! tests-failed #t)
                            (vprintf "file ~s had failed tests\n" p)
                            (apply old-check x))])
-          (define file `(file ,(if (path? path) (path->string path) path)))
-          (define submod `(submod ,file ,submod-name))
-          (run-mod (if (module-declared? submod #t) submod file)))))
-    (vprintf "ran ~s\n" paths)
-    (remove-unneeded-results! abs-paths)
+          (run-file the-file submod-name))))
+    (vprintf "ran ~s\n" files)
+    (remove-unneeded-results! abs-names)
     (not tests-failed)))
+
+;; (U InputPort PathString) -> (U InputPort PathString)
+;; like ->absolute but handles ports
+(define (->absolute/port p)
+  (if (port? p) p (->absolute p)))
+
+(define (run-file the-file submod-name)
+  (cond [(input-port? the-file)
+         (eval (read-syntax (object-name the-file) the-file))]
+        [else
+         (define sfile `(file ,(if (path? the-file) (path->string the-file) the-file)))
+         (define submod `(submod ,sfile ,submod-name))
+         (run-mod (if (module-declared? submod #t) submod sfile))]))
 
 ;; ModulePath -> Void
 ;; evaluate the current module in the current namespace
@@ -129,12 +146,12 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
       (compile to-compile immediate-eval?)))
   cover-compile)
 
-;; [Listof PathString] -> Void
+;; [Listof Any] -> Void
 ;; remove any files not in paths from the raw coverage
-(define (remove-unneeded-results! paths)
+(define (remove-unneeded-results! names)
   (define c (get-raw-coverage))
   (for ([s (in-list (hash-keys c))]
-        #:when (not (member (srcloc-source s) paths)))
+        #:when (not (member (srcloc-source s) names)))
     (hash-remove! c s)))
 
 ;; -> Void

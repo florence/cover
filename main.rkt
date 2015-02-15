@@ -8,8 +8,8 @@
   [file-coverage/c contract?]
   [test-files! (->* () (#:submod symbol?)
                     #:rest
-                    (listof (or/c path-string?
-                                  (list/c path-string?
+                    (listof (or/c (or/c path-string? input-port?)
+                                  (list/c (or/c path-string? input-port?)
                                           (and/c (lambda (v) (not (impersonator? v)))
                                                  (vectorof string? #:immutable #t)))))
                     any)]
