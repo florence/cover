@@ -5,6 +5,7 @@
 (provide
  (contract-out
   [coverage/c contract?]
+
   [file-coverage/c contract?]
   [test-files! (->* () (#:submod symbol?)
                     #:rest
@@ -13,8 +14,16 @@
                                           (and/c (lambda (v) (not (impersonator? v)))
                                                  (vectorof string? #:immutable #t)))))
                     any)]
+  [eval-expression! (-> any/c any)]
+  [eval-module! (-> module-path? any)]
+
+  [environment? (-> any/c any/c)]
   [clear-coverage! (-> any)]
+  [initialize-cover-environment! (-> namespace? environment?)]
+  [current-cover-environment (parameter/c environment?)]
+
   [get-test-coverage (-> coverage/c)]
+
   [irrelevant-submodules (parameter/c (or/c #f (listof symbol?)))]
   [make-covered?
    (-> file-coverage/c path-string?
