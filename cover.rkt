@@ -1,8 +1,9 @@
 #lang racket/base
-(provide test-files! eval-expression! eval-module!
-         initialize-cover-environment! clear-coverage!
+(provide test-files! cover-module!
+         make-clean-cover-environment clear-coverage!
          get-test-coverage
-         current-cover-environment environment?)
+         current-cover-environment environment?
+         environment-compile environment-namespace)
 
 #|
 
@@ -36,19 +37,20 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 
 ;; Test files and build coverage map
 ;; returns true if no tests reported as failed, and no files errored.
-(define (test-files! #:submod [submod-name 'test] . files)
-  (define abs
-    (for/list ([p (in-list files)])
-      (if (list? p)
-          (cons (->absolute/port (car p)) (cdr p))
-          (->absolute/port p))))
-  (define abs-names
-    (for/list ([p abs])
-      (match p
-        [(cons p _) p]
-        [(? input-port? p)
-         (object-name p)]
-        [_ p])))
+(define (test-files! #:submod [submod-name 'test] #:env [env (current-cover-environment)] . files)
+  (parameterize ([current-cover-environment env])
+    (define abs
+      (for/list ([p (in-list files)])
+        (if (list? p)
+            (cons (->absolute/port (car p)) (cdr p))
+            (->absolute/port p))))
+    (define abs-names
+      (for/list ([p abs])
+        (match p
+          [(cons p _) p]
+          [(? input-port? p)
+           (object-name p)]
+          [_ p])))
     (define tests-failed #f)
     (for ([p (in-list abs)])
       (vprintf "attempting to run ~s\n" p)
@@ -78,20 +80,16 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
           (run-file the-file submod-name))))
     (vprintf "ran ~s\n" files)
     (remove-unneeded-results! abs-names)
-    (not tests-failed))
+    (not tests-failed)))
 
 ;; ModulePath -> Void
 ;; visit and instantiate the given module path in the cover environment
-(define (eval-module! to-run)
-  (eval-expression! (make-dyn-req-expr to-run)))
-
-;; Any -> Any
-;; Evaluate the expression in the testing namespace with the cover's compiler
-(define (eval-expression! e)
-  (parameterize ([current-load/use-compiled (make-cover-load/use-compiled #f)]
-                 [current-compile (get-compile)]
-                 [current-namespace (get-namespace)])
-    (eval e)))
+(define (cover-module! to-run [env (current-cover-environment)])
+  (parameterize* ([current-cover-environment env]
+                  [current-load/use-compiled (make-cover-load/use-compiled #f)]
+                  [current-compile (get-compile)]
+                  [current-namespace (get-namespace)])
+    (eval (make-dyn-req-expr to-run))))
 
 ;;; ---------------------- Running Aux ---------------------------------
 
@@ -179,9 +177,10 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 ;;; ---------------------- Environments ---------------------------------
 
 (define (clear-coverage!)
-  (current-cover-environment (initialize-cover-environment! (make-base-namespace))))
+  (current-cover-environment (make-clean-cover-environment)))
 
-(define (initialize-cover-environment! ns)
+(define (make-clean-cover-environment)
+  (define ns (make-base-namespace))
   (parameterize ([current-namespace ns])
     (namespace-require 'cover/coverage)
     (namespace-require 'cover/strace)
@@ -250,7 +249,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
   out)
 
 (define current-cover-environment
-  (make-parameter (initialize-cover-environment! (make-base-namespace))))
+  (make-parameter (make-clean-cover-environment)))
 
 ;; here live tests for actually saving compiled files
 (module+ test
@@ -261,7 +260,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
      "tests/compiled/prog_rkt.zo"
      "tests/compiled/prog_rkt.dep"))
   (test-begin
-   (parameterize ([current-cover-environment (initialize-cover-environment! (make-base-namespace))])
+   (parameterize ([current-cover-environment (make-clean-cover-environment)])
      (for-each (lambda (f) (when (file-exists? f) (delete-file f)))
                compiled)
      (check-false (ormap file-exists? compiled))

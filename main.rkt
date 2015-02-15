@@ -2,24 +2,32 @@
 (require "cover.rkt" "format.rkt" "private/contracts.rkt" "private/format-utils.rkt"
          "private/raw.rkt" racket/contract)
 
+(define (not-impersonated/c c)
+  (and/c (lambda (v) (not (impersonator? v)))
+         c))
+
 (provide
  (contract-out
   [coverage/c contract?]
 
   [file-coverage/c contract?]
-  [test-files! (->* () (#:submod symbol?)
+  [test-files! (->* () (#:submod symbol?
+                        #:env environment?)
                     #:rest
                     (listof (or/c (or/c path-string? input-port?)
                                   (list/c (or/c path-string? input-port?)
-                                          (and/c (lambda (v) (not (impersonator? v)))
-                                                 (vectorof string? #:immutable #t)))))
+                                          (not-impersonated/c
+                                           (vectorof (not-impersonated/c string?) #:immutable #t)))))
                     any)]
-  [eval-expression! (-> any/c any)]
-  [eval-module! (-> module-path? any)]
+  [cover-module! (->* (module-path?) (environment?) any)]
 
   [environment? (-> any/c any/c)]
+  [environment-namespace (-> environment? namespace?)]
+  [environment-compile
+   (-> environment? (any/c boolean? . -> . compiled-expression?))]
+
   [clear-coverage! (-> any)]
-  [initialize-cover-environment! (-> namespace? environment?)]
+  [make-clean-cover-environment (-> environment?)]
   [current-cover-environment (parameter/c environment?)]
 
   [get-test-coverage (-> coverage/c)]
@@ -30,6 +38,7 @@
        (->* (exact-positive-integer?)
             (#:byte? boolean?)
             (or/c 'covered 'uncovered 'irrelevant)))]
+
   [generate-coveralls-coverage coverage-gen/c]
   [generate-html-coverage coverage-gen/c]
   [generate-raw-coverage coverage-gen/c]))
