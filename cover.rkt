@@ -19,6 +19,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
          syntax/modcode
          racket/function
          syntax/modread
+         syntax/modresolve
          syntax/parse
          unstable/syntax
          racket/bool
@@ -82,11 +83,13 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
     (remove-unneeded-results! abs-names)
     (not tests-failed)))
 
-;; ModulePath -> Void
+;; ResolvedModulePath -> Void
 ;; visit and instantiate the given module path in the cover environment
-(define (cover-module! to-run [env (current-cover-environment)])
+(define (cover-module! p [env (current-cover-environment)])
+  (define modpath (->absolute p))
+  (define to-run `(file ,modpath))
   (parameterize* ([current-cover-environment env]
-                  [current-load/use-compiled (make-cover-load/use-compiled #f)]
+                  [current-load/use-compiled (make-cover-load/use-compiled (list modpath))]
                   [current-compile (get-compile)]
                   [current-namespace (get-namespace)])
     (eval (make-dyn-req-expr to-run))))
@@ -231,22 +234,23 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 ;; returns a hash of file to a list, where the first of the list is if
 ;; that srcloc was covered or not
 ;; based on <pkgs>/drracket/drracket/private/debug.rkt
-(define (get-test-coverage)
-  (vprintf "generating test coverage\n")
+(define (get-test-coverage [env (current-cover-environment)])
+  (parameterize ([current-cover-environment env])
+    (vprintf "generating test coverage\n")
 
-  ;; filtered : (listof (list boolean srcloc))
-  ;; remove redundant expressions
-  (define filtered (hash-map (get-raw-coverage) (λ (k v) (list v k))))
+    ;; filtered : (listof (list boolean srcloc))
+    ;; remove redundant expressions
+    (define filtered (hash-map (get-raw-coverage) (λ (k v) (list v k))))
 
-  (define out (make-hash))
+    (define out (make-hash))
 
-  (for ([v (in-list filtered)])
-    (define file (srcloc-source (cadr v)))
-    (hash-update! out
-                  file
-                  (lambda (l) (cons v l))
-                  null))
-  out)
+    (for ([v (in-list filtered)])
+      (define file (srcloc-source (cadr v)))
+      (hash-update! out
+                    file
+                    (lambda (l) (cons v l))
+                    null))
+    out))
 
 (define current-cover-environment
   (make-parameter (make-clean-cover-environment)))

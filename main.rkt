@@ -19,7 +19,7 @@
                                           (not-impersonated/c
                                            (vectorof (not-impersonated/c string?) #:immutable #t)))))
                     any)]
-  [cover-module! (->* (module-path?) (environment?) any)]
+  [cover-module! (->* (path-string?) (environment?) any)]
 
   [environment? (-> any/c any/c)]
   [environment-namespace (-> environment? namespace?)]
@@ -30,7 +30,7 @@
   [make-clean-cover-environment (-> environment?)]
   [current-cover-environment (parameter/c environment?)]
 
-  [get-test-coverage (-> coverage/c)]
+  [get-test-coverage (->* () (environment?) coverage/c)]
 
   [irrelevant-submodules (parameter/c (or/c #f (listof symbol?)))]
   [make-covered?
