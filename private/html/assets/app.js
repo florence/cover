@@ -32,26 +32,35 @@ window.onload = function() {
     }
   };
 
-  var createTableSorter = function(className, compare) {
-    return function() {
-      sortTable(className, compare);
-    };
+  var oppositeArrowDirection = function(dir) {
+    if (dir === 'up') {
+      return 'down';
+    } else {
+      return 'up';
+    }
   };
 
-  var createSorter = function(className, sortAscending, sortDescending) {
-    var ascending = document.querySelector('th.' + className + ' .sorter div.sort-icon-up');
-    var descending = document.querySelector('th.' + className + ' .sorter div.sort-icon-down');
-    ascending.addEventListener('click', createTableSorter(className, sortAscending));
-    descending.addEventListener('click', createTableSorter(className, sortDescending));
+  var createSorter = function(className, arrowDirection, compare, negativeCompare) {
+    var sortClass = 'th.' + className + ' div.sort-icon-' + arrowDirection;
+    var element = document.querySelector(sortClass);
+    var clickHandler = function() {
+      var oppArrowDirection = oppositeArrowDirection(arrowDirection);
+      sortTable(className, compare);
+      element.removeEventListener('click', clickHandler);
+      element.className = 'sort-icon-' + oppArrowDirection;
+      createSorter(className, oppArrowDirection, negativeCompare, compare);
+    };
+    element.addEventListener('click', clickHandler);
   };
 
   var stringCompareAsc = function(a, b) { return a.localeCompare(b); };
   var stringCompareDesc = function(a, b) { return b.localeCompare(a); };
   var floatCompareAsc = function(a, b) { return parseFloat(a) - parseFloat(b); };
   var floatCompareDesc = function(a, b) { return parseFloat(b) - parseFloat(a); };
-  createSorter('file-name', stringCompareAsc, stringCompareDesc);
-  createSorter('coverage-percentage', floatCompareAsc, floatCompareDesc);
-  createSorter('covered-expressions', floatCompareAsc, floatCompareDesc);
-  createSorter('total-expressions', floatCompareAsc, floatCompareDesc);
+
+  createSorter('file-name', 'up', stringCompareDesc, stringCompareAsc);
+  createSorter('coverage-percentage', 'up', floatCompareAsc, floatCompareDesc);
+  createSorter('covered-expressions', 'up', floatCompareAsc, floatCompareDesc);
+  createSorter('total-expressions', 'up', floatCompareAsc, floatCompareDesc);
   sortTable('file-name', stringCompareAsc);
 };

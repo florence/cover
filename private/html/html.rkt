@@ -266,9 +266,7 @@
                      (tr:file-report path expr-info)))))
 
 (define (file-sorter class-name)
-  `(div ([class "sorter"])
-        (div ([class "sort-icon-up"]))
-        (div ([class "sort-icon-down"]))))
+  `(div ([class "sort-icon-up"])))
 
 ;; PathString ExpressionInfo -> Xexpr
 ;; create a div that holds a link to the file report and expression
