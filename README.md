@@ -1,6 +1,7 @@
 # Cover
 [![Build Status](https://travis-ci.org/florence/cover.svg?branch=master)](https://travis-ci.org/florence/cover)
 [![Coverage Status](https://coveralls.io/repos/florence/cover/badge.png?branch=master)](https://coveralls.io/r/florence/cover?branch=master)
+[![Stories in Ready](https://badge.waffle.io/florence/cover.png?label=ready&title=Ready)](https://waffle.io/florence/cover)
 
 This library is a supplement to rackets `raco test` that adds code coverage capabilities.
 
