@@ -15,4 +15,7 @@
      (make-covered? (hash-ref x file) file))
    (for ([_ (in-string (file->string file))]
          [i (in-naturals 1)])
-     (check-equal? (covered? i) 'covered (~a i)))))
+     (define c (covered? i))
+     (check-true  (or (eq? c 'covered)
+                      (eq? c 'irrelevant))
+                  (~a i)))))
