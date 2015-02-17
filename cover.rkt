@@ -90,7 +90,6 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
   (define to-run `(file ,modpath))
   (parameterize* ([current-cover-environment env]
                   [current-load/use-compiled (make-cover-load/use-compiled (list modpath))]
-                  [current-compile (get-compile)]
                   [current-namespace (get-namespace)])
     (eval (make-dyn-req-expr to-run))))
 
@@ -182,8 +181,8 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 (define (clear-coverage!)
   (current-cover-environment (make-clean-cover-environment)))
 
-(define (make-clean-cover-environment)
-  (define ns (make-base-namespace))
+(define (make-clean-cover-environment [make-ns make-base-namespace])
+  (define ns (make-ns))
   (parameterize ([current-namespace ns])
     (namespace-require 'cover/coverage)
     (namespace-require 'cover/strace)
