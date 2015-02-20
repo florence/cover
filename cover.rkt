@@ -76,7 +76,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 ;; evaluate the current module in the current namespace
 (define (run-mod to-run)
   (vprintf "running ~s\n" to-run)
-  (eval `(dynamic-require ',to-run #f))
+  (eval `(dynamic-require ',to-run 0))
   (vprintf "finished running ~s\n" to-run))
 
 ;; [Listof Path] -> Loader Compiler
