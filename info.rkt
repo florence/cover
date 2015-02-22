@@ -21,4 +21,4 @@
 
 (define test-command-line-arguments '(("tests/arg.rkt" ("a"))))
 
-(define version "1.3.0")
+(define version "1.3.1")
