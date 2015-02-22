@@ -1,5 +1,5 @@
 #lang racket/base
-(provide test-files! cover-module!
+(provide test-files!
          make-clean-cover-environment clear-coverage!
          get-test-coverage
          current-cover-environment environment?
@@ -82,16 +82,6 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
     (vprintf "ran ~s\n" files)
     (remove-unneeded-results! abs-names)
     (not tests-failed)))
-
-;; ResolvedModulePath -> Void
-;; visit and instantiate the given module path in the cover environment
-(define (cover-module! p [env (current-cover-environment)])
-  (define modpath (->absolute p))
-  (define to-run `(file ,modpath))
-  (parameterize* ([current-cover-environment env]
-                  [current-load/use-compiled (make-cover-load/use-compiled (list modpath))]
-                  [current-namespace (get-namespace)])
-    (eval (make-dyn-req-expr to-run))))
 
 ;;; ---------------------- Running Aux ---------------------------------
 
@@ -181,12 +171,8 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 (define (clear-coverage!)
   (current-cover-environment (make-clean-cover-environment)))
 
-(define (make-clean-cover-environment [make-ns make-base-namespace])
-  (define ns (make-ns))
+(define (make-clean-cover-environment [ns (make-base-namespace)])
   (parameterize ([current-namespace ns])
-    (namespace-require 'cover/coverage)
-    (namespace-require 'cover/strace)
-    (namespace-require 'rackunit)
     (define ann (load-annotate-top))
     (environment
      ns
@@ -205,17 +191,17 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 (define (get-annotate-top)
   (get-val environment-ann-top))
 (define (load-annotate-top)
-  (get-namespace-var 'annotate-top))
+  (dynamic-require 'cover/strace 'annotate-top))
 
 (define (get-raw-coverage)
   (get-val environment-raw-cover))
 (define (load-raw-coverage)
-  (get-namespace-var 'coverage))
+  (dynamic-require 'cover/coverage 'coverage))
 
 (define (get-check-handler-parameter)
   (get-val environment-cch))
 (define (load-current-check-handler)
-  (get-namespace-var 'current-check-handler))
+  (dynamic-require 'rackunit 'current-check-handler))
 
 (define (get-namespace)
   (get-val environment-namespace))
@@ -225,9 +211,6 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 
 (define (get-val access)
   (access (current-cover-environment)))
-
-(define (get-namespace-var sym)
-  (namespace-variable-value sym #t #f (current-namespace)))
 
 ;; -> [Hashof PathString (Listof (List Boolean srcloc))]
 ;; returns a hash of file to a list, where the first of the list is if
@@ -274,3 +257,32 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
                        [current-namespace (get-namespace)])
           (managed-compile-zo prog.rkt))))
      (check-true (andmap file-exists? compiled)))))
+
+;; tests repl like interactions
+(module+ test
+  (require rackunit racket/runtime-path racket/file
+           racket/format
+           racket/lazy-require)
+  ;; break cyclic dependency in testing
+  (lazy-require  ["private/format-utils.rkt" (make-covered?)])
+  (define-runtime-path simple-multi/2.rkt "tests/simple-multi/2.rkt")
+  (define env (make-clean-cover-environment))
+  (define ns (environment-namespace env))
+  (parameterize ([current-cover-environment env]
+                 [current-namespace ns])
+    (test-begin
+     (define file (path->string simple-multi/2.rkt))
+     (define modpath file)
+     (parameterize ([current-load/use-compiled
+                     (make-cover-load/use-compiled (list file))])
+       (namespace-require `(file ,modpath)))
+     (check-equal? (eval `(two)) 10)
+     (define x (get-test-coverage env))
+     (define covered?
+       (make-covered? (hash-ref x file) file))
+     (for ([_ (in-string (file->string file))]
+           [i (in-naturals 1)])
+       (define c (covered? i))
+       (check-true  (or (eq? c 'covered)
+                        (eq? c 'irrelevant))
+                    (~a i))))))

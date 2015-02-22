@@ -19,7 +19,6 @@
                                           (not-impersonated/c
                                            (vectorof (not-impersonated/c string?) #:immutable #t)))))
                     any)]
-  [cover-module! (->* (path-string?) (environment?) any)]
 
   [environment? (-> any/c any/c)]
   [environment-namespace (-> environment? namespace?)]
