@@ -43,14 +43,12 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
     (define abs
       (for/list ([p (in-list files)])
         (if (list? p)
-            (cons (->absolute/port (car p)) (cdr p))
-            (->absolute/port p))))
+            (cons (->absolute (car p)) (cdr p))
+            (->absolute p))))
     (define abs-names
-      (for/list ([p abs])
+      (for/list ([p (in-list abs)])
         (match p
           [(cons p _) p]
-          [(? input-port? p)
-           (object-name p)]
           [_ p])))
     (define tests-failed #f)
     (for ([p (in-list abs)])
@@ -86,22 +84,14 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 ;;; ---------------------- Running Aux ---------------------------------
 
 (define (run-file the-file submod-name)
-  (cond [(input-port? the-file)
-         (eval (read-syntax (object-name the-file) the-file))]
-        [else
-         (define sfile `(file ,(if (path? the-file) (path->string the-file) the-file)))
-         (define submod `(submod ,sfile ,submod-name))
-         (run-mod (if (module-declared? submod #t) submod sfile))]))
+  (define sfile `(file ,(if (path? the-file) (path->string the-file) the-file)))
+  (define submod `(submod ,sfile ,submod-name))
+  (run-mod (if (module-declared? submod #t) submod sfile)))
 
 (define (run-mod to-run)
   (vprintf "running ~s\n" to-run)
   (eval (make-dyn-req-expr to-run))
   (vprintf "finished running ~s\n" to-run))
-
-;; (U InputPort PathString) -> (U InputPort PathString)
-;; like ->absolute but handles ports
-(define (->absolute/port p)
-  (if (port? p) p (->absolute p)))
 
 (define (make-dyn-req-expr to-run)
   `(dynamic-require ',to-run 0))
@@ -180,13 +170,6 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
      ann
      (load-raw-coverage)
      (load-current-check-handler))))
-
-;; -> Void
-;; loads any needed names from `ns` before it can get polluted.
-(define (load-names)
-  (load-annotate-top)
-  (load-raw-coverage)
-  (load-current-check-handler))
 
 (define (get-annotate-top)
   (get-val environment-ann-top))

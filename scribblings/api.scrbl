@@ -15,7 +15,7 @@ functions of test coverage.
                 @defthing[file-coverage/c contract? #:value (listof (list/c boolean? srcloc?))])]{
 
 Coverage information is a hash map mapping absolute file paths to a list detailing the coverage of
-that file. The file is keyed on the @racket[syntax-source] of the syntax objects for that
+that file. The file is keyed on the @racket[syntax-source] of the syntax objects from that
 file. Usually this will be the absolute path to the file. The file coverage information is a list of
 lists, mapping a boolean to a range of characters within the file. True means the @racket[srcloc]
 structure represents an expression that was run, and False means the structure represents an
@@ -25,10 +25,11 @@ expansion and are thus neither run or not run.  Note that the @racket[srcloc]s a
 meaning a @racket[1] represents the first character in the file.}
 
 @defproc[(test-files! (#:submod submod symbol? 'test)
-                      (files (or/c (or/c path-string? input-port?)
-                                   (list/c (or/c path-string? input-port?)
-                                           (not-impersonated/c
-                                            (vectorof (not-impersonated/c string?) #:immutable #t))))) ...)
+                      (files
+                        (or/c path-string?
+                              (list/c path-string?
+                                      (not-impersonated/c
+                                       (vectorof (not-impersonated/c string?) #:immutable #t))))) ...)
                       any]{
 
 Runs all given @racket[files] and their submodule @racket[submod] (if it exists), storing the

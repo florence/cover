@@ -46,7 +46,8 @@
 
 (define (get-files coverage dir)
   (define file-list
-    (for/list ([(k v) (in-hash coverage)])
+    (for/list ([(k v) (in-hash coverage)]
+               #:when (absolute-path? k))
       (vprintf "building html coverage for: ~a\n" k)
       (define exploded (explode-path k))
       (define-values (_ dir-list)

@@ -14,8 +14,8 @@
   [test-files! (->* () (#:submod symbol?
                         #:env environment?)
                     #:rest
-                    (listof (or/c (or/c path-string? input-port?)
-                                  (list/c (or/c path-string? input-port?)
+                    (listof (or/c path-string?
+                                  (list/c path-string?
                                           (not-impersonated/c
                                            (vectorof (not-impersonated/c string?) #:immutable #t)))))
                     any)]
