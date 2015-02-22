@@ -50,15 +50,19 @@
       (vprintf "building html coverage for: ~a\n" k)
       (define exploded (explode-path k))
       (define-values (_ dir-list)
-        (split-at exploded
-                  (length (explode-path (current-directory)))))
+        (split-at exploded (length (explode-path (current-directory)))))
       (define coverage-dir-list
         (cons dir (take dir-list (sub1 (length dir-list)))))
       (define relative-output-file (path-replace-suffix (last exploded) ".html"))
       (define output-file
         (apply build-path (append coverage-dir-list (list relative-output-file))))
       (define output-dir (apply build-path coverage-dir-list))
-      (define xexpr (make-html-file (hash-ref coverage k) k))
+      (define assets-path 
+        (path->string
+         (apply build-path
+                (append (build-list (sub1 (length coverage-dir-list)) (const ".."))
+                        (list "assets/")))))
+      (define xexpr (make-html-file (hash-ref coverage k) k assets-path))
       (list output-file output-dir xexpr)))
   (define index (generate-index coverage))
   (cons (list (build-path dir "index.html") dir index)
@@ -107,15 +111,15 @@
 (define (move-support-files! dir)
   (copy-directory/files assets (build-path dir "assets/")))
 
-;; FileCoverage PathString -> Xexpr
-(define (make-html-file coverage path)
+;; FileCoverage PathString Path -> Xexpr
+(define (make-html-file coverage path assets-path)
   (define covered? (make-covered? coverage path))
   (define cover-info (expression-coverage/file path covered?))
   (define-values (covered total) (values (first cover-info) (second cover-info)))
   `(html ()
     (head ()
           (meta ([charset "utf-8"]))
-          (link ([rel "stylesheet"] [type "text/css"] [href "assets/main.css"])))
+          (link ([rel "stylesheet"] [type "text/css"] [href ,(string-append assets-path "main.css")])))
     (body ()
           ,(%s->xexpr (/ covered total))
           (div ([class "code"]) ,(file->html path covered?)))))
@@ -129,7 +133,7 @@
    (test-files! f)
    (define cov (hash-ref (get-test-coverage) f))
    (define covered? (make-covered? cov f))
-   (check-equal? (make-html-file cov f)
+   (check-equal? (make-html-file cov f "assets/")
                  `(html ()
                    (head ()
                          (meta ([charset "utf-8"]))
