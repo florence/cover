@@ -1,6 +1,6 @@
 #lang racket/base
 (provide test-files!
-         make-clean-cover-environment clear-coverage!
+         make-cover-environment clear-coverage!
          get-test-coverage
          current-cover-environment environment?
          environment-compile environment-namespace)
@@ -169,9 +169,9 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 ;;; ---------------------- Environments ---------------------------------
 
 (define (clear-coverage!)
-  (current-cover-environment (make-clean-cover-environment)))
+  (current-cover-environment (make-cover-environment)))
 
-(define (make-clean-cover-environment [ns (make-base-namespace)])
+(define (make-cover-environment [ns (make-base-namespace)])
   (parameterize ([current-namespace ns])
     (define ann (load-annotate-top))
     (environment
@@ -235,7 +235,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
     out))
 
 (define current-cover-environment
-  (make-parameter (make-clean-cover-environment)))
+  (make-parameter (make-cover-environment)))
 
 ;; here live tests for actually saving compiled files
 (module+ test
@@ -246,7 +246,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
      "tests/compiled/prog_rkt.zo"
      "tests/compiled/prog_rkt.dep"))
   (test-begin
-   (parameterize ([current-cover-environment (make-clean-cover-environment)])
+   (parameterize ([current-cover-environment (make-cover-environment)])
      (for-each (lambda (f) (when (file-exists? f) (delete-file f)))
                compiled)
      (check-false (ormap file-exists? compiled))
@@ -266,7 +266,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
   ;; break cyclic dependency in testing
   (lazy-require  ["private/format-utils.rkt" (make-covered?)])
   (define-runtime-path simple-multi/2.rkt "tests/simple-multi/2.rkt")
-  (define env (make-clean-cover-environment))
+  (define env (make-cover-environment))
   (define ns (environment-namespace env))
   (parameterize ([current-cover-environment env]
                  [current-namespace ns])

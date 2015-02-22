@@ -88,7 +88,7 @@
       (define file (path->string (simplify-path tests/prog.rkt)))
       (test-files! (path->string (simplify-path tests/prog.rkt)))
       (define coverage (get-test-coverage))
-      (define report 
+      (define report
         (with-env ("COVERALLS_REPO_TOKEN" "abc") (generate-coveralls-report coverage)))
       (check-equal?
        (hash-ref report 'source_files)

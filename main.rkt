@@ -26,7 +26,7 @@
    (-> environment? (any/c boolean? . -> . compiled-expression?))]
 
   [clear-coverage! (-> any)]
-  [make-clean-cover-environment (->* () ((-> namespace?)) environment?)]
+  [make-cover-environment (->* () ((-> namespace?)) environment?)]
   [current-cover-environment (parameter/c environment?)]
 
   [get-test-coverage (->* () (environment?) coverage/c)]
