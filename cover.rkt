@@ -183,6 +183,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 (define (load-annotate-top)
   (make-annotate-top (load-raw-coverage) (load-cover-name)))
 
+
 (define (get-raw-coverage)
   (get-val environment-raw-cover))
 (define (load-raw-coverage)
@@ -217,7 +218,8 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 
     ;; filtered : (listof (list boolean srcloc))
     ;; remove redundant expressions
-    (define filtered (hash-map (get-raw-coverage) (λ (k v) (list v (apply make-srcloc k)))))
+    (define filtered (hash-map (get-raw-coverage)
+                               (λ (k v) (list (unbox v) (apply make-srcloc k)))))
 
     (define out (make-hash))
 
