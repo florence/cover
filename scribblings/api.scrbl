@@ -9,6 +9,8 @@ In addition to being a raco tool, Cover provides racket bindings for running
 tests and collecting coverage information. The following are the basic
 functions of test coverage.
 
+@section[#:tag "higher"]{A High Level API}
+
 @deftogether[(@defthing[coverage/c
                          contract?
                          #:value (hash/c any/c file-coverage/c)]
@@ -68,12 +70,32 @@ defaults to @racket[#f], which tells @racket[make-covered?] to consider all subm
 irrelevant. If its value is a list, then each element of that list is the name of a submodule to be
 considered irrelevant.}
 
+@deftogether[(@defproc[(generate-coveralls-coverage (c coverage/c) (p path-string? "coverage")) any]
+              @defproc[(generate-html-coverage (c coverage/c) (p path-string? "coverage")) any])]{
+
+Generates coverage information in the coveralls and html formats. Equivalent to the specifications
+of the @Flag{c} argument to @exec{raco cover}. Both use @racket[make-covered?] to determine file
+coverage.}
+
+@section[#:tag "lower"]{A Lower Level API}
+
+The high level API may not be enough for some applications. For example an IDE may need separate
+instances of the coverage table, or may need direct access to the namespace code is run in. For this
+purpose @racket[cover] directly expose coverage environments.
+
+Coverage environments are values that package together a coverage namespace, a compiler for
+annotating code, and a coverage table to write coverage results to. All other coverage functions use
+the @racket[current-coverage-environment] for code coverage, unless explicitly given a different
+environment.
+
 @defproc[(environment? [v any/c]) any/c]{
 Tests if the given value is a coverage environment.}
 @defthing[current-coverage-environment (parameter/c environment?)]{
-The current coverage environment}
+The current coverage environment. Defaults to an environment built from
+@racket[make-base-namespace]}
 @defproc[(environment-namespace [environment environment?]) namespace?]{
-Get the namespace that coverage should be run in}
+Get the namespace that coverage should be run in. This is the same namespace given to
+@racket[make-cover-environment]}
 @defproc[(environment-compile [environment environment?])
          (any/c boolean? . -> . compiled-expression?)]{
 
@@ -84,10 +106,3 @@ annotations.  That code must be run in @racket[environment]'s namespace.}
 
 Makes a coverage environment such that @racket[environment-namespace] will return
 @racket[namespace], and @racket[namespace] will be set up to handle coverage information.}
-
-@deftogether[(@defproc[(generate-coveralls-coverage (c coverage/c) (p path-string? "coverage")) any]
-              @defproc[(generate-html-coverage (c coverage/c) (p path-string? "coverage")) any])]{
-
-Generates coverage information in the coveralls and html formats. Equivalent to the specifications
-of the @Flag{c} argument to @exec{raco cover}. Both use @racket[make-covered?] to determine file
-coverage.}
