@@ -3,7 +3,8 @@
 ;; for every .rkt file in those directories it loads
 ;; tests that file and checks its coverage against an
 ;; .rktl file of the same name
-(require (only-in "../main.rkt" test-files! clear-coverage! get-test-coverage irrelevant-submodules)
+(require (only-in "../main.rkt" test-files! clear-coverage! get-test-coverage irrelevant-submodules
+                  make-covered?)
          "../private/file-utils.rkt"
          racket/runtime-path rackunit)
 
@@ -27,15 +28,16 @@
       (define-values (expected-coverage expected-uncoverage)
         (with-input-from-file cover (lambda () (values (ranges->numbers (read))
                                                        (ranges->numbers (read))))))
+      (define covered? (make-covered? program actual-coverage))
       (test-begin
        (for ([i expected-coverage])
-         (check-true (covered? i actual-coverage)
-                     (format "expected char ~a to be covered, but it was not, in: ~s"
-                             i program)))
+         (check-equal? (covered? i) 'covered
+                       (format "expected char ~a to be covered, but it was not, in: ~s"
+                               i program)))
        (for ([i expected-uncoverage])
-         (check-true (not (covered? i actual-coverage))
-                     (format "expected char ~a to be uncovered, but it was, in: ~s"
-                             i program)))))
+         (check-equal? (covered? i) 'uncovered
+                       (format "expected char ~a to be uncovered, but it was, in: ~s"
+                               i program)))))
 
     (clear-coverage!))
 
@@ -51,20 +53,8 @@
          (ranges->numbers r)
          (cons a (ranges->numbers (cons (list (add1 a) b) r))))]))
 
-(define (covered? i map)
-  (for*/and ([l map]
-             [b (in-value (first l))]
-             [srcloc (in-value (second l))]
-             #:when (within? i srcloc))
-    b))
-
-(define (within? i src)
-  (match src
-    [(srcloc _ _ _ start range)
-     (<= start i (+ start range))]))
-
 (module+ test
-  (define-runtime-path-list test-dirs '("basic" "simple-multi" "syntax"))
+  (define-runtime-path-list test-dirs '("basic" "simple-multi" "syntax" "at-exp"))
   (for-each (compose test-dir path->string) test-dirs)
   (define-runtime-path submods "submods")
   (parameterize ([irrelevant-submodules null])
