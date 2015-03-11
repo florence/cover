@@ -88,7 +88,7 @@
       (define file (path->string (simplify-path tests/prog.rkt)))
       (test-files! (path->string (simplify-path tests/prog.rkt)))
       (define coverage (get-test-coverage))
-      (define report 
+      (define report
         (with-env ("COVERALLS_REPO_TOKEN" "abc") (generate-coveralls-report coverage)))
       (check-equal?
        (hash-ref report 'source_files)
@@ -128,7 +128,8 @@
 ;; Generates a string that represents a valid coveralls json_file object
 (define (generate-source-files coverage)
   (define src-files
-    (for/list ([file (in-list (hash-keys coverage))])
+    (for/list ([file (in-list (hash-keys coverage))]
+               #:when (absolute-path? file))
       (define local-file (path->string (find-relative-path (current-directory) file)))
       (define src (file->string file))
       (define c (line-coverage coverage file))

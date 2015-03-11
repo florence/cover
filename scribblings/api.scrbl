@@ -9,40 +9,43 @@ In addition to being a raco tool, Cover provides racket bindings for running
 tests and collecting coverage information. The following are the basic
 functions of test coverage.
 
+@section[#:tag "higher"]{A High Level API}
+
 @deftogether[(@defthing[coverage/c
                          contract?
-                         #:value (hash/c (and/c path-string? absolute-path?)
-                                         file-coverage/c)]
+                         #:value (hash/c any/c file-coverage/c)]
                 @defthing[file-coverage/c contract? #:value (listof (list/c boolean? srcloc?))])]{
-Coverage information is a hash map mapping absolute
-file paths to a list detailing the coverage of that file. The file coverage
-information is a list of lists, mapping a boolean to a range of
-characters within the file. True means the @racket[srcloc] structure
-represents an expression that was run, and False means the structure
-represents an expression that was not run. Some expressions may not be
-represented directly in this coverage information.
-For example, type annotations in @racketmodname[typed/racket]
-removed during macro expansion and are thus neither run or not run.
-Note that the @racket[srcloc]s are one indexed, meaning a @racket[1]
-represents the first character in the file.}
+
+Coverage information is a hash map mapping absolute file paths to a list detailing the coverage of
+that file. The file is keyed on the @racket[syntax-source] of the syntax objects from that
+file. Usually this will be the absolute path to the file. The file coverage information is a list of
+lists, mapping a boolean to a range of characters within the file. True means the @racket[srcloc]
+structure represents an expression that was run, and False means the structure represents an
+expression that was not run. Some expressions may not be represented directly in this coverage
+information.  For example, type annotations in @racketmodname[typed/racket] removed during macro
+expansion and are thus neither run or not run.  Note that the @racket[srcloc]s are one indexed,
+meaning a @racket[1] represents the first character in the file.}
 
 @defproc[(test-files! (#:submod submod symbol? 'test)
-                      (files (or/c path-string?
-                                  (list/c path-string
-                                          (and/c (negate impersonator?)
-                                                 (vectorof string? #:immutable #t))))) ...)
+                      (files
+                        (or/c path-string?
+                              (list/c path-string?
+                                       (vectorof string? #:immutable #t)))) ...)
                       any]{
 
 Runs all given @racket[files] and their submodule @racket[submod] (if it exists), storing the
 coverage information.  If the path is paired with a vector then that vector is used as the
-@racket[current-command-line-arguments] when executing that file. This vector must be immuatable and
-not wrapped by a @racket[chaperone] or @racket[impersonator]. The function returns false if any
-tests fail.  Test coverage information is still collected when test fail.  Test coverage info is
-added to existing coverage info.}
+@racket[current-command-line-arguments] when executing that file. This vector must be immutable and
+not wrapped by a @racket[chaperone?] or @racket[impersonator?], nor may its elements be wrapped in a
+@racket[chaperone?] or @racket[impersonator?]. The function returns false if any tests fail.  Test
+coverage information is still collected when test fail.  Test coverage info is added to existing
+coverage info.}
 
-@defproc[(clear-coverage!) any]{Clears all coverage information.}
+@defproc[(clear-coverage! [environment environment? (current-coverage-environment)]) any]{
+Clears all coverage information.}
 
-@defproc[(get-test-coverage) coverage/c]{Gets the current coverage information.}
+@defproc[(get-test-coverage [environment environment? (current-coverage-environment)]) coverage/c]{
+Gets the current coverage information.}
 @defproc[(make-covered? (coverage file-coverage/c) (path path-string?))
          (->* (exact-positive-integer?)
               (#:byte? boolean?)
@@ -73,3 +76,33 @@ considered irrelevant.}
 Generates coverage information in the coveralls and html formats. Equivalent to the specifications
 of the @Flag{c} argument to @exec{raco cover}. Both use @racket[make-covered?] to determine file
 coverage.}
+
+@section[#:tag "lower"]{A Lower Level API}
+
+The high level API may not be enough for some applications. For example an IDE may need separate
+instances of the coverage table, or may need direct access to the namespace code is run in. For this
+purpose @racket[cover] directly expose coverage environments.
+
+Coverage environments are values that package together a coverage namespace, a compiler for
+annotating code, and a coverage table to write coverage results to. All other coverage functions use
+the @racket[current-coverage-environment] for code coverage, unless explicitly given a different
+environment.
+
+@defproc[(environment? [v any/c]) any/c]{
+Tests if the given value is a coverage environment.}
+@defthing[current-coverage-environment (parameter/c environment?)]{
+The current coverage environment. Defaults to an environment built from
+@racket[make-base-namespace]}
+@defproc[(environment-namespace [environment environment?]) namespace?]{
+Get the namespace that coverage should be run in. This is the same namespace given to
+@racket[make-cover-environment]}
+@defproc[(environment-compile [environment environment?])
+         (any/c boolean? . -> . compiled-expression?)]{
+
+Returns a value suitable for @racket[current-compile] that will compile code with coverage
+annotations.  That code must be run in @racket[environment]'s namespace.}
+
+@defproc[(make-cover-environment [namespace namespace? (make-base-namespace)]) environment?]{
+
+Makes a coverage environment such that @racket[environment-namespace] will return
+@racket[namespace], and @racket[namespace] will be set up to handle coverage information.}
