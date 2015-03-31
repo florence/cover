@@ -28,15 +28,16 @@
         (with-input-from-file cover (lambda () (values (ranges->numbers (read))
                                                        (ranges->numbers (read))))))
       (define covered? (make-covered? actual-coverage program))
+      (define (test-range range type)
+        (for ([i range])
+          (define v (covered? i))
+          (unless (eq? v 'irrelevant)
+            (check-equal? v type
+                          (format "expected char ~a to be covered, but it was not, in: ~s"
+                                  i program)))))
       (test-begin
-       (for ([i expected-coverage])
-         (check-true (covered? i actual-coverage)
-                     (format "expected char ~a to be covered, but it was not, in: ~s"
-                             i program)))
-       (for ([i expected-uncoverage])
-         (check-true (not (covered? i actual-coverage))
-                     (format "expected char ~a to be uncovered, but it was, in: ~s"
-                             i program)))))
+       (test-range expected-coverage 'covered)
+       (test-range expected-uncoverage 'uncovered)))
 
     (clear-coverage!))
 
