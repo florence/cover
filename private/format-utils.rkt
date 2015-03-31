@@ -75,13 +75,13 @@
 (define (make-irrelevant? lexer f submods)
   (define s (mutable-set))
   (define-values (for-lex for-str) (replicate-file-port f (current-input-port)))
+  (port-count-lines! for-lex)
   (define str (apply vector (string->list (port->string for-str))))
   (define init-offset (- (string-length (file->string f))
                          (vector-length str)))
 
   (define offset (make-byte->str-offset str))
 
-  
   (let loop ([mode #f])
     (define-values (v type _m start end backup-dist new-mode/ds)
       (lexer for-lex 0 mode))
