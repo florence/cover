@@ -3,7 +3,8 @@
 ;; for every .rkt file in those directories it loads
 ;; tests that file and checks its coverage against an
 ;; .rktl file of the same name
-(require (only-in "../main.rkt" test-files! clear-coverage! get-test-coverage irrelevant-submodules)
+(require (only-in "../main.rkt" test-files! clear-coverage! get-test-coverage irrelevant-submodules
+                  make-covered?)
          "../private/file-utils.rkt"
          racket/runtime-path rackunit)
 

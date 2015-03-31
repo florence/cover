@@ -48,11 +48,12 @@
   (with-input-from-file f
     (thunk
      (define lexer
-       (with-handlers ([exn:fail:read? (const racket-lexer)])
-         (define f (read-language))
-         (if f
-             (f 'color-lexer racket-lexer)
-             racket-lexer)))
+       (maybe-wrap-lexer
+        (with-handlers ([exn:fail:read? (const racket-lexer)])
+          (define f (read-language))
+          (if f
+              (f 'color-lexer racket-lexer)
+              racket-lexer))))
      (define irrelevant? (make-irrelevant? lexer f submods))
      (define file-length (string-length (file->string f)))
      (define cache
@@ -62,8 +63,6 @@
                        [else (raw-covered? i c)]))))
      cache)))
 
-<<<<<<< HEAD
-=======
 (define (maybe-wrap-lexer lexer)
   (if (procedure-arity-includes? lexer 3)
       lexer
@@ -71,7 +70,6 @@
         (define-values (a b c d e) (lexer in))
         (values a b c d e 0 #f))))
 
->>>>>>> e051103... fixing lexer
 ;; Lexer(in the sence of color:text<%>) InputPort (Maybe (Listof Symbol)) -> (Natural -> Boolean)
 ;; builds a function that determines if a given location in that port is irrelivent.
 (define (make-irrelevant? lexer f submods)
