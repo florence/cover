@@ -8,6 +8,7 @@
          racket/set
          racket/bool
          syntax-color/racket-lexer
+         syntax-color/lexer-contract
          syntax/modread
          syntax/parse
          "shared.rkt")
@@ -47,11 +48,12 @@
   (with-input-from-file f
     (thunk
      (define lexer
-       (with-handlers ([exn:fail:read? (const racket-lexer)])
-         (define f (read-language))
-         (if f
-             (f 'color-lexer racket-lexer)
-             racket-lexer)))
+       (maybe-wrap-lexer
+        (with-handlers ([exn:fail:read? (const racket-lexer)])
+          (define f (read-language))
+          (if f
+              (f 'color-lexer racket-lexer)
+              racket-lexer))))
      (define irrelevant? (make-irrelevant? lexer f submods))
      (define file-length (string-length (file->string f)))
      (define cache
@@ -60,6 +62,13 @@
                  (cond [(irrelevant? i) 'irrelevant]
                        [else (raw-covered? i c)]))))
      cache)))
+
+(define (maybe-wrap-lexer lexer)
+  (if (procedure-arity-includes? lexer 3)
+      lexer
+      (λ (in offset mode)
+        (define-values (a b c d e) (lexer in))
+        (values a b c d e 0 #f))))
 
 ;; Lexer(in the sence of color:text<%>) InputPort (Maybe (Listof Symbol)) -> (Natural -> Boolean)
 ;; builds a function that determines if a given location in that port is irrelivent.
@@ -72,15 +81,19 @@
 
   (define offset (make-byte->str-offset str))
 
-  (let loop ()
-    (define-values (v type _m start end) (lexer for-lex))
+  (let loop ([mode #f])
+    (define-values (v type _m start end backup-dist new-mode/ds)
+      (lexer for-lex 0 mode))
+    (define new-mode (if (dont-stop? new-mode/ds)
+                         (dont-stop-val new-mode/ds)
+                         new-mode/ds))
     (case type
       [(eof) (void)]
       [(comment sexp-comment no-color white-space)
        (for ([i (in-range (- start (offset start)) (- end (offset end)))])
          (set-add! s (+ init-offset i)))
-       (loop)]
-      [else (loop)]))
+       (loop new-mode)]
+      [else (loop new-mode)]))
   (define stx
     (with-input-from-file f
       (thunk (with-module-reading-parameterization read-syntax))))
@@ -149,19 +162,20 @@
 
 (module+ test
   (define-runtime-path path2 "../tests/prog.rkt")
-  (test-begin
-   (define f (path->string (simplify-path path2)))
-   (test-files! f)
-   (define coverage (hash-ref (get-test-coverage) f))
-   (define covered? (make-covered? coverage f))
-   (check-equal? (covered? 14) 'irrelevant)
-   (check-equal? (covered? 14 #:byte? #t) 'irrelevant)
-   (check-equal? (covered? 17) 'irrelevant)
-   (check-equal? (covered? 28) 'irrelevant)
-   (check-equal? (covered? 35) 'covered)
-   (check-equal? (covered? 50) 'uncovered)
-   (check-equal? (covered? 51 #:byte? #t) 'uncovered)
-   (check-equal? (covered? 52) 'irrelevant)
-   (check-equal? (covered? 53) 'irrelevant)
-   (check-equal? (covered? 54) 'irrelevant)
-   (clear-coverage!)))
+  (parameterize ([irrelevant-submodules #f])
+    (test-begin
+     (define f (path->string (simplify-path path2)))
+     (test-files! f)
+     (define coverage (hash-ref (get-test-coverage) f))
+     (define covered? (make-covered? coverage f))
+     (check-equal? (covered? 14) 'irrelevant)
+     (check-equal? (covered? 14 #:byte? #t) 'irrelevant)
+     (check-equal? (covered? 17) 'irrelevant)
+     (check-equal? (covered? 28) 'irrelevant)
+     (check-equal? (covered? 35) 'covered)
+     (check-equal? (covered? 50) 'uncovered)
+     (check-equal? (covered? 51 #:byte? #t) 'uncovered)
+     (check-equal? (covered? 52) 'irrelevant)
+     (check-equal? (covered? 53) 'irrelevant)
+     (check-equal? (covered? 54) 'irrelevant)
+     (clear-coverage!))))
