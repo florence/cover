@@ -28,7 +28,7 @@
       (define-values (expected-coverage expected-uncoverage)
         (with-input-from-file cover (lambda () (values (ranges->numbers (read))
                                                        (ranges->numbers (read))))))
-      (define covered? (make-covered? program actual-coverage))
+      (define covered? (make-covered? actual-coverage program))
       (test-begin
        (for ([i expected-coverage])
          (check-equal? (covered? i) 'covered

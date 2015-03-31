@@ -8,6 +8,7 @@
          racket/set
          racket/bool
          syntax-color/racket-lexer
+         syntax-color/lexer-contract
          syntax/modread
          syntax/parse
          "shared.rkt")
@@ -62,11 +63,12 @@
                        [else (raw-covered? i c)]))))
      cache)))
 
-(define (maybe-wrap-lexer f)
-  (if (procedure-arity-includes? f 3)
-      f
-      (lambda (a b c)
-        (apply values (append (call-with-values (thunk f a) list) (list b c))))))
+(define (maybe-wrap-lexer lexer)
+  (if (procedure-arity-includes? lexer 3)
+      lexer
+      (λ (in offset mode)
+        (define-values (a b c d e) (lexer in))
+        (values a b c d e 0 #f))))
 
 ;; Lexer(in the sence of color:text<%>) InputPort (Maybe (Listof Symbol)) -> (Natural -> Boolean)
 ;; builds a function that determines if a given location in that port is irrelivent.
@@ -79,15 +81,20 @@
 
   (define offset (make-byte->str-offset str))
 
-  (let loop ()
-    (define-values (v type _m start end) (lexer for-lex))
+  
+  (let loop ([mode #f])
+    (define-values (v type _m start end backup-dist new-mode/ds)
+      (lexer for-lex 0 mode))
+    (define new-mode (if (dont-stop? new-mode/ds)
+                         (dont-stop-val new-mode/ds)
+                         new-mode/ds))
     (case type
       [(eof) (void)]
       [(comment sexp-comment no-color white-space)
        (for ([i (in-range (- start (offset start)) (- end (offset end)))])
          (set-add! s (+ init-offset i)))
-       (loop)]
-      [else (loop)]))
+       (loop new-mode)]
+      [else (loop new-mode)]))
   (define stx
     (with-input-from-file f
       (thunk (with-module-reading-parameterization read-syntax))))
