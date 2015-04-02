@@ -30,9 +30,10 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
          racket/list
          racket/port
          "private/shared.rkt"
-         "private/file-utils.rkt")
+         "private/file-utils.rkt"
+         "strace.rkt")
 
-(struct environment (namespace compile ann-top raw-cover cch))
+(struct environment (namespace compile ann-top raw-cover))
 
 ;;; ---------------------- Running Files ---------------------------------
 
@@ -71,7 +72,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
                         [current-command-line-arguments argv]
                         [exit-handler (lambda (x) (raise (an-exit x)))]
                         [current-namespace (get-namespace)]
-                        [(get-check-handler-parameter)
+                        [current-check-handler ;(get-check-handler-parameter)
                          (lambda x
                            (set! tests-failed #t)
                            (vprintf "file ~s had failed tests\n" p)
@@ -90,18 +91,19 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 
 (define (run-mod to-run)
   (vprintf "running ~s\n" to-run)
-  (eval (make-dyn-req-expr to-run))
+  (do-dyn-req-expr to-run)
   (vprintf "finished running ~s\n" to-run))
 
-(define (make-dyn-req-expr to-run)
-  `(dynamic-require ',to-run 0))
+(define (do-dyn-req-expr to-run)
+  (dynamic-require to-run 0))
 
 ;; [Listof Any] -> Void
 ;; remove any files not in paths from the raw coverage
 (define (remove-unneeded-results! names)
   (define c (get-raw-coverage))
   (for ([s (in-list (hash-keys c))]
-        #:when (not (member (srcloc-source s) names)))
+        ;; first here is like "srcloc-source", but its in list form...
+        #:when (not (member (first s) names)))
     (hash-remove! c s)))
 
 ;;; ---------------------- Compiling ---------------------------------
@@ -161,30 +163,40 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 (define (clear-coverage!)
   (current-cover-environment (make-cover-environment)))
 
-(define (make-cover-environment [ns (make-base-namespace)])
+(define (make-kernel-namespace)
+  (define ns (make-empty-namespace))
+  (define cns (current-namespace))
+  (namespace-attach-module cns ''#%builtin ns)
+  ns)
+
+(define (make-cover-environment [ns (make-kernel-namespace)])
   (parameterize ([current-namespace ns])
     (define ann (load-annotate-top))
     (environment
      ns
      (make-cover-compile ns ann)
      ann
-     (load-raw-coverage)
-     (load-current-check-handler))))
+     (load-raw-coverage))))
 
 (define (get-annotate-top)
   (get-val environment-ann-top))
 (define (load-annotate-top)
-  (dynamic-require 'cover/strace 'annotate-top))
+  (make-annotate-top (load-raw-coverage) (load-cover-name)))
 
 (define (get-raw-coverage)
   (get-val environment-raw-cover))
 (define (load-raw-coverage)
   (dynamic-require 'cover/coverage 'coverage))
 
+(define (load-cover-name)
+  (dynamic-require 'cover/coverage 'cover-name))
+(define (load-cover-setter)
+  (dynamic-require 'cover/coverage '!))
+
+#;
 (define (get-check-handler-parameter)
-  (get-val environment-cch))
-(define (load-current-check-handler)
-  (dynamic-require 'rackunit 'current-check-handler))
+  (namespace-variable-value (module->namespace 'rackunit)
+                            'current-check-handler))
 
 (define (get-namespace)
   (get-val environment-namespace))
@@ -205,7 +217,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 
     ;; filtered : (listof (list boolean srcloc))
     ;; remove redundant expressions
-    (define filtered (hash-map (get-raw-coverage) (λ (k v) (list v k))))
+    (define filtered (hash-map (get-raw-coverage) (λ (k v) (list v (apply make-srcloc k)))))
 
     (define out (make-hash))
 
@@ -215,7 +227,8 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
                     file
                     (lambda (l) (cons v l))
                     null))
-    out))
+    ;; Make the hash map immutable
+    (for/hash ([(k v) (in-hash out)]) (values k v))))
 
 (define current-cover-environment
   (make-parameter (make-cover-environment)))
@@ -253,6 +266,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
   (define ns (environment-namespace env))
   (parameterize ([current-cover-environment env]
                  [current-namespace ns])
+    (namespace-require 'racket/base)
     (test-begin
      (define file (path->string simple-multi/2.rkt))
      (define modpath file)
