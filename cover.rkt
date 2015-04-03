@@ -35,6 +35,8 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
          "strace.rkt")
 
 (struct environment (namespace compile ann-top raw-cover))
+;; A special structure used for communicating information about programs that call `exit`
+(struct an-exit (code))
 
 ;;; ---------------------- Running Files ---------------------------------
 
@@ -52,61 +54,68 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
         (match p
           [(cons p _) p]
           [_ p])))
-    (define tests-failed #f)
-    (define old-check (current-check-handler))
-    (struct an-exit (code))
-    (parameterize* ([current-load/use-compiled (make-cover-load/use-compiled abs-names)]
-                    [current-output-port
-                     (if (verbose) (current-output-port) (open-output-nowhere))]
-                    [exit-handler (lambda (x) (raise (an-exit x)))]
-                    [current-namespace (get-namespace)])
-      (for ([the-file (in-list abs-names)])
-        #|
-        (define f (path->string (file-name-from-path p)))
-        (define ext (bytes->string/locale (filename-extension f)))
-        (define name (string->symbol (substring f 0 (- (string-length f) 1 (string-length ext)))))
-        ((current-load/use-compiled)
-         p
-         name)
-        |#
-        (dynamic-require `(file ,(if (path? the-file) (path->string the-file) the-file)) (void)))
-      (for ([p (in-list abs)])
-        (vprintf "attempting to run ~s\n" p)
-        (define the-file (if (list? p) (car p) p))
-        (define argv (if (list? p) (cadr p) #()))
-        (parameterize ([current-command-line-arguments argv]
-                       [current-check-handler ;(get-check-handler-parameter)
-                        (lambda x
-                          (set! tests-failed #t)
-                          (vprintf "file ~s had failed tests\n" p)
-                          (apply old-check x))])
-          (with-handlers ([(lambda (x) (or (not (exn? x)) (exn:fail? x)))
-                           (lambda (x)
-                             (cond [(an-exit? x)
-                                    (vprintf "file ~s exited code ~s" p (an-exit-code x))]
-                                   [else
-                                    (set! tests-failed #t)
-                                    (error-display x)]))])
-            (vprintf "running file: ~s with args: ~s\n" the-file argv)
-            (run-file the-file submod-name)))))
+    (define tests-failed
+      (parameterize* ([current-load/use-compiled (make-cover-load/use-compiled abs-names)]
+                      [current-output-port
+                       (if (verbose) (current-output-port) (open-output-nowhere))]
+                      [current-namespace (get-namespace)])
+        (for ([f (in-list abs-names)])
+          (compile-file f))
+        (for/fold ([tests-failed #f]) ([f (in-list abs)])
+          (define failed? (handle-file f submod-name))
+          (and failed? tests-failed))))
     (vprintf "ran ~s\n" files)
     (remove-unneeded-results! abs-names)
     (not tests-failed)))
 
 ;;; ---------------------- Running Aux ---------------------------------
 
-(define (run-file the-file submod-name)
-  (define sfile `(file ,(if (path? the-file) (path->string the-file) the-file)))
+
+;; PathString -> Void
+(define (compile-file the-file)
+  (dynamic-require (build-file-require the-file) (void)))
+
+;; (or PathString (list PathString Vector)) Symbol -> Boolean
+;; returns if any tests failed or errors occured
+(define (handle-file maybe-path submod-name)
+  (define tests-failed #f)
+  (define old-check (current-check-handler))
+  (vprintf "attempting to run ~s\n" maybe-path)
+  (define the-file (if (list? maybe-path) (first maybe-path) maybe-path))
+  (define argv (if (list? maybe-path) (second maybe-path) #()))
+  (with-handlers ([(lambda (x) (or (not (exn? x)) (exn:fail? x)))
+                   (lambda (x)
+                     (cond [(an-exit? x)
+                            (vprintf "file ~s exited code ~s" maybe-path (an-exit-code x))]
+                           [else
+                            (set! tests-failed #t)
+                            (error-display x)]))])
+    (parameterize ([current-command-line-arguments argv]
+                   [exit-handler (lambda (x) (raise (an-exit x)))]
+                   [current-check-handler ;(get-check-handler-parameter)
+                    (lambda x
+                      (set! tests-failed #t)
+                      (vprintf "file ~s had failed tests\n" maybe-path)
+                      (apply old-check x))])
+      (vprintf "running file: ~s with args: ~s\n" the-file argv)
+      (exec-file the-file submod-name)))
+  tests-failed)
+
+;; PathString Symbol -> Void
+(define (exec-file the-file submod-name)
+  (define sfile (build-file-require the-file))
   (define submod `(submod ,sfile ,submod-name))
   (run-mod (if (module-declared? submod #t) submod sfile)))
 
+;; ModulePath -> Any
 (define (run-mod to-run)
   (vprintf "running ~s\n" to-run)
-  (do-dyn-req-expr to-run)
+  (dynamic-require to-run 0)
   (vprintf "finished running ~s\n" to-run))
 
-(define (do-dyn-req-expr to-run)
-  (dynamic-require to-run 0))
+;; PathString -> ModulePath
+(define (build-file-require the-file)
+  `(file ,(if (path? the-file) (path->string the-file) the-file)))
 
 ;; [Listof Any] -> Void
 ;; remove any files not in paths from the raw coverage
