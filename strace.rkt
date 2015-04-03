@@ -7,7 +7,7 @@
          racket/unit
          syntax/kerncase
          racket/runtime-path
-         racket/fixnum
+         racket/syntax
          "private/file-utils.rkt"
          "private/shared.rkt")
 
@@ -38,7 +38,7 @@
                   [set-box! set-box-name]
                   [hash-ref hash-ref-name]
                   [do-lift lift-name])
-      #`(set-box! (do-lift (hash-ref c loc)) #t)))
+      #`(#%plain-app set-box! (do-lift (#%plain-app hash-ref c loc)) #t)))
 
 
   (define (make-srcloc-maker f)
@@ -69,17 +69,7 @@
   (define (in:annotate-top annotate-top)
     (lambda (stx phase)
       (define e (add-cover-require stx))
-      (let ([tmp (if e (expand-syntax (annotate-clean (annotate-top (expand-syntax e) phase))) stx)])
-        #;
-        (when (equal? (string->path "/Users/florence/playground/cover/private/format-utils.rkt") (syntax-source e))
-          (define ce (dynamic-require 'racket/gui 'current-eventspace))
-          (define me (dynamic-require 'racket/gui 'make-eventspace))
-          (parameterize ([ce (me)])
-            (thread (lambda () ((dynamic-require 'macro-debugger/syntax-browser 'browse-syntax) tmp))))
-          (let loop () (loop)))
-        ;    (write (syntax-source e) o)
-        ;    (displayln "")
-        tmp)))
+      (if e (expand-syntax (annotate-clean (annotate-top (expand-syntax e) phase))) stx)))
 
   (define (add-cover-require expr)
     (define inspector (variable-reference->module-declaration-inspector
@@ -90,34 +80,44 @@
                           [(module name lang (#%module-begin e ...))
                            (member '(#%declare #:cross-phase-persistent) (syntax->datum #'(e ...)))
                            #f]
-                          [(module name lang mb)
+                          [(m name lang mb)
+                           (or (eq? 'module (syntax-e #'m))
+                               (eq? 'module* (syntax-e #'m)))
                            (with-syntax ([cover cover-name]
                                          [set-box set-box-name]
                                          [hash-rf hash-ref-name]
                                          [do-lift lift-name])
+                             (define lexical? (eq? #f (syntax-e #'lang)))
                              (syntax-case (syntax-disarm #'mb inspector) ()
                                [(#%module-begin b ...)
-                                (with-syntax ([(body ...)
-                                               (map (lambda (e) (loop e #f)) (syntax->list #'(b ...)))])
-                                  (syntax-rearm
-                                   (namespace-syntax-introduce
-                                    (datum->syntax
-                                     disarmed
-                                     (syntax-e
-                                      #'(m name lang
-                                           (#%module-begin
-                                            (#%require (rename cover/coverage cover coverage)
-                                                       (rename '#%kernel set-box set-box!)
-                                                       (rename '#%kernel hash-rf hash-ref))
-                                            (#%require (for-syntax '#%kernel))
-                                            (define-syntaxes (do-lift)
-                                              (lambda (stx)
-                                                (syntax-local-lift-expression (cadr (syntax-e stx)))))
-                                            body ...)))
-                                     disarmed
-                                     disarmed))
-                                   expr))]))]
+                                (let ()
+                                  (define/with-syntax (body ...)
+                                    (map (lambda (e) (loop e #f))
+                                         (syntax->list #'(b ...))))
+                                  (define/with-syntax (add ...)
+                                    #'((#%require (rename cover/coverage cover coverage)
+                                                  (rename '#%kernel set-box set-box!)
+                                                  (rename '#%kernel haah-rf hash-ref))
+                                       (#%require (for-syntax '#%kernel))
+                                       (define-syntaxes (do-lift)
+                                         (lambda (stx)
+                                           (syntax-local-lift-expression
+                                            (cadr (syntax-e stx)))))))
+                                  (define stx
+                                    #'(m name lang
+                                         (#%module-begin add ... body ...)))
+                                  (rebuild-syntax stx disarmed expr))]))]
                           [_ (if top #f expr)])))
+
+  (define (rebuild-syntax stx disarmed armed)
+    (syntax-rearm
+     (namespace-syntax-introduce
+      (datum->syntax
+       disarmed
+       (syntax-e stx)
+       disarmed
+       disarmed))
+     armed))
 
   ;; in order to write modules to disk the top level needs to
   ;; be a module. so we trust that the module is loaded and trim the expression
@@ -125,9 +125,9 @@
   (kernel-syntax-case e #f
     [(begin e mod)
      (begin
-       (syntax-case #'e (set-box! do-lift make-srcloc hash-ref)
-         [(set-box! (lift (hash-ref _ (make-srcloc v ...))) _)
-          (let ([location (apply make-srcloc (syntax->datum #'(v ...)))])
+       (syntax-case #'e (#%plain-app set-box! do-lift make-srcloc hash-ref)
+         [(#%plain-app set-box! (lift (#%plain-app hash-ref _ (quote v))) _)
+          (let ([location (syntax->datum #'v)])
             (set-box! (hash-ref c location) #t))])
        #'mod)]
     [_ e]))

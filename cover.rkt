@@ -25,6 +25,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
          racket/bool
          racket/runtime-path
          racket/match
+         racket/path
          rackunit
          unstable/error
          racket/list
@@ -52,32 +53,42 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
           [(cons p _) p]
           [_ p])))
     (define tests-failed #f)
-    (for ([p (in-list abs)])
-      (vprintf "attempting to run ~s\n" p)
-      (define old-check (current-check-handler))
-      (define the-file (if (list? p) (car p) p))
-      (define argv (if (list? p) (cadr p) #()))
-      (vprintf "running file: ~s with args: ~s\n" the-file argv)
-      (struct an-exit (code))
-      (with-handlers ([(lambda (x) (or (not (exn? x)) (exn:fail? x)))
-                       (lambda (x)
-                         (cond [(an-exit? x)
-                                (vprintf "file ~s exited code ~s" p (an-exit-code x))]
-                               [else
-                                (set! tests-failed #t)
-                                (error-display x)]))])
-        (parameterize* ([current-load/use-compiled (make-cover-load/use-compiled abs-names)]
-                        [current-output-port
-                         (if (verbose) (current-output-port) (open-output-nowhere))]
-                        [current-command-line-arguments argv]
-                        [exit-handler (lambda (x) (raise (an-exit x)))]
-                        [current-namespace (get-namespace)]
-                        [current-check-handler ;(get-check-handler-parameter)
-                         (lambda x
-                           (set! tests-failed #t)
-                           (vprintf "file ~s had failed tests\n" p)
-                           (apply old-check x))])
-          (run-file the-file submod-name))))
+    (define old-check (current-check-handler))
+    (struct an-exit (code))
+    (parameterize* ([current-load/use-compiled (make-cover-load/use-compiled abs-names)]
+                    [current-output-port
+                     (if (verbose) (current-output-port) (open-output-nowhere))]
+                    [exit-handler (lambda (x) (raise (an-exit x)))]
+                    [current-namespace (get-namespace)])
+      (for ([the-file (in-list abs-names)])
+        #|
+        (define f (path->string (file-name-from-path p)))
+        (define ext (bytes->string/locale (filename-extension f)))
+        (define name (string->symbol (substring f 0 (- (string-length f) 1 (string-length ext)))))
+        ((current-load/use-compiled)
+         p
+         name)
+        |#
+        (dynamic-require `(file ,(if (path? the-file) (path->string the-file) the-file)) (void)))
+      (for ([p (in-list abs)])
+        (vprintf "attempting to run ~s\n" p)
+        (define the-file (if (list? p) (car p) p))
+        (define argv (if (list? p) (cadr p) #()))
+        (parameterize ([current-command-line-arguments argv]
+                       [current-check-handler ;(get-check-handler-parameter)
+                        (lambda x
+                          (set! tests-failed #t)
+                          (vprintf "file ~s had failed tests\n" p)
+                          (apply old-check x))])
+          (with-handlers ([(lambda (x) (or (not (exn? x)) (exn:fail? x)))
+                           (lambda (x)
+                             (cond [(an-exit? x)
+                                    (vprintf "file ~s exited code ~s" p (an-exit-code x))]
+                                   [else
+                                    (set! tests-failed #t)
+                                    (error-display x)]))])
+            (vprintf "running file: ~s with args: ~s\n" the-file argv)
+            (run-file the-file submod-name)))))
     (vprintf "ran ~s\n" files)
     (remove-unneeded-results! abs-names)
     (not tests-failed)))

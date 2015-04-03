@@ -17,7 +17,7 @@
 (module+ test
   (require rackunit "../cover.rkt" racket/runtime-path)
   (require (for-syntax racket/base))
-  (define-runtime-path tests/prog.rkt"../tests/prog.rkt")
+  (define-runtime-path tests/prog.rkt "../tests/prog.rkt")
   (define-runtime-path root "..")
 
   (define-syntax (with-env stx)
