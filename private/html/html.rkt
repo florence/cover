@@ -58,7 +58,7 @@
       (define output-file
         (apply build-path (append coverage-dir-list (list relative-output-file))))
       (define output-dir (apply build-path coverage-dir-list))
-      (define assets-path 
+      (define assets-path
         (path->string
          (apply build-path
                 (append (build-list (sub1 (length coverage-dir-list)) (const ".."))
@@ -352,27 +352,33 @@
     ;; we don't need to look at the span because the coverage is expression based
     (define p (syntax-position e))
     (if p
-        (covered? p #:byte? #t)
+        (covered? p)
         'missing))
 
   (define e
     (with-module-reading-parameterization
-        (thunk (with-input-from-file path read-syntax))))
+        (thunk (with-input-from-file path
+                 (lambda ()
+                   (port-count-lines! (current-input-port))
+                   (read-syntax))))))
+
   (define (ret e) (values (e->n e) (a->n e)))
   (define (a->n e)
     (case (is-covered? e)
       [(covered uncovered) 1]
       [else 0]))
   (define (e->n e) (if (eq? (is-covered? e) 'covered) 1 0))
+
   (define-values (covered total)
     (let recur ([e e])
       (syntax-parse e
         [(v ...)
          (for/fold ([covered (e->n e)] [count (a->n e)])
-                   ([e (in-syntax e)])
-           (define-values (cov cnt) (recur e))
+                   ([v (in-syntax e)])
+           (define-values (cov cnt) (recur v))
            (values (+ covered cov)
                    (+ count cnt)))]
         [e:expr (ret #'e)]
         [_ (values 0 0)])))
+
   (list covered total))

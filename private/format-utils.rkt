@@ -31,11 +31,10 @@
   (define submods (irrelevant-submodules))
   (define vec
     (list->vector (string->list (file->string path))))
-  (define file/byte->str-offset (make-byte->str-offset vec))
   (define file-location-coverage-cache
     (coverage-cache-file path c submods))
-  (lambda (loc #:byte? [byte? #f])
-    (hash-ref file-location-coverage-cache (if (not byte?) loc (- loc (file/byte->str-offset loc)))
+  (lambda (loc)
+    (hash-ref file-location-coverage-cache loc
               'missing)))
 
 ;; (or/c #f (listof symbol))
@@ -170,12 +169,9 @@
        (define coverage (hash-ref (get-test-coverage) f))
        (define covered? (make-covered? coverage f))
        (check-equal? (covered? 14) 'irrelevant)
-       (check-equal? (covered? 14 #:byte? #t) 'irrelevant)
        (check-equal? (covered? 17) 'irrelevant)
        (check-equal? (covered? 28) 'irrelevant)
        (check-equal? (covered? 35) 'covered)
-       (check-equal? (covered? 50) 'uncovered)
-       (check-equal? (covered? 51 #:byte? #t) 'uncovered)
        (check-equal? (covered? 52) 'irrelevant)
        (check-equal? (covered? 53) 'irrelevant)
        (check-equal? (covered? 54) 'irrelevant)))))

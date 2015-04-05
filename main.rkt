@@ -35,7 +35,6 @@
   [make-covered?
    (-> file-coverage/c path-string?
        (->* (exact-positive-integer?)
-            (#:byte? boolean?)
             (or/c 'covered 'uncovered 'irrelevant)))]
 
   [generate-coveralls-coverage coverage-gen/c]
