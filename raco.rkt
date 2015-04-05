@@ -229,7 +229,7 @@
          paths))
 
 (module+ test
-  (parameterize ([current-directory (build-path "/tests")])
+  (parameterize ([current-directory (build-path "/test")])
     (check-not-false (is-excluded-path? "/test/test/x.rkt" '("test")))
     (check-false (is-excluded-path? "/test/x.rkt" '("test")))
     (check-false (is-excluded-path? "/test/t/x.rkt" '("test")))))
