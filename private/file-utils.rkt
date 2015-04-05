@@ -1,17 +1,14 @@
 #lang racket/base
 (provide ->relative ->absolute)
-(require racket/list)
+(require racket/list racket/path)
 (module+ test (require rackunit))
 
 ;; PathString -> Path
 (define (->relative path)
-  (simplify-path
-   (if (relative-path? path)
-       (build-path path)
-       (let-values ([(_ lst)
-                     (split-at (explode-path path)
-                               (length (explode-path (current-directory))))])
-         (apply build-path lst)))))
+  (build-path
+   (find-relative-path
+    (current-directory)
+    path)))
 
 (module+ test
   (parameterize ([current-directory (build-path "/test")])
