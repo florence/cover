@@ -34,8 +34,14 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
          "private/file-utils.rkt"
          "strace.rkt")
 
+;; An environment has:
+;; a `namespace`, which shall always have `coverage.rkt` and ''#%builtin attached
+;; a handler for `current-compile`
+;; a function that will annoate expanded code
+;; a reference to the raw coverage map
 (struct environment (namespace compile ann-top raw-cover))
 ;; A special structure used for communicating information about programs that call `exit`
+;; `code` is the exit code that `exit` was called with
 (struct an-exit (code))
 
 ;;; ---------------------- Running Files ---------------------------------
@@ -237,7 +243,6 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
     (vprintf "generating test coverage\n")
 
     ;; filtered : (listof (list boolean srcloc))
-    ;; remove redundant expressions
     (define filtered (hash-map (get-raw-coverage)
                                (λ (k v) (list (unbox v) (apply make-srcloc k)))))
 
