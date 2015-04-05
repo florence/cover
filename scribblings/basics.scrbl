@@ -68,3 +68,5 @@ first is to include @racketmodname[scribble/manual] and @racket[planet] in the c
 exclude them from the output with the @Flag{e} flag. The other is to add the files that cause the
 cyclic dependencies to @racket[_test-omit-paths] or @racket[_cover-omit-paths] in that collections
 @filepath{info.rkt}.
+
+Cover will automatically skip any module declared @(tech #:doc '(lib "scribblings/reference/reference.scrbl") "cross-phase persistent").

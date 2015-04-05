@@ -1,5 +1,6 @@
 #lang racket/base
-(require rackunit "../main.rkt" racket/runtime-path)
+(require rackunit "../main.rkt" racket/runtime-path racket/port)
 (define-runtime-path dont-run.rkt "dont-run.rkt")
 (check-not-exn
- (lambda () (test-files! (path->string dont-run.rkt))))
+ (lambda ()
+   (check-true (test-files! (path->string dont-run.rkt)))))

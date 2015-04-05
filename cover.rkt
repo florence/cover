@@ -25,14 +25,24 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
          racket/bool
          racket/runtime-path
          racket/match
+         racket/path
          rackunit
          unstable/error
          racket/list
          racket/port
          "private/shared.rkt"
-         "private/file-utils.rkt")
+         "private/file-utils.rkt"
+         "strace.rkt")
 
-(struct environment (namespace compile ann-top raw-cover cch))
+;; An environment has:
+;; a `namespace`, which shall always have `coverage.rkt` and ''#%builtin attached
+;; a handler for `current-compile`
+;; a function that will annoate expanded code
+;; a reference to the raw coverage map
+(struct environment (namespace compile ann-top raw-cover))
+;; A special structure used for communicating information about programs that call `exit`
+;; `code` is the exit code that `exit` was called with
+(struct an-exit (code))
 
 ;;; ---------------------- Running Files ---------------------------------
 
@@ -50,58 +60,76 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
         (match p
           [(cons p _) p]
           [_ p])))
-    (define tests-failed #f)
-    (for ([p (in-list abs)])
-      (vprintf "attempting to run ~s\n" p)
-      (define old-check (current-check-handler))
-      (define the-file (if (list? p) (car p) p))
-      (define argv (if (list? p) (cadr p) #()))
-      (vprintf "running file: ~s with args: ~s\n" the-file argv)
-      (struct an-exit (code))
-      (with-handlers ([(lambda (x) (or (not (exn? x)) (exn:fail? x)))
-                       (lambda (x)
-                         (cond [(an-exit? x)
-                                (vprintf "file ~s exited code ~s" p (an-exit-code x))]
-                               [else
-                                (set! tests-failed #t)
-                                (error-display x)]))])
-        (parameterize* ([current-load/use-compiled (make-cover-load/use-compiled abs-names)]
-                        [current-output-port
-                         (if (verbose) (current-output-port) (open-output-nowhere))]
-                        [current-command-line-arguments argv]
-                        [exit-handler (lambda (x) (raise (an-exit x)))]
-                        [current-namespace (get-namespace)]
-                        [(get-check-handler-parameter)
-                         (lambda x
-                           (set! tests-failed #t)
-                           (vprintf "file ~s had failed tests\n" p)
-                           (apply old-check x))])
-          (run-file the-file submod-name))))
+    (define tests-failed
+      (parameterize* ([current-load/use-compiled (make-cover-load/use-compiled abs-names)]
+                      [current-output-port
+                       (if (verbose) (current-output-port) (open-output-nowhere))]
+                      [current-namespace (get-namespace)])
+        (for ([f (in-list abs-names)])
+          (compile-file f))
+        (for/fold ([tests-failed #f]) ([f (in-list abs)])
+          (define failed? (handle-file f submod-name))
+          (and failed? tests-failed))))
     (vprintf "ran ~s\n" files)
     (remove-unneeded-results! abs-names)
     (not tests-failed)))
 
 ;;; ---------------------- Running Aux ---------------------------------
 
-(define (run-file the-file submod-name)
-  (define sfile `(file ,(if (path? the-file) (path->string the-file) the-file)))
+
+;; PathString -> Void
+(define (compile-file the-file)
+  (dynamic-require (build-file-require the-file) (void)))
+
+;; (or PathString (list PathString Vector)) Symbol -> Boolean
+;; returns if any tests failed or errors occured
+(define (handle-file maybe-path submod-name)
+  (define tests-failed #f)
+  (define old-check (current-check-handler))
+  (vprintf "attempting to run ~s\n" maybe-path)
+  (define the-file (if (list? maybe-path) (first maybe-path) maybe-path))
+  (define argv (if (list? maybe-path) (second maybe-path) #()))
+  (with-handlers ([(lambda (x) (or (not (exn? x)) (exn:fail? x)))
+                   (lambda (x)
+                     (cond [(an-exit? x)
+                            (vprintf "file ~s exited code ~s" maybe-path (an-exit-code x))]
+                           [else
+                            (set! tests-failed #t)
+                            (error-display x)]))])
+    (parameterize ([current-command-line-arguments argv]
+                   [exit-handler (lambda (x) (raise (an-exit x)))]
+                   [current-check-handler ;(get-check-handler-parameter)
+                    (lambda x
+                      (set! tests-failed #t)
+                      (vprintf "file ~s had failed tests\n" maybe-path)
+                      (apply old-check x))])
+      (vprintf "running file: ~s with args: ~s\n" the-file argv)
+      (exec-file the-file submod-name)))
+  tests-failed)
+
+;; PathString Symbol -> Void
+(define (exec-file the-file submod-name)
+  (define sfile (build-file-require the-file))
   (define submod `(submod ,sfile ,submod-name))
   (run-mod (if (module-declared? submod #t) submod sfile)))
 
+;; ModulePath -> Any
 (define (run-mod to-run)
   (vprintf "running ~s\n" to-run)
-  (eval (make-dyn-req-expr to-run))
+  (dynamic-require to-run 0)
   (vprintf "finished running ~s\n" to-run))
 
-(define (make-dyn-req-expr to-run)
-  `(dynamic-require ',to-run 0))
+;; PathString -> ModulePath
+(define (build-file-require the-file)
+  `(file ,(if (path? the-file) (path->string the-file) the-file)))
 
 ;; [Listof Any] -> Void
 ;; remove any files not in paths from the raw coverage
 (define (remove-unneeded-results! names)
   (define c (get-raw-coverage))
   (for ([s (in-list (hash-keys c))]
-        #:when (not (member (srcloc-source s) names)))
+        ;; first here is like "srcloc-source", but its in list form...
+        #:when (not (member (first s) names)))
     (hash-remove! c s)))
 
 ;;; ---------------------- Compiling ---------------------------------
@@ -161,30 +189,41 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 (define (clear-coverage!)
   (current-cover-environment (make-cover-environment)))
 
-(define (make-cover-environment [ns (make-base-namespace)])
+(define (make-kernel-namespace)
+  (define ns (make-empty-namespace))
+  (define cns (current-namespace))
+  (namespace-attach-module cns ''#%builtin ns)
+  ns)
+
+(define (make-cover-environment [ns (make-kernel-namespace)])
   (parameterize ([current-namespace ns])
     (define ann (load-annotate-top))
     (environment
      ns
      (make-cover-compile ns ann)
      ann
-     (load-raw-coverage)
-     (load-current-check-handler))))
+     (load-raw-coverage))))
 
 (define (get-annotate-top)
   (get-val environment-ann-top))
 (define (load-annotate-top)
-  (dynamic-require 'cover/strace 'annotate-top))
+  (make-annotate-top (load-raw-coverage) (load-cover-name)))
+
 
 (define (get-raw-coverage)
   (get-val environment-raw-cover))
 (define (load-raw-coverage)
   (dynamic-require 'cover/coverage 'coverage))
 
+(define (load-cover-name)
+  (dynamic-require 'cover/coverage 'cover-name))
+(define (load-cover-setter)
+  (dynamic-require 'cover/coverage '!))
+
+#;
 (define (get-check-handler-parameter)
-  (get-val environment-cch))
-(define (load-current-check-handler)
-  (dynamic-require 'rackunit 'current-check-handler))
+  (namespace-variable-value (module->namespace 'rackunit)
+                            'current-check-handler))
 
 (define (get-namespace)
   (get-val environment-namespace))
@@ -204,8 +243,8 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
     (vprintf "generating test coverage\n")
 
     ;; filtered : (listof (list boolean srcloc))
-    ;; remove redundant expressions
-    (define filtered (hash-map (get-raw-coverage) (λ (k v) (list v k))))
+    (define filtered (hash-map (get-raw-coverage)
+                               (λ (k v) (list (unbox v) (apply make-srcloc k)))))
 
     (define out (make-hash))
 
@@ -215,7 +254,8 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
                     file
                     (lambda (l) (cons v l))
                     null))
-    out))
+    ;; Make the hash map immutable
+    (for/hash ([(k v) (in-hash out)]) (values k v))))
 
 (define current-cover-environment
   (make-parameter (make-cover-environment)))
@@ -253,6 +293,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
   (define ns (environment-namespace env))
   (parameterize ([current-cover-environment env]
                  [current-namespace ns])
+    (namespace-require 'racket/base)
     (test-begin
      (define file (path->string simple-multi/2.rkt))
      (define modpath file)
