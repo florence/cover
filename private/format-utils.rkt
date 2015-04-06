@@ -13,54 +13,57 @@
          syntax/parse
          "shared.rkt")
 
-(module+ test (require rackunit "../cover.rkt" racket/runtime-path racket/set))
+(module+ test (require rackunit racket/runtime-path racket/set))
 
-;;;;; a Coverage is the output of (get-test-coverage)
-;;;;; a FileCoverage is the values of the hashmap from (get-test-coverage)
+;;;;; a Coverage is the output of (hash-of any (listof (list boolean srcloc?)))
 
 ;;;;; utils
 
 ;;; a Cover is (U 'covered 'uncovered 'irrelevant)
 
-;; [Hashof PathString [Hashof Natural Cover]]
-
-;; A Covered? is a [Nat [#:byte? Boolean] -> Cover]
-
-;; FileCoverage PathString #:ignored-submods (maybe (listof symbol)) -> Covered?
-(define (make-covered? c path)
+;; Coverage Any -> [Nat -> Cover]
+(define (make-covered? coverage key)
+  (unless (hash-has-key? coverage key)
+    (error 'cover "no coverage information for ~s" key))
+  (define c (hash-ref coverage key))
   (define submods (irrelevant-submodules))
-  (define vec
-    (list->vector (string->list (file->string path))))
   (define file-location-coverage-cache
-    (coverage-cache-file path c submods))
+    (coverage-cache-file key c submods))
   (lambda (loc)
     (hash-ref file-location-coverage-cache loc
-              'missing)))
+              'irrelevant)))
 
 ;; (or/c #f (listof symbol))
 (define irrelevant-submodules (make-parameter #f))
 
 ;; Path FileCoverage -> [Hashof Natural Cover]
 ;; build a hash caching coverage info for that file
-(define (coverage-cache-file f c submods)
-  (vprintf "caching coverage info for ~s\n" f)
-  (with-input-from-file f
-    (thunk
-     (define lexer
-       (maybe-wrap-lexer
-        (with-handlers ([exn:fail:read? (const racket-lexer)])
-          (define f (read-language))
-          (if f
-              (f 'color-lexer racket-lexer)
-              racket-lexer))))
-     (define irrelevant? (make-irrelevant? lexer f submods))
-     (define file-length (string-length (file->string f)))
-     (define cache
-       (for/hash ([i (in-range 1 (add1 file-length))])
-         (values i
-                 (cond [(irrelevant? i) 'irrelevant]
-                       [else (raw-covered? i c)]))))
-     cache)))
+(define (coverage-cache-file key c submods)
+  (vprintf "caching coverage info for ~s\n" key)
+  (if (not (path-string? key))
+      (for/hash ([i (in-range 1 (biggest c))])
+        (values i (raw-covered? i c)))
+      (with-input-from-file key
+        (thunk
+         (define lexer
+           (maybe-wrap-lexer
+            (with-handlers ([exn:fail:read? (const racket-lexer)])
+              (define f (read-language))
+              (if f
+                  (f 'color-lexer racket-lexer)
+                  racket-lexer))))
+         (define irrelevant? (make-irrelevant? lexer key submods))
+         (define file-length (string-length (file->string key)))
+         (define cache
+           (for/hash ([i (in-range 1 (add1 file-length))])
+             (values i
+                     (cond [(irrelevant? i) 'irrelevant]
+                           [else (raw-covered? i c)]))))
+         cache))))
+
+;; FileCoverage -> Natural
+(define (biggest c)
+  (apply max (map second c)))
 
 (define (maybe-wrap-lexer lexer)
   (if (procedure-arity-includes? lexer 3)
@@ -160,14 +163,22 @@
            (loop (add1 s) (+ b l))])))
 
 (module+ test
+  (require racket/lazy-require)
+  (lazy-require ["../cover.rkt"
+                 (make-cover-environment
+                  test-files!
+                  get-test-coverage)])
+  (define-runtime-path cover.rkt "../cover.rkt")
+  (define current-cover-environment
+    (dynamic-require cover.rkt 'current-cover-environment))
   (define-runtime-path path2 "../tests/prog.rkt")
   (parameterize ([irrelevant-submodules #f])
     (test-begin
      (parameterize ([current-cover-environment (make-cover-environment)])
        (define f (path->string (simplify-path path2)))
        (test-files! f)
-       (define coverage (hash-ref (get-test-coverage) f))
-       (define covered? (make-covered? coverage f))
+       (define coverage (get-test-coverage))
+       (define covered? (curry coverage f))
        (check-equal? (covered? 14) 'irrelevant)
        (check-equal? (covered? 17) 'irrelevant)
        (check-equal? (covered? 28) 'irrelevant)

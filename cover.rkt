@@ -3,7 +3,8 @@
          make-cover-environment clear-coverage!
          get-test-coverage
          current-cover-environment environment?
-         environment-compile environment-namespace)
+         environment-compile environment-namespace
+         coverage-wrapper-map)
 
 #|
 
@@ -32,6 +33,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
          racket/port
          "private/shared.rkt"
          "private/file-utils.rkt"
+         "private/format-utils.rkt"
          "strace.rkt")
 
 ;; An environment has:
@@ -217,13 +219,6 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 
 (define (load-cover-name)
   (dynamic-require 'cover/coverage 'cover-name))
-(define (load-cover-setter)
-  (dynamic-require 'cover/coverage '!))
-
-#;
-(define (get-check-handler-parameter)
-  (namespace-variable-value (module->namespace 'rackunit)
-                            'current-check-handler))
 
 (define (get-namespace)
   (get-val environment-namespace))
@@ -234,7 +229,10 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 (define (get-val access)
   (access (current-cover-environment)))
 
-;; -> [Hashof PathString (Listof (List Boolean srcloc))]
+(struct coverage-wrapper (map function)
+        #:property prop:procedure (struct-field-index function))
+
+;; -> coverage/c
 ;; returns a hash of file to a list, where the first of the list is if
 ;; that srcloc was covered or not
 ;; based on <pkgs>/drracket/drracket/private/debug.rkt
@@ -255,7 +253,16 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
                     (lambda (l) (cons v l))
                     null))
     ;; Make the hash map immutable
-    (for/hash ([(k v) (in-hash out)]) (values k v))))
+    (define coverage (for/hash ([(k v) (in-hash out)]) (values k v)))
+    (define file-map (make-hash))
+    (coverage-wrapper
+     coverage
+     (lambda (key location)
+       (define f
+         (hash-ref! file-map key
+                    (lambda ()
+                      (make-covered? coverage key))))
+       (f location)))))
 
 (define current-cover-environment
   (make-parameter (make-cover-environment)))
@@ -287,7 +294,6 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
            racket/format
            racket/lazy-require)
   ;; break cyclic dependency in testing
-  (lazy-require  ["private/format-utils.rkt" (make-covered?)])
   (define-runtime-path simple-multi/2.rkt "tests/simple-multi/2.rkt")
   (define env (make-cover-environment))
   (define ns (environment-namespace env))
@@ -302,8 +308,7 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
        (namespace-require `(file ,modpath)))
      (check-equal? (eval `(two)) 10)
      (define x (get-test-coverage env))
-     (define covered?
-       (make-covered? (hash-ref x file) file))
+     (define covered? (curry x file))
      (for ([_ (in-string (file->string file))]
            [i (in-naturals 1)])
        (define c (covered? i))

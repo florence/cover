@@ -10,7 +10,7 @@
          racket/runtime-path
          racket/string
          racket/system
-         "format-utils.rkt"
+         "file-utils.rkt"
          "shared.rkt")
 
 
@@ -35,14 +35,14 @@
 
 ;; Coverage [path-string] -> Void
 (define-runtime-path post "curl.sh")
-(define (generate-coveralls-coverage coverage [dir "coverage"])
-  (send-coveralls-info (generate-and-save-data coverage dir)))
+(define (generate-coveralls-coverage coverage files [dir "coverage"])
+  (send-coveralls-info (generate-and-save-data coverage files dir)))
 
-(define (generate-and-save-data coverage dir)
+(define (generate-and-save-data coverage files dir)
   (make-directory* dir)
   (define coverage-path dir)
   (define coverage-file (build-path coverage-path "coverage.json"))
-  (define data (generate-coveralls-report coverage))
+  (define data (generate-coveralls-report coverage files))
   (vprintf "writing json to file ~s\n" coverage-file)
   (with-output-to-file coverage-file
     (thunk (write-json data))
@@ -57,7 +57,7 @@
      (define temp-dir (make-temporary-file "covertmp~a" 'directory))
      (test-files! tests/prog.rkt)
      (define coverage (get-test-coverage))
-     (define data-file (generate-and-save-data coverage temp-dir))
+     (define data-file (generate-and-save-data coverage (list (->absolute tests/prog.rkt)) temp-dir))
      (define rfile (build-path temp-dir "coverage.json"))
      (check-equal? data-file rfile)
      (check-true (file-exists? rfile)))))
@@ -75,8 +75,8 @@
     (unless result
       (error 'coveralls "request to coveralls failed"))))
 
-(define (generate-coveralls-report coverage)
-  (define json (generate-source-files coverage))
+(define (generate-coveralls-report coverage files)
+  (define json (generate-source-files coverage files))
   (define build-type (determine-build-type))
   (define git-info (get-git-info))
   (hash-merge json (hash-merge build-type git-info)))
@@ -89,7 +89,8 @@
       (test-files! (path->string (simplify-path tests/prog.rkt)))
       (define coverage (get-test-coverage))
       (define report
-        (with-env ("COVERALLS_REPO_TOKEN" "abc") (generate-coveralls-report coverage)))
+        (with-env ("COVERALLS_REPO_TOKEN" "abc")
+          (generate-coveralls-report coverage (list (->absolute file)))))
       (check-equal?
        (hash-ref report 'source_files)
        (list (hasheq 'source (file->string tests/prog.rkt)
@@ -124,13 +125,13 @@
                           'service_job_id "abc"
                           'repo_token #f))))
 
-;; Coverage -> JSexpr
+;; Coverage (Listof PathString) -> JSexpr
 ;; Generates a string that represents a valid coveralls json_file object
-(define (generate-source-files coverage)
+(define (generate-source-files coverage files)
   (define src-files
-    (for/list ([file (in-list (hash-keys coverage))]
+    (for/list ([file (in-list files)]
                #:when (absolute-path? file))
-      (define local-file (path->string (find-relative-path (current-directory) file)))
+      (define local-file (path->string (->relative file)))
       (define src (file->string file))
       (define c (line-coverage coverage file))
       (hasheq 'source src 'coverage c 'name local-file)))
@@ -144,7 +145,7 @@
       (test-files! (path->string (simplify-path tests/prog.rkt)))
       (define coverage (get-test-coverage))
       (check-equal?
-       (generate-source-files coverage)
+       (generate-source-files coverage (list file))
        (hasheq 'source_files
                (list (hasheq 'source (file->string tests/prog.rkt)
                              'coverage (line-coverage coverage file)
@@ -156,9 +157,8 @@
 ;; Coverage PathString Covered? -> [Listof CoverallsCoverage]
 ;; Get the line coverage for the file to generate a coverage report
 (define (line-coverage coverage file)
-  (define covered? (make-covered? (hash-ref coverage file) file))
+  (define covered? (curry coverage file))
   (define split-src (string-split (file->string file) "\n"))
-  (define file-coverage (hash-ref coverage file))
   (define (process-coverage value rst-of-line)
     (case (covered? value)
       ['covered (if (equal? 'uncovered rst-of-line) rst-of-line 'covered)]

@@ -13,7 +13,6 @@
          syntax/parse
          unstable/sequence
          (only-in xml write-xexpr)
-         "../format-utils.rkt"
          "../shared.rkt")
 
 
@@ -27,9 +26,9 @@
           [else 'uncovered])))
 
 ;;; Coverage [PathString] -> Void
-(define (generate-html-coverage coverage [d "coverage"])
+(define (generate-html-coverage coverage files [d "coverage"])
   (define dir (simplify-path d))
-  (define fs (get-files coverage dir))
+  (define fs (get-files coverage files dir))
   (define asset-path (build-path dir "assets/"))
   (write-files fs)
   (delete-directory/files asset-path #:must-exist? #f)
@@ -40,13 +39,13 @@
      (define temp-dir (make-temporary-file "covertmp~a" 'directory))
      (test-files! tests/basic/prog.rkt)
      (define coverage (get-test-coverage))
-     (generate-html-coverage coverage temp-dir)
+     (generate-html-coverage coverage (list (->absolute tests/basic/prog.rkt)) temp-dir)
      (check-true (file-exists? (build-path temp-dir "tests/basic/prog.html"))))
    (clear-coverage!)))
 
-(define (get-files coverage dir)
+(define (get-files coverage files dir)
   (define file-list
-    (for/list ([(k v) (in-hash coverage)]
+    (for/list ([k (in-list files)]
                #:when (absolute-path? k))
       (vprintf "building html coverage for: ~a\n" k)
       (define exploded (explode-path k))
@@ -63,9 +62,9 @@
          (apply build-path
                 (append (build-list (sub1 (length coverage-dir-list)) (const ".."))
                         (list "assets/")))))
-      (define xexpr (make-html-file (hash-ref coverage k) k assets-path))
+      (define xexpr (make-html-file coverage k assets-path))
       (list output-file output-dir xexpr)))
-  (define index (generate-index coverage))
+  (define index (generate-index coverage files))
   (cons (list (build-path dir "index.html") dir index)
         file-list))
 
@@ -77,7 +76,7 @@
       (define d "coverage")
       (test-files! f)
       (define coverage (get-test-coverage))
-      (define files (get-files coverage d))
+      (define files (get-files coverage (list f) d))
       (define (maybe-path->string p)
         (if (string? p) p (path->string p)))
       (check-equal? (list->set (map (compose maybe-path->string first)
@@ -114,7 +113,7 @@
 
 ;; FileCoverage PathString Path -> Xexpr
 (define (make-html-file coverage path assets-path)
-  (define covered? (make-covered? coverage path))
+  (define covered? (curry coverage path))
   (define cover-info (expression-coverage/file path covered?))
   (define-values (covered total) (values (first cover-info) (second cover-info)))
   `(html ()
@@ -132,8 +131,8 @@
   (test-begin
    (define f (path->string (simplify-path tests/basic/prog.rkt)))
    (test-files! f)
-   (define cov (hash-ref (get-test-coverage) f))
-   (define covered? (make-covered? cov f))
+   (define cov (get-test-coverage))
+   (define covered? (curry cov f))
    (check-equal? (make-html-file cov f "assets/")
                  `(html ()
                    (head ()
@@ -156,8 +155,7 @@
   (test-begin
    (define f (path->string (simplify-path tests/basic/prog.rkt)))
    (test-files! f)
-   (define cov (hash-ref (get-test-coverage) f))
-   (define covered? (make-covered? cov f))
+   (define covered? (curry (get-test-coverage) f))
    (define lines (string-split (file->string f) "\n"))
    (check-equal? (file->html f covered?)
                  `(div ()
@@ -230,10 +228,10 @@
 ;; Index File
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Coverage PathString -> Xexpr
+;; Coverage (Listof PathString) -> Xexpr
 ;; Generate the index html page for the given coverage information
-(define (generate-index coverage)
-  (define expression-coverage (expression-coverage/all coverage))
+(define (generate-index coverage files)
+  (define expression-coverage (expression-coverage/all coverage files))
   `(html
     (head ()
           (meta ([charset "utf-8"]))
@@ -338,11 +336,11 @@
 ;; the first element is the number of covered expressions
 ;; the second element is the total number of expressions. This will never be 0.
 
-;; Coverage -> [Hash FilePath ExpressionInfo]
+;; Coverage (Listof PathString) -> [Hash FilePath ExpressionInfo]
 ;; returns a hash that maps file paths to an ExpressionInfo
-(define (expression-coverage/all coverage)
-  (for/hash ([(file data) (in-hash coverage)])
-    (values file (expression-coverage/file file (make-covered? data file)))))
+(define (expression-coverage/all coverage files)
+  (for/hash ([file (in-list files)])
+    (values file (expression-coverage/file file (curry coverage file)))))
 
 ;; FilePath Covered? -> ExpressionInfo
 ;; Takes a file path and a Covered? and

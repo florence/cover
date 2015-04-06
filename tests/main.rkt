@@ -3,8 +3,8 @@
 ;; for every .rkt file in those directories it loads
 ;; tests that file and checks its coverage against an
 ;; .rktl file of the same name
-(require (only-in "../main.rkt" test-files! clear-coverage! get-test-coverage irrelevant-submodules
-                  make-covered?)
+(require (only-in cover test-files! clear-coverage! get-test-coverage irrelevant-submodules)
+         (only-in "../cover.rkt" coverage-wrapper-map)
          "../private/file-utils.rkt"
          racket/runtime-path rackunit)
 
@@ -24,11 +24,10 @@
 
     (define coverage (get-test-coverage))
     (for ([(program cover) covered])
-      (define actual-coverage (hash-ref coverage program))
       (define-values (expected-coverage expected-uncoverage)
         (with-input-from-file cover (lambda () (values (ranges->numbers (read))
                                                        (ranges->numbers (read))))))
-      (define covered? (make-covered? actual-coverage program))
+      (define covered? (curry coverage program))
       (define (test-range range type)
         (for ([i range])
           (define v (covered? i))
@@ -66,8 +65,8 @@
   (test-begin
    (after
     (test-files! (->absolute prog.rkt))
-    (define abs (get-test-coverage))
+    (define abs (coverage-wrapper-map (get-test-coverage)))
     (test-files! (build-path (->relative prog.rkt)))
-    (define rel (get-test-coverage))
+    (define rel (coverage-wrapper-map (get-test-coverage)))
     (check-equal? abs rel)
     (clear-coverage!))))

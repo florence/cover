@@ -10,7 +10,6 @@
  (contract-out
   [coverage/c contract?]
 
-  [file-coverage/c contract?]
   [test-files! (->* () (#:submod symbol?
                         #:env environment?)
                     #:rest
@@ -32,10 +31,6 @@
   [get-test-coverage (->* () (environment?) coverage/c)]
 
   [irrelevant-submodules (parameter/c (or/c #f (listof symbol?)))]
-  [make-covered?
-   (-> file-coverage/c path-string?
-       (->* (exact-positive-integer?)
-            (or/c 'covered 'uncovered 'irrelevant)))]
 
   [generate-coveralls-coverage coverage-gen/c]
   [generate-html-coverage coverage-gen/c]
