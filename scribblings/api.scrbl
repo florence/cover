@@ -85,7 +85,7 @@ environment.
 
 @defproc[(environment? [v any/c]) any/c]{
 Tests if the given value is a coverage environment.}
-@defthing[current-coverage-environment (parameter/c environment?)
+@defparam[current-coverage-environment environment environment?
           #:value (make-cover-environment)]{
 The current coverage environment. Defaults to an environment built from
 @racket[make-empty-namespace]}
