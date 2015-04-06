@@ -27,10 +27,10 @@ not wrapped by a @racket[chaperone?] or @racket[impersonator?], nor may its elem
 coverage information is still collected when test fail.  Test coverage info is added to existing
 coverage info.}
 
-@defproc[(clear-coverage! [environment environment? (current-coverage-environment)]) any]{
+@defproc[(clear-coverage! [environment environment? (current-cover-environment)]) any]{
 Clears all coverage information.}
 
-@defproc[(get-test-coverage [environment environment? (current-coverage-environment)]) coverage/c]{
+@defproc[(get-test-coverage [environment environment? (current-cover-environment)]) coverage/c]{
 Gets the current coverage information.}
 
 @defthing[coverage/c
@@ -80,12 +80,12 @@ purpose @racket[cover] directly expose coverage environments in its @deftech{Low
 
 Coverage environments are values that package together a coverage namespace, a compiler for
 annotating code, and a coverage table to write coverage results to. All other coverage functions use
-the @racket[current-coverage-environment] for code coverage, unless explicitly given a different
+the @racket[current-cover-environment] for code coverage, unless explicitly given a different
 environment.
 
 @defproc[(environment? [v any/c]) any/c]{
 Tests if the given value is a coverage environment.}
-@defparam[current-coverage-environment environment environment?
+@defparam[current-cover-environment environment environment?
           #:value (make-cover-environment)]{
 The current coverage environment. Defaults to an environment built from
 @racket[make-empty-namespace]}
