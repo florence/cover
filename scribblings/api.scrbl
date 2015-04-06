@@ -98,7 +98,7 @@ Get the namespace that coverage should be run in. This is the same namespace giv
 Returns a value suitable for @racket[current-compile] that will compile code with coverage
 annotations.  That code must be run in @racket[environment]'s namespace.}
 
-@defproc[(make-cover-environment [namespace namespace? (make-base-namespace)]) environment?]{
+@defproc[(make-cover-environment [namespace namespace? (make-empty-namespace)]) environment?]{
 
 Makes a coverage environment such that @racket[environment-namespace] will return
 @racket[namespace], and @racket[namespace] will be set up to handle coverage information.}
