@@ -191,13 +191,8 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
 (define (clear-coverage!)
   (current-cover-environment (make-cover-environment)))
 
-(define (make-kernel-namespace)
-  (define ns (make-empty-namespace))
-  (define cns (current-namespace))
-  (namespace-attach-module cns ''#%builtin ns)
-  ns)
-
-(define (make-cover-environment [ns (make-kernel-namespace)])
+(define (make-cover-environment [ns (make-empty-namespace)])
+  (kernelize-namespace! ns)
   (parameterize ([current-namespace ns])
     (define ann (load-annotate-top))
     (environment
@@ -205,6 +200,10 @@ in "coverage.rkt". This raw coverage information is converted to a usable form b
      (make-cover-compile ns ann)
      ann
      (load-raw-coverage))))
+
+(define (kernelize-namespace! ns)
+  (define cns (current-namespace))
+  (namespace-attach-module cns ''#%builtin ns))
 
 (define (get-annotate-top)
   (get-val environment-ann-top))

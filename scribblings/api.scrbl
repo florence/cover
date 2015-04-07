@@ -88,7 +88,7 @@ Tests if the given value is a coverage environment.}
 @defparam[current-cover-environment environment environment?
           #:value (make-cover-environment)]{
 The current coverage environment. Defaults to an environment built from
-@racket[make-empty-namespace]}
+@racket[make-empty-namespace].}
 @defproc[(environment-namespace [environment environment?]) namespace?]{
 Get the namespace that coverage should be run in. This is the same namespace given to
 @racket[make-cover-environment]}
@@ -101,4 +101,6 @@ annotations.  That code must be run in @racket[environment]'s namespace.}
 @defproc[(make-cover-environment [namespace namespace? (make-empty-namespace)]) environment?]{
 
 Makes a coverage environment such that @racket[environment-namespace] will return
-@racket[namespace], and @racket[namespace] will be set up to handle coverage information.}
+@racket[namespace], and @racket[namespace] will be set up to handle coverage information. If
+@racket[namespace] has been used in a different environment the two environments will share coverage
+information.}
