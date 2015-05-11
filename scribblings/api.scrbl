@@ -11,6 +11,19 @@ functions of test coverage.
 
 @section[#:tag "higher"]{A High Level API}
 
+@defthing[coverage/c
+          contract?
+          #:value (-> any/c exact-positive-integer?
+                       (or/c 'covered 'uncovered 'irrelevant))]{
+Coverage information is represented as a mapping from a file's key and a  character
+location to whether or not that location in the file was covered.
+
+The files key is determined by what @racket[syntax-source] is on the syntax of the program after
+reading it. Typically this is the @racket[string?] for of the absolute path of the file path. If
+coverage was run manually, as in the @tech{Lower Lever API}, this value may be something
+else.
+
+The character locations are @racket[1] indexed.
 
 @defproc[(test-files! (#:submod submod symbol? 'test)
                       (files
@@ -32,20 +45,6 @@ Clears all coverage information.}
 
 @defproc[(get-test-coverage [environment environment? (current-cover-environment)]) coverage/c]{
 Gets the current coverage information.}
-
-@defthing[coverage/c
-          contract?
-          #:value (-> any/c exact-positive-integer?
-                       (or/c 'covered 'uncovered 'irrelevant))]{
-Coverage information is represented as a mapping from a file's key and a  character
-location to whether or not that location in the file was covered.
-
-The files key is determined by what @racket[syntax-source] is on the syntax of the program after
-reading it. Typically this is the @racket[string?] for of the absolute path of the file path. If
-coverage was run manually, as in the @tech{Lower Lever API}, this value may be something
-else.
-
-The character locations are @racket[1] indexed.
 
 There are three possible results for coverage: @itemize[@item{@racket['irrelevant] --- The location
 is not considered relevant to coverage information.  It is either not in the coverage information;
