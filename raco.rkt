@@ -74,11 +74,12 @@
     (hash-ref (get-formats) output-format
               (lambda _ (error 'cover "given unknown coverage output format: ~s" output-format))))
   (printf "generating test coverage for ~s\n" files)
-  (define passed (keyword-apply test-files! '(#:submod) (list submod) files))
-  (define coverage (remove-excluded-paths (get-test-coverage) exclude-paths))
+  (define passed (apply test-files! #:submod submod files))
+  (define coverage (get-test-coverage))
+  (define cleaned-files (remove-excluded-paths files exclude-paths))
   (printf "dumping coverage info into ~s\n" coverage-dir)
   (parameterize ([irrelevant-submodules irrel-submods])
-    (generate-coverage coverage coverage-dir))
+    (generate-coverage coverage cleaned-files coverage-dir))
   (unless passed
     (printf "some tests failed\n")))
 
@@ -204,22 +205,23 @@
                             '("/Users/florence/playground/cover/tests/error-file.rkt")))
   (check-false (should-omit? "/Test/t.rkt" '("/OtherDir"))))
 
-;; Coverage -> Coverage
-(define (remove-excluded-paths cover paths)
-  (for/hash ([(k v) (in-hash cover)]
+;; (listof (U path (list Path Vector)) (listof path) -> (listof path-string)
+(define (remove-excluded-paths files paths)
+  (define (->path p) (if (path-string? p) p (first p)))
+  (for/list ([k (in-list (map ->path files))]
              #:unless (and (is-excluded-path? k paths)
                            (vprintf "excluding path ~s from output\n" k)))
     (vprintf "including path ~s in output\n" k)
-    (values k v)))
+    k))
 
 (module+ test
   (parameterize ([current-directory (build-path "/tests")])
     (check-equal? (remove-excluded-paths
-                   (hash "/tests/tests/x.rkt" null
-                         "/tests/x/tests/x/x.rkt" null
-                         "/tests/x.rkt" null)
+                   (list (list "/tests/tests/x.rkt" #())
+                         "/tests/x/tests/x/x.rkt"
+                         "/tests/x.rkt")
                    '("tests"))
-                  (hash "/tests/x.rkt" null))))
+                  (list "/tests/x.rkt"))))
 
 
 ;; PathString [ListOf PathString]-> any/c

@@ -6,5 +6,5 @@
    (thunk
     (define r (path->string reader.rkt))
     (test-files! r)
-    (define c (make-covered? (hash-ref (get-test-coverage) r) r))
+    (define c (curry (get-test-coverage) r))
     (c 10))))

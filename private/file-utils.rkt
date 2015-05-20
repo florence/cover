@@ -7,8 +7,8 @@
 (define (->relative path)
   (build-path
    (find-relative-path
-    (current-directory)
-    path)))
+    (simple-form-path (current-directory))
+    (simple-form-path path))))
 
 (module+ test
   (parameterize ([current-directory (build-path "/test")])
@@ -19,8 +19,8 @@
 
 (define (->absolute path)
   (if (absolute-path? path)
-      (path->string (simplify-path path))
-      (path->string (simplify-path (build-path (current-directory) path)))))
+      (path->string (simple-form-path path))
+      (path->string (simple-form-path (build-path (current-directory) path)))))
 (module+ test
   (parameterize ([current-directory (build-path "/")])
     (check-equal? (->absolute "a") "/a")
