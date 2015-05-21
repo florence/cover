@@ -1,7 +1,7 @@
 #lang setup/infotab
 (define name "cover")
 (define collection "cover")
-(define deps '(("base" #:version "6.1.1") "errortrace-lib" "rackunit-lib"
+(define deps '(("base" #:version "6.1") "errortrace-lib" "rackunit-lib"
                "syntax-color-lib" "compiler-lib"))
 (define build-deps
   '("racket-doc" "scribble-lib" "typed-racket-doc" "htdp-lib"
