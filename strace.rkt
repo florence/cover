@@ -37,19 +37,27 @@
   ;;  -------- Cover's Specific Annotators --------------
   (define (make-cover-annotate-top annotate-top)
     (lambda (stx phase)
-      (define e (add-cover-require stx))
-      (if e (expand-syntax (annotate-clean (annotate-top (expand-syntax e) phase))) stx)))
+      ;(define e (add-cover-require stx))
+      (cond [(cross-phase-persist? stx)
+             stx]
+            [(add-cover-require (annotate-clean (annotate-top stx phase)))
+             => expand-syntax]
+            [else stx])))
+
+  (define (cross-phase-persist? stx)
+    (define disarmed (disarm stx))
+    (kernel-syntax-case
+     disarmed #f
+     [(module name lang (#%module-begin e ...))
+      (member '(#%declare #:cross-phase-persistent) (syntax->datum #'(e ...)))
+      #t]
+     [_ #f]))
 
   (define (add-cover-require expr)
-    (define inspector (variable-reference->module-declaration-inspector
-                       (#%variable-reference)))
     (let loop ([expr expr] [top #t])
-      (define disarmed (syntax-disarm expr inspector))
+      (define disarmed (disarm expr))
       (kernel-syntax-case
        disarmed #f
-       [(module name lang (#%module-begin e ...))
-        (member '(#%declare #:cross-phase-persistent) (syntax->datum #'(e ...)))
-        #f]
        [(m name lang mb)
         (or (eq? 'module (syntax-e #'m))
             (eq? 'module* (syntax-e #'m)))
@@ -78,6 +86,11 @@
                       (#%module-begin add ... body ...)))
                (rebuild-syntax stx disarmed expr))]))]
        [_ (if top #f expr)])))
+
+  (define inspector (variable-reference->module-declaration-inspector
+                     (#%variable-reference)))
+  (define (disarm stx)
+    (syntax-disarm stx inspector))
   ;; in order to write modules to disk the top level needs to
   ;; be a module. so we trust that the module is loaded and trim the expression
   (define (annotate-clean e)
