@@ -9,7 +9,9 @@
          "private/shared.rkt"
          "private/file-utils.rkt"
          (only-in (submod compiler/commands/test paths) collection-paths)
-         pkg/lib)
+         racket/path
+         pkg/lib
+         (for-syntax racket/base syntax/parse))
 
 
 (module+ test
@@ -57,15 +59,28 @@
          (set! irrel-submods null))
        (set! irrel-submods (cons (string->symbol s) irrel-submods))]
       #:once-any
-      [("-c" "--collection") "Interprets the arguments as collections whose content should be tested (in the same way as directory content)."
+      [("-c" "--collection")
+       ("Interprets the arguments as collections whose content"
+        " should be tested (in the same way as directory content).")
        (set! expansion-type 'collection)]
-      [("-p" "--package") "Interprets the arguments as packages whose contents should be tested (in the same way as directory content)."
+      [("-p" "--package")
+       ("Interprets the arguments as packages whose contents"
+        " should be tested (in the same way as directory content).")
        (set! expansion-type 'package)]
+      [("-m" "--modules")
+       ("Interpret arguments as modules"
+        "  (ignore argument unless \".rkt\", \".scrbl\")")
+       (set! expansion-type 'file)]
+      [("-l" "--lib")
+       "Interperet arguments as libraries"
+       (set! expansion-type 'lib)]
       #:args (file . files)
       (cons file files)))
   (define path-expand
     (case expansion-type
       [(dir) expand-directories]
+      [(file) filter-exts]
+      [(lib) expand-lib]
       [(collection) (lambda (a b) (expand-directories (flatten (map collection-paths a)) b))]
       [(package) (lambda (a b)
                    (expand-directories (map pkg-directory a) b))]))
@@ -83,8 +98,43 @@
   (unless passed
     (printf "some tests failed\n")))
 
+(define extensions '(#rx"\\.rkt$" #rx"\\.ss$" #rx"\\.scrbl"))
+
+(define (expand-lib files [exts null])
+  (define (find x)
+    (define rmp ((current-module-name-resolver) x #f #f #f))
+    (define p (resolved-module-path-name rmp))
+    (and (file-exists? p) p))
+  (for/list ([f files])
+    (match (find `(lib ,f))
+      [#f (error 'cover "module not found: ~a" f)]
+      [l l])))
+
+(module+ test
+  (test-begin
+   (define p (first (expand-lib '("racket/base"))))
+   (check-not-false p)
+   (check-true (file-exists? p))))
+
+(define-syntax (maybe stx)
+  (syntax-parse stx
+    [(_) #'#t]
+    [(_ [id:id e]) #'(let ([id e]) id)]
+    [(_ [id:id e] b ...)
+     #'(let ([id e])
+         (and id (maybe b ...)))]))
+(define (filter-exts files [exts null])
+  (for/list ([f files]
+             #:when (maybe [ext? (filename-extension f)]
+                           [ext (bytes->string/locale ext?)]
+                           [res (ormap (curryr regexp-match? (string-append "." ext))
+                                       extensions)]))
+    f))
+(module+ test
+  (check-equal? (filter-exts '("a.rkt" "b.rkt" "c/d/e.scrbl" "a/b/c" "a/b.pop"))
+                '("a.rkt" "b.rkt" "c/d/e.scrbl")))
+
 ;; TODO allow for arbitrary extensions
-(define extensions '(#rx"\\.rkt$" #rx"\\.ss$"))
 (define (expand-directories files [exts null])
   (define comped (map regexp exts))
   (define paths+vectors
