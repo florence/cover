@@ -85,6 +85,13 @@
                  #'(m name lang
                       (#%module-begin add ... body ...)))
                (rebuild-syntax stx disarmed expr))]))]
+       [(b a ...)
+        (eq? 'begin (syntax-e #'b))
+        (let ()
+          (define/with-syntax (body ...)
+            (map (lambda (e) (loop e #f))
+                 (syntax->list #'(a ...))))
+          #'(b body ...))]
        [_ (if top #f expr)])))
 
   (define inspector (variable-reference->module-declaration-inspector
@@ -151,10 +158,9 @@
 
 (define (rebuild-syntax stx disarmed armed)
   (syntax-rearm
-   (namespace-syntax-introduce
-    (datum->syntax
-     disarmed
-     (syntax-e stx)
-     disarmed
-     disarmed))
+   (datum->syntax
+    disarmed
+    (syntax-e stx)
+    disarmed
+    disarmed)
    armed))
