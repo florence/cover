@@ -34,14 +34,13 @@
   (delete-directory/files asset-path #:must-exist? #f)
   (copy-directory/files assets asset-path))
 (module+ test
-  (after
-   (parameterize ([current-directory root] [verbose #t])
-     (define temp-dir (make-temporary-file "covertmp~a" 'directory))
-     (test-files! tests/basic/prog.rkt)
-     (define coverage (get-test-coverage))
-     (generate-html-coverage coverage (list (->absolute tests/basic/prog.rkt)) temp-dir)
-     (check-true (file-exists? (build-path temp-dir "tests/basic/prog.html"))))
-   (clear-coverage!)))
+  (parameterize ([current-directory root]
+                 [current-cover-environment (make-cover-environment)])
+    (define temp-dir (make-temporary-file "covertmp~a" 'directory))
+    (test-files! tests/basic/prog.rkt)
+    (define coverage (get-test-coverage))
+    (generate-html-coverage coverage (list (->absolute tests/basic/prog.rkt)) temp-dir)
+    (check-true (file-exists? (build-path temp-dir "tests/basic/prog.html")))))
 
 (define (get-files coverage files dir)
   (define file-list
@@ -70,23 +69,22 @@
 
 (module+ test
   (test-begin
-   (parameterize ([current-directory root])
-     (after
-      (define f (path->string (simplify-path tests/basic/prog.rkt)))
-      (define d "coverage")
-      (test-files! f)
-      (define coverage (get-test-coverage))
-      (define files (get-files coverage (list f) d))
-      (define (maybe-path->string p)
-        (if (string? p) p (path->string p)))
-      (check-equal? (list->set (map (compose maybe-path->string first)
-                                    files))
-                    (set "coverage/index.html"
-                         "coverage/tests/basic/prog.html"))
-      (check-equal? (list->set (map (compose maybe-path->string second) files))
-                    (set "coverage"
-                         "coverage/tests/basic"))
-      (clear-coverage!)))))
+   (parameterize ([current-directory root]
+                  [current-cover-environment (make-cover-environment)])
+     (define f (path->string (simplify-path tests/basic/prog.rkt)))
+     (define d "coverage")
+     (test-files! f)
+     (define coverage (get-test-coverage))
+     (define files (get-files coverage (list f) d))
+     (define (maybe-path->string p)
+       (if (string? p) p (path->string p)))
+     (check-equal? (list->set (map (compose maybe-path->string first)
+                                   files))
+                   (set "coverage/index.html"
+                        "coverage/tests/basic/prog.html"))
+     (check-equal? (list->set (map (compose maybe-path->string second) files))
+                   (set "coverage"
+                        "coverage/tests/basic")))))
 
 ;; (Listof (list file-path directory-path xexpr)) -> Void
 (define (write-files f)
@@ -129,20 +127,20 @@
 
 (module+ test
   (test-begin
-   (define f (path->string (simplify-path tests/basic/prog.rkt)))
-   (test-files! f)
-   (define cov (get-test-coverage))
-   (define covered? (curry cov f))
-   (check-equal? (make-html-file cov f "assets/")
-                 `(html ()
-                   (head ()
-                         (meta ([charset "utf-8"]))
-                         (link ([rel "stylesheet"] [type "text/css"] [href "assets/main.css"])))
-                   (body ()
-                         (p () "expr: 100%" (br ()))
-                         (div ([class "code"])
-                              ,(file->html f covered?)))))
-   (clear-coverage!)))
+   (parameterize ([current-cover-environment (make-cover-environment)])
+     (define f (path->string (simplify-path tests/basic/prog.rkt)))
+     (test-files! f)
+     (define cov (get-test-coverage))
+     (define covered? (curry cov f))
+     (check-equal? (make-html-file cov f "assets/")
+                   `(html ()
+                     (head ()
+                           (meta ([charset "utf-8"]))
+                           (link ([rel "stylesheet"] [type "text/css"] [href "assets/main.css"])))
+                     (body ()
+                           (p () "expr: 100%" (br ()))
+                           (div ([class "code"])
+                                ,(file->html f covered?))))))))
 
 (define (file->html path covered?)
   (define file (file->string path))
@@ -153,15 +151,15 @@
 
 (module+ test
   (test-begin
-   (define f (path->string (simplify-path tests/basic/prog.rkt)))
-   (test-files! f)
-   (define covered? (curry (get-test-coverage) f))
-   (define lines (string-split (file->string f) "\n"))
-   (check-equal? (file->html f covered?)
-                 `(div ()
-                       ,(div:line-numbers (length lines))
-                       ,(div:file-lines lines covered?)))
-   (clear-coverage!)))
+   (parameterize ([current-cover-environment (make-cover-environment)])
+     (define f (path->string (simplify-path tests/basic/prog.rkt)))
+     (test-files! f)
+     (define covered? (curry (get-test-coverage) f))
+     (define lines (string-split (file->string f) "\n"))
+     (check-equal? (file->html f covered?)
+                   `(div ()
+                     ,(div:line-numbers (length lines))
+                     ,(div:file-lines lines covered?))))))
 
 ;; File Report
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

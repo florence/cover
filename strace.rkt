@@ -11,40 +11,41 @@
          "private/file-utils.rkt"
          "private/shared.rkt")
 
-
-(define (make-annotate-top c cover-name)
-  (define lift-name #'do-lift)
-  (define set-box-name #'set-box!)
-  (define box-name #'box)
-  (define hash-ref-name #'hash-ref)
+(define (make-annotate-top topic)
+  (define log-message-name #'log-message)
+  (define current-logger-name #'current-logger)
 
   ;;  -------- Specific `stacktrace^` Imports --------------
 
   (define (initialize-test-coverage-point stx)
     (define srcloc (stx->srcloc stx))
-    (when srcloc
-      (hash-set! c srcloc (box #f))))
+    (log-message (current-logger)
+                 'info
+                 topic
+                 logger-init-message
+                 srcloc #f))
 
   (define (test-covered stx)
     (define loc/stx (stx->srcloc/stx stx))
-    (with-syntax ([c cover-name]
+    (with-syntax ([current-logger current-logger-name]
+                  [log-message log-message-name]
                   [loc loc/stx]
-                  [set-box! set-box-name]
-                  [box box-name]
-                  [hash-ref hash-ref-name]
-                  [do-lift lift-name])
-      #`(#%plain-app set-box! (do-lift (#%plain-app hash-ref c loc (box #f))) #t)))
+                  [logger-covered-message logger-covered-message])
+      #`(#%plain-app log-message (current-logger)
+                     'info '#,topic
+                     logger-covered-message loc #f)))
 
 
   ;;  -------- Cover's Specific Annotators --------------
   (define (make-cover-annotate-top annotate-top)
     (lambda (stx phase)
-      ;(define e (add-cover-require stx))
-      (cond [(cross-phase-persist? stx)
-             stx]
-            [(add-cover-require (annotate-clean (annotate-top stx phase)))
-             => expand-syntax]
-            [else stx])))
+      (define e
+        (cond [(cross-phase-persist? stx)
+               stx]
+              [(add-cover-require (annotate-clean (annotate-top stx phase)))
+               => expand-syntax]
+              [else stx]))
+      e))
 
   (define (cross-phase-persist? stx)
     (define disarmed (disarm stx))
@@ -63,11 +64,8 @@
        [(m name lang mb)
         (or (eq? 'module (syntax-e #'m))
             (eq? 'module* (syntax-e #'m)))
-        (with-syntax ([cover cover-name]
-                      [set-box set-box-name]
-                      [box box-name]
-                      [hash-rf hash-ref-name]
-                      [do-lift lift-name])
+        (with-syntax ([log-message log-message-name]
+                      [current-logger current-logger-name])
           (define lexical? (eq? #f (syntax-e #'lang)))
           (syntax-case (syntax-disarm #'mb inspector) ()
             [(#%module-begin b ...)
@@ -76,15 +74,8 @@
                  (map (lambda (e) (loop e #f))
                       (syntax->list #'(b ...))))
                (define/with-syntax (add ...)
-                 #'((#%require (rename cover/coverage cover coverage)
-                               (rename '#%kernel set-box set-box!)
-                               (rename '#%kernel hash-rf hash-ref)
-                               (rename '#%kernel box box))
-                    (#%require (for-syntax '#%kernel))
-                    (define-syntaxes (do-lift)
-                      (lambda (stx)
-                        (syntax-local-lift-expression
-                         (cadr (syntax-e stx)))))))
+                 #'((#%require (rename '#%kernel log-message log-message)
+                               (rename '#%kernel current-logger current-logger))))
                (define stx
                  #'(m name lang
                       (#%module-begin add ... body ...)))
@@ -109,10 +100,9 @@
      e #f
      [(begin e mod)
       (begin
-        (syntax-case #'e (#%plain-app set-box! do-lift make-srcloc hash-ref)
-          [(#%plain-app set-box! (lift (#%plain-app hash-ref _ (quote v) b)) _)
-           (let ([location (syntax->datum #'v)])
-             (set-box! (hash-ref c location) #t))])
+        (syntax-case #'e (#%plain-app log-message)
+          [(#%plain-app log-message _ _ _ "covered" (_ loc) #f)
+           (log-message (current-logger) 'info topic "covered" (syntax->datum #'loc))])
         #'mod)]
      [_ e]))
 
@@ -168,3 +158,17 @@
     disarmed
     disarmed)
    armed))
+
+
+#;
+(module+ test
+  (let ()
+    (define ns (make-base-namespace))
+    (parameterize ([current-namespace ns])
+      (define ann (make-annotate-top))
+      (define test
+        (expand #'(module a racket 1)))
+      (define r (make-log-receiver (current-logger) 'info logger-topic))
+      (eval (ann test (namespace-base-phase ns)) ns)
+      (eval '(require 'a) ns)
+      (check-not-false (sync/timeout 0 r)))))

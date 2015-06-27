@@ -3,7 +3,8 @@
 ;; for every .rkt file in those directories it loads
 ;; tests that file and checks its coverage against an
 ;; .rktl file of the same name
-(require (only-in cover test-files! clear-coverage! get-test-coverage irrelevant-submodules)
+(require (only-in cover test-files! get-test-coverage irrelevant-submodules
+                  current-cover-environment make-cover-environment)
          (only-in "../cover.rkt" coverage-wrapper-map)
          "../private/file-utils.rkt"
          racket/runtime-path rackunit)
@@ -20,26 +21,25 @@
               (path->string (path-replace-suffix f ".rktl")))))
 
   (define (do-test files)
-    (apply test-files! files)
+    (parameterize ([current-cover-environment (make-cover-environment)])
+      (apply test-files! files)
 
-    (define coverage (get-test-coverage))
-    (for ([(program cover) covered])
-      (define-values (expected-coverage expected-uncoverage)
-        (with-input-from-file cover (lambda () (values (ranges->numbers (read))
-                                                       (ranges->numbers (read))))))
-      (define covered? (curry coverage program))
-      (define (test-range range type)
-        (for ([i range])
-          (define v (covered? i))
-          (unless (eq? v 'irrelevant)
-            (check-equal? v type
-                          (format "expected char ~a to be covered, but it was not, in: ~s"
-                                  i program)))))
-      (test-begin
-       (test-range expected-coverage 'covered)
-       (test-range expected-uncoverage 'uncovered)))
-
-    (clear-coverage!))
+      (define coverage (get-test-coverage))
+      (for ([(program cover) covered])
+        (define-values (expected-coverage expected-uncoverage)
+          (with-input-from-file cover (lambda () (values (ranges->numbers (read))
+                                                         (ranges->numbers (read))))))
+        (define covered? (curry coverage program))
+        (define (test-range range type)
+          (for ([i range])
+            (define v (covered? i))
+            (unless (eq? v 'irrelevant)
+              (check-equal? v type
+                            (format "expected char ~a to be covered, but it was not, in: ~s"
+                                    i program)))))
+        (test-begin
+         (test-range expected-coverage 'covered)
+         (test-range expected-uncoverage 'uncovered)))))
 
   ;; ensure the results are the same regardless of file order
   (do-test files)
@@ -63,10 +63,9 @@
 (module+ test
   (define-runtime-path prog.rkt "prog.rkt")
   (test-begin
-   (after
+   (parameterize ([current-cover-environment (make-cover-environment)])
     (test-files! (->absolute prog.rkt))
     (define abs (coverage-wrapper-map (get-test-coverage)))
     (test-files! (build-path (->relative prog.rkt)))
     (define rel (coverage-wrapper-map (get-test-coverage)))
-    (check-equal? abs rel)
-    (clear-coverage!))))
+    (check-equal? abs rel))))

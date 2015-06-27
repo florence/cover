@@ -4,12 +4,12 @@
 (define-runtime-path error "error-file.rkt")
 (define-runtime-path main "main.rkt")
 (test-begin
- (after
+ (parameterize ([current-cover-environment (make-cover-environment)])
   (define (do-test files)
     (parameterize ([current-cover-environment (make-cover-environment)])
       (define o (open-output-string))
       (parameterize ([current-error-port o])
-        (apply test-files! files))
+        (check-false (apply test-files! files)))
       (define s (get-output-string o))
       (define c (get-test-coverage))
       (define covered (hash-keys (coverage-wrapper-map c)))
@@ -18,5 +18,4 @@
        files)))
   (define files (map path->string (list error main)))
   (do-test files)
-  (do-test (reverse files))
-  (clear-coverage!)))
+  (do-test (reverse files))))

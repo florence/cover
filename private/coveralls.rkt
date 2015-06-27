@@ -83,21 +83,20 @@
 
 (module+ test
   (test-begin
-   (parameterize ([current-directory root])
-     (after
-      (define file (path->string (simplify-path tests/prog.rkt)))
-      (test-files! (path->string (simplify-path tests/prog.rkt)))
-      (define coverage (get-test-coverage))
-      (define report
-        (with-env ("COVERALLS_REPO_TOKEN" "abc")
-          (generate-coveralls-report coverage (list (->absolute file)))))
-      (check-equal?
-       (hash-ref report 'source_files)
-       (list (hasheq 'source (file->string tests/prog.rkt)
-                             'coverage (line-coverage coverage file)
-                             'name "tests/prog.rkt")))
-      (check-equal? (hash-ref report 'repo_token) "abc")
-      (clear-coverage!)))))
+   (parameterize ([current-directory root]
+                  [current-cover-environment (make-cover-environment)])
+     (define file (path->string (simplify-path tests/prog.rkt)))
+     (test-files! (path->string (simplify-path tests/prog.rkt)))
+     (define coverage (get-test-coverage))
+     (define report
+       (with-env ("COVERALLS_REPO_TOKEN" "abc")
+         (generate-coveralls-report coverage (list (->absolute file)))))
+     (check-equal?
+      (hash-ref report 'source_files)
+      (list (hasheq 'source (file->string tests/prog.rkt)
+                    'coverage (line-coverage coverage file)
+                    'name "tests/prog.rkt")))
+     (check-equal? (hash-ref report 'repo_token) "abc"))))
 
 ;; -> [Hasheq String String
 ;; Determine the type of build (e.g. repo token, travis, etc) and return the appropriate metadata
@@ -139,18 +138,17 @@
 
 (module+ test
   (test-begin
-   (parameterize ([current-directory root])
-     (after
-      (define file (path->string (simplify-path tests/prog.rkt)))
-      (test-files! (path->string (simplify-path tests/prog.rkt)))
-      (define coverage (get-test-coverage))
-      (check-equal?
-       (generate-source-files coverage (list file))
-       (hasheq 'source_files
-               (list (hasheq 'source (file->string tests/prog.rkt)
-                             'coverage (line-coverage coverage file)
-                             'name "tests/prog.rkt"))))
-      (clear-coverage!)))))
+   (parameterize ([current-directory root]
+                  [current-cover-environment (make-cover-environment)])
+     (define file (path->string (simplify-path tests/prog.rkt)))
+     (test-files! (path->string (simplify-path tests/prog.rkt)))
+     (define coverage (get-test-coverage))
+     (check-equal?
+      (generate-source-files coverage (list file))
+      (hasheq 'source_files
+              (list (hasheq 'source (file->string tests/prog.rkt)
+                            'coverage (line-coverage coverage file)
+                            'name "tests/prog.rkt")))))))
 
 ;; CoverallsCoverage = Nat | json-null
 
@@ -181,10 +179,10 @@
 (module+ test
   (define-runtime-path path "../tests/basic/not-run.rkt")
   (let ()
-    (define file (path->string (simplify-path path)))
-    (test-files! file)
-    (check-equal? (line-coverage (get-test-coverage) file) '(1 0))
-    (clear-coverage!)))
+    (parameterize ([current-cover-environment (make-cover-environment)])
+      (define file (path->string (simplify-path path)))
+      (test-files! file)
+      (check-equal? (line-coverage (get-test-coverage) file) '(1 0)))))
 
 (define (hash-merge h1 h2) (for/fold ([res h1]) ([(k v) h2]) (hash-set res k v)))
 
