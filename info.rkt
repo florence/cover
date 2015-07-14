@@ -5,7 +5,7 @@
                "syntax-color-lib" "compiler-lib"))
 (define build-deps
   '("racket-doc" "scribble-lib" "typed-racket-doc" "htdp-lib"
-    "net-doc" "scribble-doc" "at-exp-lib"))
+    "net-doc" "scribble-doc" "at-exp-lib" "scheme-lib"))
 
 (define raco-commands
   '(("cover" (submod cover/raco main) "a code coverage tool" 30)))
