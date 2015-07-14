@@ -15,6 +15,7 @@
 (define (make-annotate-top c cover-name)
   (define lift-name #'do-lift)
   (define set-box-name #'set-box!)
+  (define box-name #'box)
   (define hash-ref-name #'hash-ref)
 
   ;;  -------- Specific `stacktrace^` Imports --------------
@@ -29,9 +30,10 @@
     (with-syntax ([c cover-name]
                   [loc loc/stx]
                   [set-box! set-box-name]
+                  [box box-name]
                   [hash-ref hash-ref-name]
                   [do-lift lift-name])
-      #`(#%plain-app set-box! (do-lift (#%plain-app hash-ref c loc)) #t)))
+      #`(#%plain-app set-box! (do-lift (#%plain-app hash-ref c loc (box #f))) #t)))
 
 
   ;;  -------- Cover's Specific Annotators --------------
@@ -63,6 +65,7 @@
             (eq? 'module* (syntax-e #'m)))
         (with-syntax ([cover cover-name]
                       [set-box set-box-name]
+                      [box box-name]
                       [hash-rf hash-ref-name]
                       [do-lift lift-name])
           (define lexical? (eq? #f (syntax-e #'lang)))
@@ -75,7 +78,8 @@
                (define/with-syntax (add ...)
                  #'((#%require (rename cover/coverage cover coverage)
                                (rename '#%kernel set-box set-box!)
-                               (rename '#%kernel haah-rf hash-ref))
+                               (rename '#%kernel hash-rf hash-ref)
+                               (rename '#%kernel box box))
                     (#%require (for-syntax '#%kernel))
                     (define-syntaxes (do-lift)
                       (lambda (stx)
@@ -106,7 +110,7 @@
      [(begin e mod)
       (begin
         (syntax-case #'e (#%plain-app set-box! do-lift make-srcloc hash-ref)
-          [(#%plain-app set-box! (lift (#%plain-app hash-ref _ (quote v))) _)
+          [(#%plain-app set-box! (lift (#%plain-app hash-ref _ (quote v) b)) _)
            (let ([location (syntax->datum #'v)])
              (set-box! (hash-ref c location) #t))])
         #'mod)]
