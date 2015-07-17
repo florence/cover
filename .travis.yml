@@ -12,7 +12,6 @@ env:
 matrix:
   allow_failures:
     - env: RACKET_VERSION=HEAD
-    - env: RACKET_VERSION=SCOPE_SNAPSHOT
   fast_finish: true
 
 before_install:
