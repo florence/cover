@@ -21,7 +21,7 @@ information is converted to a usable form by `get-test-coverage`.
          syntax/modread
          syntax/modresolve
          syntax/parse
-         unstable/syntax
+         syntax/location
          racket/bool
          racket/runtime-path
          racket/match
