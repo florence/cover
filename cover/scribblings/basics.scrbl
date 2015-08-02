@@ -13,15 +13,8 @@ The @exec{raco cover} command accepts the following flags:
 @itemize[@item{@Flag{f} or @DFlag{format}
                --- Sets the coverage output type. This flag defaults to html.
                valid formats are:
-               @itemize[@item{html: Generates one html file per tested file.}
-                        @item{coveralls: generates a coveralls json file.
-                              This will then read COVERALLS_REPO_TOKEN from the environment
-                              and submit the report to coveralls using that repo token. It should be
-                              noted that, for the moment, coveralls requires both bash and curl to
-                              run.
-                              This is also suitable for pushing to coveralls from Travis CI.}
-                        @item{raw: @racket[write]s the raw output @racket[get-test-coverage] to the
-                              output file.}]}
+               @itemize[@item{html: Generates one html file per tested file.}]
+               Other packages may install new formats. See @secref{plugin}}
          @item{@Flag{b} or @DFlag{exclude-pkg-basics}
                --- Equivalent to @exec{-n tests -n info.rkt -n scribblings}}
          @item{@Flag{d} or @DFlag{directory}

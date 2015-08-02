@@ -60,15 +60,12 @@ defaults to @racket[#f], which tells @racket[make-covered?] to consider all subm
 irrelevant. If its value is a list, then each element of that list is the name of a submodule to be
 considered irrelevant.}
 
-@deftogether[(@defproc[(generate-coveralls-coverage (c coverage/c) (files (listof path-string?))
-                                                    (p path-string? "coverage"))
-                        any]
-              @defproc[(generate-html-coverage (c coverage/c) (files (listof path-string?))
+@deftogether[(@defproc[(generate-html-coverage (c coverage/c) (files (listof path-string?))
                                                (p path-string? "coverage"))
                         any])]{
 
-Generates coverage information in the coveralls and html formats. Equivalent to the specifications
-of the @Flag{c} argument to @exec{raco cover}. Both use @racket[make-covered?] to determine file
+Generates coverage information as formatted html. Equivalent to the specifications
+of the @Flag{c} argument to @exec{raco cover}. Uses @racket[make-covered?] to determine file
 coverage.}
 
 @section[#:tag "lower"]{A Lower Level API}
