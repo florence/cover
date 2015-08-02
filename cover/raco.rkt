@@ -316,5 +316,4 @@
    ;; we expect that a standard install has "html", "coveralls", and "raw"
    (define h (get-formats))
    (check-true (hash-has-key? h "html"))
-   (check-true (hash-has-key? h "coveralls"))
    (check-true (hash-has-key? h "raw"))))
