@@ -1,7 +1,6 @@
 #lang setup/infotab
 
 (define cover-formats '(("html" cover generate-html-coverage)
-                        ("coveralls" cover generate-coveralls-coverage)
                         ("raw" cover generate-raw-coverage)))
 
 (define test-omit-paths (list "tests/error-file.rkt" "scribblings"))

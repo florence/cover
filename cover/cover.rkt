@@ -66,8 +66,6 @@ information is converted to a usable form by `get-test-coverage`.
     (define cover-load/use-compiled (make-cover-load/use-compiled abs-names))
     (define tests-failed
       (parameterize* ([current-load/use-compiled cover-load/use-compiled]
-                      [current-output-port
-                       (if (verbose) (current-output-port) (open-output-nowhere))]
                       [current-namespace (get-namespace)])
         (for ([f (in-list abs-names)])
           (compile-file f))

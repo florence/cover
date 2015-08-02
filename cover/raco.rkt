@@ -11,6 +11,7 @@
          (only-in (submod compiler/commands/test paths) collection-paths)
          racket/path
          pkg/lib
+         racket/port
          (for-syntax racket/base syntax/parse))
 
 
@@ -26,6 +27,7 @@
   (define submod 'test)
   (define expansion-type 'dir)
   (define irrel-submods #f)
+  (define verbose #f)
 
   (define args
      (command-line
@@ -39,7 +41,7 @@
        (set! output-format format)]
       [("-v" "--verbose")
        "Verbose mode"
-       (verbose #t)]
+       (set! verbose #t)]
       [("-b" "--exclude-pkg-basics")
         "exclude info.rkt, the tests directory, and the scribblings directory from the coverage report"
         (set! exclude-paths (append '("info.rkt" "tests" "scribblings") exclude-paths))]
@@ -76,27 +78,32 @@
        (set! expansion-type 'lib)]
       #:args (file . files)
       (cons file files)))
-  (define path-expand
-    (case expansion-type
-      [(dir) expand-directories]
-      [(file) filter-exts]
-      [(lib) expand-lib]
-      [(collection) (lambda (a b) (expand-directories (flatten (map collection-paths a)) b))]
-      [(package) (lambda (a b)
-                   (expand-directories (map pkg-directory a) b))]))
-  (define files (path-expand args include-exts))
-  (define generate-coverage
-    (hash-ref (get-formats) output-format
-              (lambda _ (error 'cover "given unknown coverage output format: ~s" output-format))))
-  (printf "generating test coverage for ~s\n" files)
-  (define passed (apply test-files! #:submod submod files))
-  (define coverage (get-test-coverage))
-  (define cleaned-files (remove-excluded-paths files exclude-paths))
-  (printf "dumping coverage info into ~s\n" coverage-dir)
-  (parameterize ([irrelevant-submodules irrel-submods])
-    (generate-coverage coverage cleaned-files coverage-dir))
-  (unless passed
-    (printf "some tests failed\n")))
+  (with-logging-to-port
+      (if verbose (current-error-port) (open-output-nowhere))
+    (lambda ()
+      (define path-expand
+        (case expansion-type
+          [(dir) expand-directories]
+          [(file) filter-exts]
+          [(lib) expand-lib]
+          [(collection) (lambda (a b) (expand-directories (flatten (map collection-paths a)) b))]
+          [(package) (lambda (a b)
+                       (expand-directories (map pkg-directory a) b))]))
+      (define files (path-expand args include-exts))
+      (define generate-coverage
+        (hash-ref (get-formats) output-format
+                  (lambda _ (error 'cover "given unknown coverage output format: ~s" output-format))))
+      (printf "generating test coverage for ~s\n" files)
+      (define passed (apply test-files! #:submod submod files))
+      (define coverage (get-test-coverage))
+      (define cleaned-files (remove-excluded-paths files exclude-paths))
+      (printf "dumping coverage info into ~s\n" coverage-dir)
+      (parameterize ([irrelevant-submodules irrel-submods])
+        (generate-coverage coverage cleaned-files coverage-dir))
+      (unless passed
+        (printf "some tests failed\n")))
+    'debug
+    'cover))
 
 (define extensions '(#rx"\\.rkt$" #rx"\\.ss$" #rx"\\.scrbl"))
 
@@ -162,7 +169,6 @@
   (define-runtime-path main.rkt "main.rkt")
   (define out
     (set "main.rkt"
-         "private/coveralls.rkt"
          "private/contracts.rkt"
          "private/html/html.rkt"
          "private/format-utils.rkt"

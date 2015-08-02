@@ -32,6 +32,5 @@
 
   [irrelevant-submodules (parameter/c (or/c #f (listof symbol?)))]
 
-  [generate-coveralls-coverage coverage-gen/c]
   [generate-html-coverage coverage-gen/c]
   [generate-raw-coverage coverage-gen/c]))
