@@ -7,11 +7,8 @@ env:
     - RACKET_VERSION=6.1.1
     - RACKET_VERSION=6.2
     - RACKET_VERSION=HEAD
-    - RACKET_VERSION=SCOPE_SNAPSHOT
     
 matrix:
-  allow_failures:
-    - env: RACKET_VERSION=HEAD
   fast_finish: true
 
 before_install:
