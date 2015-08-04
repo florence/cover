@@ -68,6 +68,7 @@ information is converted to a usable form by `get-test-coverage`.
       (parameterize* ([current-load/use-compiled cover-load/use-compiled]
                       [current-namespace (get-namespace)])
         (for ([f (in-list abs-names)])
+          (vprintf "forcing compilation of ~a" f)
           (compile-file f))
         (for/fold ([tests-failed #f]) ([f (in-list abs)])
           (define failed? (handle-file f submod-name))
@@ -102,7 +103,7 @@ information is converted to a usable form by `get-test-coverage`.
                             (error-display x)]))])
     (parameterize ([current-command-line-arguments argv]
                    [exit-handler (lambda (x) (raise (an-exit x)))])
-      (vprintf "running file: ~s with args: ~s\n" the-file argv)
+      (vprintf "running file: ~s with args: ~s" the-file argv)
       (exec-file the-file submod-name)))
   (define test-log (get-test-log))
   (or tests-errored
@@ -125,9 +126,9 @@ information is converted to a usable form by `get-test-coverage`.
 
 ;; ModulePath -> Any
 (define (run-mod to-run)
-  (vprintf "running ~s in envoronment ~s\n" to-run (get-topic))
+  (vprintf "running ~s in envoronment ~s" to-run (get-topic))
   (dynamic-require to-run 0)
-  (vprintf "finished running ~s\n" to-run))
+  (vprintf "finished running ~s" to-run))
 
 ;; PathString -> ModulePath
 (define (build-file-require the-file)
@@ -166,11 +167,10 @@ information is converted to a usable form by `get-test-coverage`.
     (lambda (e immediate-eval?)
       (define to-compile
         (cond [(or (compiled-expression? (if (syntax? e) (syntax-e e) e))
-                   (not (eq? reg (namespace-module-registry (current-namespace))))
-                   (not (equal? phase (namespace-base-phase (current-namespace)))))
-               e]
+                   (not (eq? reg (namespace-module-registry (current-namespace)))))
+              e]
               [else
-               (vprintf "compiling ~s with coverage annotations in enviornment ~s\n"
+               (vprintf "compiling ~s with coverage annotations in enviornment ~s"
                         (if (not (syntax? e))
                             e
                             (or (syntax-source-file-name e)
@@ -178,7 +178,7 @@ information is converted to a usable form by `get-test-coverage`.
                                 (syntax->datum e)))
                         (get-topic))
                (annotate-top (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
-                             phase)]))
+                             (namespace-base-phase (current-namespace)))]))
       (compile to-compile immediate-eval?)))
   cover-compile)
 
