@@ -3,7 +3,8 @@
          logger-init-message
          logger-covered-message
          with-logging-to-port
-         with-intercepted-logging)
+         with-intercepted-logging
+         with-intercepted-logging/receiver)
 
 (define logger-init-message "init")
 (define logger-covered-message "covered")
@@ -25,31 +26,32 @@
          log-spec))
 
 (define (with-intercepted-logging interceptor proc . log-spec)
-  (let* ([orig-logger (current-logger)]
-         ;; We use a local logger to avoid getting messages that didn't
-         ;; originate from proc. Since it's a child of the original logger,
-         ;; the rest of the program still sees the log entries.
-         [logger      (make-logger #f orig-logger)]
-         [receiver    (apply make-log-receiver logger log-spec)]
-         [stop-chan   (make-channel)]
-         [t           (receiver-thread receiver stop-chan interceptor)])
+  (let* ([logger      (make-logger #f (current-logger))]
+         [receiver    (apply make-log-receiver logger log-spec)])
+    (parameterize ([current-logger logger])
+      (with-intercepted-logging/receiver interceptor proc receiver))))
+
+(define (with-intercepted-logging/receiver interceptor proc receiver)
+  (let* ([t           (receiver-thread receiver interceptor)])
     (begin0
-        (parameterize ([current-logger logger])
-          (proc))
-      (channel-put stop-chan 'stop) ; stop the receiver thread
+      (proc)
+      (thread-send t 'stop) ; stop the receiver thread
       (thread-wait t))))
 
 
-(define (receiver-thread receiver stop-chan intercept)
+(define (receiver-thread receiver intercept)
   (thread
    (lambda ()
+     (define thd-receive
+       (wrap-evt (thread-receive-evt)
+                                (lambda _ (thread-receive))))
      (define (clear-events)
        (let ([l (sync/timeout 0 receiver)])
          (when l ; still something to read
            (intercept l) ; interceptor gets the whole vector
            (clear-events))))
      (let loop ()
-       (let ([l (sync receiver stop-chan)])
+       (let ([l (sync receiver thd-receive)])
          (cond [(eq? l 'stop)
                 ;; we received all the events we were supposed
                 ;; to get, read them all (w/o waiting), then

@@ -53,28 +53,31 @@ information is converted to a usable form by `get-test-coverage`.
 ;; returns true if no tests reported as failed, and no files errored.
 (define (test-files! #:submod [submod-name 'test] #:env [env (current-cover-environment)] . files)
   (parameterize ([current-cover-environment env])
-    (define abs
-      (for/list ([p (in-list files)])
-        (if (list? p)
-            (cons (->absolute (car p)) (cdr p))
-            (->absolute p))))
-    (define abs-names
-      (for/list ([p (in-list abs)])
-        (match p
-          [(cons p _) p]
-          [_ p])))
-    (define cover-load/use-compiled (make-cover-load/use-compiled abs-names))
-    (define tests-failed
-      (parameterize* ([current-load/use-compiled cover-load/use-compiled]
-                      [current-namespace (get-namespace)])
-        (for ([f (in-list abs-names)])
-          (vprintf "forcing compilation of ~a" f)
-          (compile-file f))
-        (for/fold ([tests-failed #f]) ([f (in-list abs)])
-          (define failed? (handle-file f submod-name))
-          (or failed? tests-failed))))
-    (vprintf "ran ~s\n" files)
-    (not tests-failed)))
+    (with-intercepted-logging/receiver (cover-receiver (get-raw-coverage-map))
+      (lambda ()
+        (define abs
+          (for/list ([p (in-list files)])
+            (if (list? p)
+                (cons (->absolute (car p)) (cdr p))
+                (->absolute p))))
+        (define abs-names
+          (for/list ([p (in-list abs)])
+            (match p
+              [(cons p _) p]
+              [_ p])))
+        (define cover-load/use-compiled (make-cover-load/use-compiled abs-names))
+        (define tests-failed
+          (parameterize* ([current-load/use-compiled cover-load/use-compiled]
+                          [current-namespace (get-namespace)])
+            (for ([f (in-list abs-names)])
+              (vprintf "forcing compilation of ~a" f)
+              (compile-file f))
+            (for/fold ([tests-failed #f]) ([f (in-list abs)])
+              (define failed? (handle-file f submod-name))
+              (or failed? tests-failed))))
+        (vprintf "ran ~s\n" files)
+        (not tests-failed))
+      (get-receiver))))
 
 ;;; ---------------------- Running Aux ---------------------------------
 
@@ -177,8 +180,16 @@ information is converted to a usable form by `get-test-coverage`.
                                 (syntax-source e)
                                 (syntax->datum e)))
                         (get-topic))
-               (annotate-top (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
-                             (namespace-base-phase (current-namespace)))]))
+               (let ([x (annotate-top (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
+                                      (namespace-base-phase (current-namespace)))])
+                 (vprintf "current map size is: ~a after compiling ~s\n"
+                          (hash-count (get-raw-coverage-map))
+                          (if (not (syntax? e))
+                              e
+                              (or (syntax-source-file-name e)
+                                  (syntax-source e)
+                                  (syntax->datum e))))
+                 x)]))
       (compile to-compile immediate-eval?)))
   cover-compile)
 
@@ -241,17 +252,13 @@ information is converted to a usable form by `get-test-coverage`.
     (vprintf "generating test coverage\n")
     (define raw-coverage (get-raw-coverage-map))
     (define r (get-receiver))
+    (define receive (cover-receiver raw-coverage))
 
     (let loop ()
-      (match (sync/timeout (lambda () #f) r)
-        [(vector info type data _)
-         (cond [(regexp-match? (regexp-quote logger-init-message) type)
-                (unless (hash-has-key? raw-coverage data)
-                  (hash-set! raw-coverage data #f))]
-               [(regexp-match? (regexp-quote logger-covered-message) type)
-                (hash-set! raw-coverage data #t)])
-         (loop)]
-        [#f (void)]))
+      (define v (sync/timeout (lambda () #f) r))
+      (when v
+        (receive v)
+        (loop)))
 
     ;; filtered : (listof (list boolean srcloc))
     (define filtered (hash-map raw-coverage
@@ -277,6 +284,15 @@ information is converted to a usable form by `get-test-coverage`.
                     (lambda ()
                       (make-covered? coverage key))))
        (f location)))))
+
+(define ((cover-receiver raw-coverage) msg)
+  (match msg
+    [(vector info type data _)
+     (cond [(regexp-match? (regexp-quote logger-init-message) type)
+            (unless (hash-has-key? raw-coverage data)
+              (hash-set! raw-coverage data #f))]
+           [(regexp-match? (regexp-quote logger-covered-message) type)
+            (hash-set! raw-coverage data #t)])]))
 
 (define current-cover-environment
   (make-parameter (make-cover-environment)))
