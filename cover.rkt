@@ -21,7 +21,6 @@ information is converted to a usable form by `get-test-coverage`.
          syntax/modread
          syntax/modresolve
          syntax/parse
-         unstable/syntax
          racket/bool
          racket/runtime-path
          racket/match
@@ -172,15 +171,16 @@ information is converted to a usable form by `get-test-coverage`.
                    (not (equal? phase (namespace-base-phase (current-namespace)))))
                e]
               [else
-               (vprintf "compiling ~s with coverage annotations in enviornment ~s\n"
-                        (if (not (syntax? e))
-                            e
-                            (or (syntax-source-file-name e)
-                                (syntax-source e)
-                                (syntax->datum e)))
+               (define fname
+                 (if (not (syntax? e))
+                     e
+                     (or (syntax-source e)
+                         (syntax->datum e))))
+               (vprintf "compiling ~s with coverage annotations in enviornment ~s"
+                        fname
                         (get-topic))
                (annotate-top (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
-                             phase)]))
+                             (namespace-base-phase (current-namespace)))]))
       (compile to-compile immediate-eval?)))
   cover-compile)
 
