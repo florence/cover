@@ -21,7 +21,6 @@ information is converted to a usable form by `get-test-coverage`.
          syntax/modread
          syntax/modresolve
          syntax/parse
-         unstable/syntax
          racket/bool
          racket/runtime-path
          racket/match
@@ -173,22 +172,19 @@ information is converted to a usable form by `get-test-coverage`.
                    (not (eq? reg (namespace-module-registry (current-namespace)))))
               e]
               [else
+               (define fname
+                 (if (not (syntax? e))
+                     e
+                     (or (syntax-source e)
+                         (syntax->datum e))))
                (vprintf "compiling ~s with coverage annotations in enviornment ~s"
-                        (if (not (syntax? e))
-                            e
-                            (or (syntax-source-file-name e)
-                                (syntax-source e)
-                                (syntax->datum e)))
+                        fname
                         (get-topic))
                (let ([x (annotate-top (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
                                       (namespace-base-phase (current-namespace)))])
                  (vprintf "current map size is: ~a after compiling ~s\n"
                           (hash-count (get-raw-coverage-map))
-                          (if (not (syntax? e))
-                              e
-                              (or (syntax-source-file-name e)
-                                  (syntax-source e)
-                                  (syntax->datum e))))
+                          fname)
                  x)]))
       (compile to-compile immediate-eval?)))
   cover-compile)
