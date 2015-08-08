@@ -6,7 +6,7 @@
 (define version "2.0.3")
 
 (define deps '(("base" #:version "6.1.1") "errortrace-lib" "rackunit-lib"
-               "syntax-color-lib" "compiler-lib"))
+               "syntax-color-lib" "compiler-lib" "custom-load"))
 
 (define build-deps
   '("racket-doc" "scribble-lib" "typed-racket-doc" "htdp-lib"

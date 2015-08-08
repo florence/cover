@@ -29,6 +29,7 @@ information is converted to a usable form by `get-test-coverage`.
          unstable/error
          racket/list
          racket/port
+         custom-load
          "private/shared.rkt"
          "private/file-utils.rkt"
          "private/format-utils.rkt"
@@ -142,19 +143,9 @@ information is converted to a usable form by `get-test-coverage`.
 ;; returns a value that can be set to `current-load/use-compiled`
 ;; forces the given files to be recompiled whenever load/use-compiled is called
 (define (make-cover-load/use-compiled paths)
-  (define load/use-compiled (current-load/use-compiled))
-  (define (use-cover-compile? path)
-    (member (->absolute path) paths))
-  (define cover-load/use-compiled
-    (lambda (path sym)
-      (define abs (->absolute path))
-      (define lst (explode-path abs))
-      (define dir-list (take lst (sub1 (length lst))))
-      (parameterize ([current-load-relative-directory (apply build-path dir-list)])
-        (if (use-cover-compile? path)
-            ((current-load) path sym)
-            (load/use-compiled path sym)))))
-  cover-load/use-compiled)
+  (make-custom-load/use-compiled
+   #:blacklist (for/list ([p (in-list paths)])
+                 (regexp (regexp-quote p)))))
 
 ;; -> Compiler
 ;; makes a value sutable for current-compile, such that compile
