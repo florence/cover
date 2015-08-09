@@ -261,7 +261,7 @@
                      (th ([class "file-name"]) "File" ,(file-sorter "file-name"))
                      (th ([class "coverage-percentage"]) "Coverage Percentage" ,(file-sorter "coverage-percentage"))
                      (th ([class "covered-expressions"]) "Covered Expressions" ,(file-sorter "covered-expressions"))
-                     (th ([class "uncovered-expressions"]) "Covered Expressions" ,(file-sorter "uncovered-expressions"))
+                     (th ([class "uncovered-expressions"]) "Uncovered Expressions" ,(file-sorter "uncovered-expressions"))
                      (th ([class "total-expressions"]) "Total Expressions" ,(file-sorter "total-expressions"))))
           (tbody ()
                  ,@(for/list ([(path expr-info) (in-hash expr-coverages)])
