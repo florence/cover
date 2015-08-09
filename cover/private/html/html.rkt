@@ -261,6 +261,7 @@
                      (th ([class "file-name"]) "File" ,(file-sorter "file-name"))
                      (th ([class "coverage-percentage"]) "Coverage Percentage" ,(file-sorter "coverage-percentage"))
                      (th ([class "covered-expressions"]) "Covered Expressions" ,(file-sorter "covered-expressions"))
+                     (th ([class "uncovered-expressions"]) "Covered Expressions" ,(file-sorter "uncovered-expressions"))
                      (th ([class "total-expressions"]) "Total Expressions" ,(file-sorter "total-expressions"))))
           (tbody ()
                  ,@(for/list ([(path expr-info) (in-hash expr-coverages)])
@@ -275,13 +276,16 @@
 (define (tr:file-report path expr-coverage-info)
   (define local-file
     (path->string (find-relative-path (current-directory) (string->path path))))
-  (define percentage (* 100 (/ (first expr-coverage-info) (second expr-coverage-info))))
+  (define covered (first expr-coverage-info))
+  (define total (second expr-coverage-info))
+  (define percentage (* 100 (/ covered total)))
   (define styles `([class "file-info"]))
   `(tr ,styles
        (td ([class "file-name"]) (a ([href ,(coverage-report-link path)]) ,local-file))
        (td ([class "coverage-percentage"]) ,(~r percentage #:precision 2))
-       (td ([class "covered-expressions"]) ,(~r (first expr-coverage-info) #:precision 2))
-       (td ([class "total-expressions"]) ,(~r (second expr-coverage-info) #:precision 2))))
+       (td ([class "covered-expressions"]) ,(~r covered #:precision 2))
+       (td ([class "uncovered-expressions"]) ,(~r (- total covered) #:precision 2))
+       (td ([class "total-expressions"]) ,(~r total #:precision 2))))
 
 (module+ test
   (test-begin (check-equal? (tr:file-report "foo.rkt" (list 0 1))
@@ -289,12 +293,14 @@
                                   (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
                                   (td ([class "coverage-percentage"]) "0")
                                   (td ([class "covered-expressions"]) "0")
+                                  (td ([class "uncovered-expressions"]) "1")
                                   (td ([class "total-expressions"]) "1"))))
   (test-begin (check-equal? (tr:file-report "foo.rkt" (list 10 10))
                             '(tr ((class "file-info"))
                                   (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
                                   (td ([class "coverage-percentage"]) "100")
                                   (td ([class "covered-expressions"]) "10")
+                                  (td ([class "uncovered-expressions"]) "0")
                                   (td ([class "total-expressions"]) "10")))))
 
 ;; Path -> String
