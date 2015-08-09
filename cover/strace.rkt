@@ -41,6 +41,13 @@
     (lambda (stx phase)
       (define e
         (cond [(cross-phase-persist? stx)
+               (initialize-test-coverage-point stx)
+               (log-message (current-logger)
+                            'info
+                            topic
+                            logger-covered-message
+                            (stx->srcloc stx)
+                            #f)
                stx]
               [(add-cover-require (annotate-clean (annotate-top stx phase)))
                => expand-syntax]

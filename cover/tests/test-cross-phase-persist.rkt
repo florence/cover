@@ -1,6 +1,12 @@
 #lang racket
-(require cover rackunit racket/runtime-path (only-in "../cover.rkt" coverage-wrapper-map))
+(require cover rackunit racket/runtime-path cover/private/file-utils)
 (define-runtime-path file "cross-phase-persist.rkt")
-(parameterize ([current-cover-environment (make-cover-environment)])
-  (test-files! file)
-  (check-equal? (coverage-wrapper-map (get-test-coverage)) (hash)))
+(test-case
+ "covering cross-phase-persistent files should enter them into the coverage table"
+ (parameterize ([current-cover-environment (make-cover-environment)])
+   (test-files! file)
+   (define c (get-test-coverage))
+   (check-not-exn
+    (lambda ()
+      (c (->absolute file) 1)))
+   (check-equal? (c (->absolute file) 1) 'covered)))
