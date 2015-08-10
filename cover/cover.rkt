@@ -201,7 +201,7 @@ Thus, In essence this module has three responsibilites:
         (cond [(or (compiled-expression? (if (syntax? e) (syntax-e e) e))
                    (not (eq? reg (namespace-module-registry (current-namespace))))
                    (not file))
-              e]
+               e]
               [else
                (vprintf "compiling ~s with coverage annotations in enviornment ~s"
                         file
@@ -225,10 +225,10 @@ Thus, In essence this module has three responsibilites:
            (and next
                 (ormap loop next)))
          (if f
-              (if (path? f)
-                  (path->string f)
-                  f)
-              (do-loop)))))
+             (if (path? f)
+                 (path->string f)
+                 f)
+             (do-loop)))))
 
 #;
 (thread
