@@ -1,5 +1,10 @@
 #lang racket/base
 (provide make-annotate-top)
+
+#|
+The module implements code coverage annotations as described in cover.rkt
+|#
+
 (require errortrace/stacktrace
          racket/function
          racket/syntax

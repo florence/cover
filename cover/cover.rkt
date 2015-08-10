@@ -8,9 +8,25 @@
 
 #|
 
-This module implements code coverage. It works by compiling and running the given modules with in a
-separate namespace errortrace annotations that log coverage information. This raw coverage
-information is converted to a usable form by `get-test-coverage`.
+This module, and its partner strace.rkt implement code coverage.  In essence code coverage consists
+of a protocol for between this file and all covered files, with the loger begin the communication
+channel.
+
+This module maintains a mapping between src locations in files to be covered and positions in a set
+of vectors. The annotation in strace.rkt its given (mutable) access to this mapping, and an empty
+set of vectors. During compilation the annotator will fill in the vector mapping and allocate the
+vectors.
+
+At annotate-module load time the module will log a request for its vector across using a pre-known
+log topic combined with a key unique to each coverage environment. This module will log a responce
+on a different pre-known key (combined with the same unique key). The data in this responce will be
+the file->vector mapping.
+
+
+Thus, In essence this module has three responsibilites:
+1. setup a listening thread to responde to the protocol described above.
+2. compile and run all test modules with the annotator and a coverage environment
+3. interperet the coverage vectors into something useable.
 
 |#
 
