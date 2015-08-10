@@ -25,6 +25,7 @@ information is converted to a usable form by `get-test-coverage`.
          racket/runtime-path
          racket/match
          racket/path
+         racket/syntax
          rackunit/log
          unstable/error
          racket/list
@@ -36,13 +37,15 @@ information is converted to a usable form by `get-test-coverage`.
          "strace.rkt")
 
 ;; An environment has:
-;; a `namespace`, which shall always have `coverage.rkt` and ''#%builtin attached
+;; a `namespace`
 ;; a handler for `current-compile`
-;; a function that will annoate expanded code
+;; a function that will annoate expanded code, given a file name
 ;; a topic for logs to be reiceved on. Must be unique for every environment
-;; a log receiver, for receiving log events about coverage
-;; a hash map to store raw coverage read from the receiver
-(struct environment (namespace compile ann-top receiver topic raw-coverage))
+;; a hash map from srcloc to index
+;; a hash map from filename to vector
+(struct environment (namespace compile ann-top topic
+                               coverage-srcloc-mapping
+                               coverage-vector-mapping))
 ;; A special structure used for communicating information about programs that call `exit`
 ;; `code` is the exit code that `exit` was called with
 (struct an-exit (code))
@@ -53,31 +56,50 @@ information is converted to a usable form by `get-test-coverage`.
 ;; returns true if no tests reported as failed, and no files errored.
 (define (test-files! #:submod [submod-name 'test] #:env [env (current-cover-environment)] . files)
   (parameterize ([current-cover-environment env])
-    (with-intercepted-logging/receiver (cover-receiver (get-raw-coverage-map))
-      (lambda ()
-        (define abs
-          (for/list ([p (in-list files)])
-            (if (list? p)
-                (cons (->absolute (car p)) (cdr p))
-                (->absolute p))))
-        (define abs-names
-          (for/list ([p (in-list abs)])
-            (match p
-              [(cons p _) p]
-              [_ p])))
-        (define cover-load/use-compiled (make-cover-load/use-compiled abs-names))
-        (define tests-failed
-          (parameterize* ([current-load/use-compiled cover-load/use-compiled]
-                          [current-namespace (get-namespace)])
+    (define abs
+      (for/list ([p (in-list files)])
+        (if (list? p)
+            (cons (->absolute (car p)) (cdr p))
+            (->absolute p))))
+    (define abs-names
+      (for/list ([p (in-list abs)])
+        (match p
+          [(cons p _) p]
+          [_ p])))
+    (define cover-load/use-compiled (make-cover-load/use-compiled abs-names))
+    (define tests-failed
+      (parameterize* ([current-load/use-compiled cover-load/use-compiled]
+                      [current-namespace (get-namespace)])
+        (with-cover-loggers
             (for ([f (in-list abs-names)])
               (vprintf "forcing compilation of ~a" f)
               (compile-file f))
-            (for/fold ([tests-failed #f]) ([f (in-list abs)])
-              (define failed? (handle-file f submod-name))
-              (or failed? tests-failed))))
-        (vprintf "ran ~s\n" files)
-        (not tests-failed))
-      (get-receiver))))
+          (for/fold ([tests-failed #f]) ([f (in-list abs)])
+            (define failed? (handle-file f submod-name))
+            (or failed? tests-failed)))))
+    (vprintf "ran ~s\n" files)
+    (not tests-failed)))
+
+(define-syntax-rule (with-cover-loggers e ...)
+  (with-intercepted-logging/receiver
+      (cover-give-file-mapping (format-symbol "~a~a" (get-topic) 'cover-internal-send-vector-mapping))
+    (lambda () e ...)
+    (make-log-receiver
+     (current-logger)
+     'info
+     (format-symbol "~a~a" (get-topic) 'cover-internal-request-vector-mapping))))
+
+;; we dont care what the msg content is, just send the vector back
+(define ((cover-give-file-mapping topic) _)
+  #;
+  (printf "vectormap requested from ~a\n" _)
+  (log-message (current-logger)
+               'info
+               topic
+               ""
+               (get-coverage-vector-mapping))
+  #;
+  (printf "vectormap sent to ~a\n" topic))
 
 ;;; ---------------------- Running Aux ---------------------------------
 
@@ -158,27 +180,49 @@ information is converted to a usable form by `get-test-coverage`.
   ;; define so its named in stack traces
   (define cover-compile
     (lambda (e immediate-eval?)
+      (define file (get-source e))
       (define to-compile
         (cond [(or (compiled-expression? (if (syntax? e) (syntax-e e) e))
-                   (not (eq? reg (namespace-module-registry (current-namespace)))))
+                   (not (eq? reg (namespace-module-registry (current-namespace))))
+                   (not file))
               e]
               [else
-               (define fname
-                 (if (not (syntax? e))
-                     e
-                     (or (syntax-source e)
-                         (syntax->datum e))))
                (vprintf "compiling ~s with coverage annotations in enviornment ~s"
-                        fname
+                        file
                         (get-topic))
-               (let ([x (annotate-top (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
-                                      (namespace-base-phase (current-namespace)))])
-                 (vprintf "current map size is: ~a after compiling ~s\n"
-                          (hash-count (get-raw-coverage-map))
-                          fname)
+               (let ([x ((annotate-top file)
+                         (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
+                         (namespace-base-phase (current-namespace)))])
+                 (vprintf "\ncurrently using ~aGB memory after file ~a\n"
+                          (* 0.000000001 (current-memory-use))
+                          file)
                  x)]))
       (compile to-compile immediate-eval?)))
   cover-compile)
+
+(define (get-source stx)
+  (and (syntax? stx)
+       (let loop ([e stx])
+         (define f (syntax-source e))
+         (define (do-loop)
+           (define next (syntax->list e))
+           (and next
+                (ormap loop next)))
+         (if f
+              (if (path? f)
+                  (path->string f)
+                  f)
+              (do-loop)))))
+
+#;
+(thread
+ (lambda ()
+   (let loop ()
+     (fprintf (current-error-port)
+              "\ncurrently using ~aGB memory in random check\n"
+              (* 0.000000001 (current-memory-use)))
+     (sleep 10)
+     (loop))))
 
 ;;; ---------------------- Environments ---------------------------------
 
@@ -191,17 +235,16 @@ information is converted to a usable form by `get-test-coverage`.
     ;; we gensym the topic to isolate diverent coverage
     ;; instances from each other
     (define topic (gensym))
-    (define ann (make-annotate-top topic))
+    (define loc-table (make-hash))
+    (define vector-table (make-hash))
+    (define ann (make-annotate-top topic loc-table vector-table))
     (environment
      ns
      (make-cover-compile ns ann)
      ann
-     (make-receiver topic)
      topic
-     (make-hash))))
-
-(define (make-receiver topic)
-  (make-log-receiver (current-logger) 'info topic))
+     loc-table
+     vector-table)))
 
 (define (kernelize-namespace! ns)
   (define cns (current-namespace))
@@ -221,31 +264,33 @@ information is converted to a usable form by `get-test-coverage`.
 (define (get-val access)
   (access (current-cover-environment)))
 
-(define (get-receiver)
-  (get-val environment-receiver))
-
-(define (get-raw-coverage-map)
-  (get-val environment-raw-coverage))
-
 (define (get-topic)
   (get-val environment-topic))
+
+(define (get-coverage-srcloc-mapping)
+  (get-val environment-coverage-srcloc-mapping))
+
+(define (get-coverage-vector-mapping)
+  (get-val environment-coverage-vector-mapping))
 
 (struct coverage-wrapper (map function)
         #:property prop:procedure (struct-field-index function))
 
+(require racket/pretty)
 ;; -> coverage/c
 (define (get-test-coverage [env (current-cover-environment)])
   (parameterize ([current-cover-environment env])
     (vprintf "generating test coverage\n")
-    (define raw-coverage (get-raw-coverage-map))
-    (define r (get-receiver))
-    (define receive (cover-receiver raw-coverage))
 
-    (let loop ()
-      (define v (sync/timeout (lambda () #f) r))
-      (when v
-        (receive v)
-        (loop)))
+    (define vecmap (get-coverage-vector-mapping))
+    (define raw-coverage
+      (for/hash ([(srcloc loc) (in-hash (get-coverage-srcloc-mapping))])
+        (values srcloc
+                (vector-ref
+                 (hash-ref vecmap
+                           (first srcloc))
+                 loc))))
+
 
     ;; filtered : (listof (list boolean srcloc))
     (define filtered (hash-map raw-coverage
@@ -272,15 +317,6 @@ information is converted to a usable form by `get-test-coverage`.
                       (make-covered? coverage key))))
        (f location)))))
 
-(define ((cover-receiver raw-coverage) msg)
-  (match msg
-    [(vector info type data _)
-     (cond [(regexp-match? (regexp-quote logger-init-message) type)
-            (unless (hash-has-key? raw-coverage data)
-              (hash-set! raw-coverage data #f))]
-           [(regexp-match? (regexp-quote logger-covered-message) type)
-            (hash-set! raw-coverage data #t)])]))
-
 (define current-cover-environment
   (make-parameter (make-cover-environment)))
 
@@ -292,19 +328,23 @@ information is converted to a usable form by `get-test-coverage`.
     (list
      "tests/compiled/prog_rkt.zo"
      "tests/compiled/prog_rkt.dep"))
+  (define (df)
+    (for-each (lambda (f) (when (file-exists? f) (delete-file f)))
+              compiled))
   (test-begin
-   (parameterize ([current-cover-environment (make-cover-environment)])
-     (for-each (lambda (f) (when (file-exists? f) (delete-file f)))
-               compiled)
-     (check-false (ormap file-exists? compiled))
-     (check-not-exn
-      (lambda ()
-        (define l/c (make-cover-load/use-compiled (list (->absolute prog.rkt))))
-        (parameterize ([current-load/use-compiled l/c]
-                       [current-compile (get-compile)]
-                       [current-namespace (get-namespace)])
-          (managed-compile-zo prog.rkt))))
-     (check-true (andmap file-exists? compiled)))))
+   (after
+    (parameterize ([current-cover-environment (make-cover-environment)])
+      (with-cover-loggers (df)
+        (check-false (ormap file-exists? compiled))
+        (check-not-exn
+         (lambda ()
+           (define l/c (make-cover-load/use-compiled (list (->absolute prog.rkt))))
+           (parameterize ([current-load/use-compiled l/c]
+                          [current-compile (get-compile)]
+                          [current-namespace (get-namespace)])
+             (managed-compile-zo prog.rkt))))
+        (check-true (andmap file-exists? compiled))))
+    (df))))
 
 ;; tests repl like interactions
 (module+ test
@@ -317,21 +357,22 @@ information is converted to a usable form by `get-test-coverage`.
   (define ns (environment-namespace env))
   (parameterize ([current-cover-environment env]
                  [current-namespace ns])
-    (namespace-require 'racket/base)
-    (test-begin
-     (define file (path->string simple-multi/2.rkt))
-     (define modpath file)
-     (define l/c (make-cover-load/use-compiled (list file)))
-     (parameterize ([current-load/use-compiled l/c]
-                    [current-compile (get-compile)])
-       (namespace-require `(file ,modpath)))
-     (check-equal? (eval `(two)) 10)
-     (define x (get-test-coverage env))
-     (define covered? (curry x file))
-     (for ([_ (in-string (file->string file))]
-           [i (in-naturals 1)])
-       (check-not-exn (thunk (covered? i)))
-       (define c (covered? i))
-       (check-true  (or (eq? c 'covered)
-                        (eq? c 'irrelevant))
-                    (~a i))))))
+    (with-cover-loggers
+        (namespace-require 'racket/base)
+      (test-begin
+       (define file (path->string simple-multi/2.rkt))
+       (define modpath file)
+       (define l/c (make-cover-load/use-compiled (list file)))
+       (parameterize ([current-load/use-compiled l/c]
+                      [current-compile (get-compile)])
+         (namespace-require `(file ,modpath)))
+       (check-equal? (eval `(two)) 10)
+       (define x (get-test-coverage env))
+       (define covered? (curry x file))
+       (for ([_ (in-string (file->string file))]
+             [i (in-naturals 1)])
+         (check-not-exn (thunk (covered? i)))
+         (define c (covered? i))
+         (check-true  (or (eq? c 'covered)
+                          (eq? c 'irrelevant))
+                      (~a i)))))))

@@ -5,7 +5,10 @@
  "covering cross-phase-persistent files should enter them into the coverage table"
  (parameterize ([current-cover-environment (make-cover-environment)])
    (test-files! file)
-   (define c (get-test-coverage))
+   (define c #f)
+   (check-not-exn
+    (lambda ()
+      (set! c (get-test-coverage))))
    (check-not-exn
     (lambda ()
       (c (->absolute file) 1)))
