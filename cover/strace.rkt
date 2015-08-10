@@ -54,6 +54,9 @@ The module implements code coverage annotations as described in cover.rkt
                       [sync sync-name]
                       [file file]
                       [hash-ref hash-ref-name]
+                      [#%papp #'#%app]
+                      [pdefine-values #'define-values]
+                      [pbegin #'begin]
                       [send-name (format-symbol "~a~a" topic 'cover-internal-send-vector-mapping)]
                       [req-name (format-symbol "~a~a" topic 'cover-internal-request-vector-mapping)])
           (define lexical? (eq? #f (syntax-e #'lang)))
@@ -69,28 +72,30 @@ The module implements code coverage annotations as described in cover.rkt
                                (rename '#%kernel make-log-receiver make-log-receiver)
                                (rename '#%kernel sync sync)
                                (rename '#%kernel hash-ref hash-ref)
-                               (only '#%kernel #%app define-values printf)
+                               (rename '#%kernel #%papp #%app)
+                               (rename '#%kernel pdefine-values define-values)
+                               (rename '#%kernel pbegin begin)
                                (rename '#%unsafe unsafe-vector-ref unsafe-vector-ref)
                                (rename '#%unsafe unsafe-vector-set! unsafe-vector-set!))
-                    (define-values (lgr) (#%app current-logger))
-                    (define-values (rec)
-                      (#%app make-log-receiver
+                    (pdefine-values (lgr) (#%papp current-logger))
+                    (pdefine-values (rec)
+                      (#%papp make-log-receiver
                              lgr
                              'info
                              'send-name))
-                    (define-values (vector-name)
-                      (begin
-                        (#%app log-message
+                    (pdefine-values (vector-name)
+                      (pbegin
+                        (#%papp log-message
                                lgr
                                'info
                                'req-name
                                ""
                                #f)
-                        (#%app
+                        (#%papp
                          hash-ref
-                         (#%app
+                         (#%papp
                           unsafe-vector-ref
-                          (#%app sync rec)
+                          (#%papp sync rec)
                           2)
                          file)))))
                (define stx
