@@ -18,11 +18,15 @@ The module implements code coverage annotations as described in cover.rkt
 
 ;; symbol [Hash srcloclist index] [Hash pathstring vector]
 ;; -> (pathstring -> annotator)
-(define (make-annotate-top topic loc->vecref vecmapping)
+(define (make-annotate-top topic file->loc->vecref vecmapping)
   (define log-message-name #'log-message)
   (define current-logger-name #'current-logger)
-  (define unsafe-vector-set!-name #'unsafe-vector*-set!)
-  (define unsafe-vector-ref-name #'unsafe-vector*-ref)
+  (define unsafe-vector-set!-name #'vector-set!
+    #;#'unsafe-vector*-set!
+    )
+  (define unsafe-vector-ref-name #'vector-ref
+    #;#'unsafe-vector*-ref
+    )
   (define vector-name #'cover-coverage-vector)
   (define make-log-receiver-name #'make-log-receiver)
   (define sync-name #'sync)
@@ -69,7 +73,7 @@ The module implements code coverage annotations as described in cover.rkt
                   (define stx
                     #'(m name lang
                          (#%module-begin add ... body ...)))
-                  (rebuild-syntax stx disarmed expr phase))])]))]
+                  (rebuild-syntax stx disarmed expr phase-shift))])]))]
 
        [(b a ...)
         (or (eq? 'begin (syntax-e #'b))
@@ -127,8 +131,8 @@ The module implements code coverage annotations as described in cover.rkt
                           (for-meta #,i (rename '#%kernel #%papp #%app))
                           (for-meta #,i (rename '#%kernel pdefine-values define-values))
                           (for-meta #,i (rename '#%kernel pbegin begin))
-                          (for-meta #,i (rename '#%unsafe unsafe-vector-ref unsafe-vector-ref))
-                          (for-meta #,i (rename '#%unsafe unsafe-vector-set! unsafe-vector-set!))))
+                          (for-meta #,i (rename '#%kernel unsafe-vector-ref unsafe-vector-ref))
+                          (for-meta #,i (rename '#%kernel unsafe-vector-set! unsafe-vector-set!))))
          (pdefine-values (lgr) (#%papp current-logger))
          (pdefine-values (rec)
                          (#%papp make-log-receiver
@@ -158,7 +162,10 @@ The module implements code coverage annotations as described in cover.rkt
 
 
   (lambda (file)
-    (define initialized? (hash-has-key? loc->vecref file))
+    (define initialized? (hash-has-key? file->loc->vecref file))
+    (unless initialized?
+      (hash-set! file->loc->vecref file (make-hash)))
+    (define loc->vecref (hash-ref file->loc->vecref file))
     (define count 0)
 
     (define (make-cover-annotate-top annotate-top)

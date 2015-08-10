@@ -197,24 +197,28 @@ Thus, In essence this module has three responsibilites:
   (define cover-compile
     (lambda (e immediate-eval?)
       (define file (get-source e))
-      (define to-compile
-        (cond [(or (compiled-expression? (if (syntax? e) (syntax-e e) e))
-                   (not (eq? reg (namespace-module-registry (current-namespace))))
-                   (not file))
-               e]
-              [else
-               (vprintf "compiling ~s with coverage annotations in enviornment ~s"
-                        file
-                        (get-topic))
-               (let ([x ((annotate-top file)
-                         (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
-                         (namespace-base-phase (current-namespace)))])
-                 (vprintf "\ncurrently using ~aGB memory after file ~a\n"
-                          (* 0.000000001 (current-memory-use))
-                          file)
-                 x)]))
-      (compile to-compile immediate-eval?)))
+      (with-handlers ([void (lambda (e) (displayln file) (raise e))])
+          (define to-compile
+            (cond [(or (compiled-expression? (if (syntax? e) (syntax-e e) e))
+                       (not (eq? reg (namespace-module-registry (current-namespace))))
+                       (not file))
+                   e]
+                  [else
+                   (vprintf "compiling ~s with coverage annotations in enviornment ~s"
+                            file
+                            (get-topic))
+                   (let ([x ((annotate-top file)
+                             (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
+                             (namespace-base-phase (current-namespace)))])
+                     (vprintf "\ncurrently using ~aGB memory after file ~a\n"
+                              (* 0.000000001 (current-memory-use))
+                              file)
+                     ;(pretty-print (syntax->datum x))
+                     x)]))
+        (compile to-compile immediate-eval?))))
   cover-compile)
+
+(require racket/pretty)
 
 (define (get-source stx)
   (and (syntax? stx)
@@ -300,7 +304,8 @@ Thus, In essence this module has three responsibilites:
 
     (define vecmap (get-coverage-vector-mapping))
     (define raw-coverage
-      (for/hash ([(srcloc loc) (in-hash (get-coverage-srcloc-mapping))])
+      (for*/hash ([(_ filemap) (in-hash (get-coverage-srcloc-mapping))]
+                  [(srcloc loc) (in-hash filemap)])
         (values srcloc
                 (vector-ref
                  (hash-ref vecmap
