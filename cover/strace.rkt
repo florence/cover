@@ -71,7 +71,7 @@ The module implements code coverage annotations as described in cover.rkt
                     (map (lambda (e) (loop e 0 #f))
                          (syntax->list #'(b ...))))
                   (define stx
-                    #'(m name lang
+                    #`(m name lang
                          (#%module-begin add ... body ...)))
                   (rebuild-syntax stx disarmed expr phase-shift))])]))]
 

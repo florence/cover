@@ -4,7 +4,7 @@
                         ("raw" cover generate-raw-coverage)))
 
 (define test-omit-paths (list "tests/error-file.rkt" "scribblings"))
-(define cover-omit-paths (list "tests/nested.rkt"))
+(define cover-omit-paths (list "tests/nested.rkt" "tests/bfs+module.rkt"))
 
 (define test-command-line-arguments '(("tests/arg.rkt" ("a"))))
 
