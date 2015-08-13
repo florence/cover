@@ -11,7 +11,7 @@
          racket/string
          syntax/modread
          syntax/parse
-         unstable/sequence
+         syntax/stx
          (only-in xml write-xexpr)
          "../shared.rkt")
 
@@ -370,7 +370,7 @@
       (syntax-parse e
         [(v ...)
          (for/fold ([covered (e->n e)] [count (a->n e)])
-                   ([v (in-syntax e)])
+                   ([v (in-list (stx->list e))])
            (define-values (cov cnt) (recur v))
            (values (+ covered cov)
                    (+ count cnt)))]
