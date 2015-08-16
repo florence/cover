@@ -61,6 +61,7 @@ window.onload = function() {
   createSorter('file-name', 'up', stringCompareDesc, stringCompareAsc);
   createSorter('coverage-percentage', 'up', floatCompareAsc, floatCompareDesc);
   createSorter('covered-expressions', 'up', floatCompareAsc, floatCompareDesc);
+  createSorter('uncovered-expressions', 'up', floatCompareAsc, floatCompareDesc);
   createSorter('total-expressions', 'up', floatCompareAsc, floatCompareDesc);
   sortTable('file-name', stringCompareAsc);
 };
