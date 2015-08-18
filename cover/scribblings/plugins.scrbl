@@ -16,3 +16,6 @@ put a definition for @racket[cover-formats] into a packages @filepath["info.rkt"
                @racket[(->* (coverage/c) (path-string?) any)], and is the implementation of
                the format.}
          }
+
+Output formats should log any ``verbose'' output at the @racket['debug] level to the topic
+@racket['cover]. These are printed with Cover's @Flag{v} flag.

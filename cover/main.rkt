@@ -20,11 +20,7 @@
                     any)]
 
   [environment? (-> any/c any/c)]
-  [environment-namespace (-> environment? namespace?)]
-  [environment-compile
-   (-> environment? (any/c boolean? . -> . compiled-expression?))]
 
-  [clear-coverage! (-> any)]
   [make-cover-environment (->* () ((-> namespace?)) environment?)]
   [current-cover-environment (parameter/c environment?)]
 

@@ -1,6 +1,6 @@
 #lang racket/base
 (provide test-files!
-         make-cover-environment clear-coverage!
+         make-cover-environment
          get-test-coverage
          current-cover-environment environment?
          environment-compile environment-namespace
@@ -87,9 +87,9 @@ Thus, In essence this module has three responsibilites:
       (parameterize* ([current-load/use-compiled cover-load/use-compiled]
                       [current-namespace (get-namespace)])
         (with-cover-loggers
-            (for ([f (in-list abs-names)])
-              (vprintf "forcing compilation of ~a" f)
-              (compile-file f))
+          (for ([f (in-list abs-names)])
+            (vprintf "forcing compilation of ~a" f)
+            (compile-file f))
           (for/fold ([tests-failed #f]) ([f (in-list abs)])
             (define failed? (handle-file f submod-name))
             (or failed? tests-failed)))))
@@ -107,20 +107,16 @@ Thus, In essence this module has three responsibilites:
 
 ;; we dont care what the msg content is, just send the vector back
 (define ((cover-give-file-mapping topic) _)
-  #;
-  (printf "vectormap requested from ~a\n" _)
   (log-message (current-logger)
                'info
                topic
                ""
-               (get-coverage-vector-mapping))
-  #;
-  (printf "vectormap sent to ~a\n" topic))
+               (get-coverage-vector-mapping)))
 
 ;;; ---------------------- Running Aux ---------------------------------
 
 
-;; PathString -> Void
+;; PathString -> Boolean
 (define (compile-file the-file)
   (parameterize ([current-compile (get-compile)]
                  [use-compiled-file-paths
@@ -131,14 +127,21 @@ Thus, In essence this module has three responsibilites:
 ;; (or PathString (list PathString Vector)) Symbol -> Boolean
 ;; returns true if any tests failed or errors occured
 (define (handle-file maybe-path submod-name)
-  (define tests-errored #f)
   (vprintf "attempting to run ~s in environment ~s\n" maybe-path (get-topic))
   (define the-file (if (list? maybe-path) (first maybe-path) maybe-path))
   (define argv (if (list? maybe-path) (second maybe-path) #()))
+
+  (or (run-file! the-file submod-name argv)
+      (tests-failed?)))
+
+;; PathString Submod [Vectorof String] -> Boolean
+(define (run-file! the-file submod-name argv)
+  (define tests-errored #f)
+
   (with-handlers ([(lambda (x) (not (exn:break? x)))
                    (lambda (x)
                      (cond [(an-exit? x)
-                            (vprintf "file ~s exited code ~s" maybe-path (an-exit-code x))]
+                            (vprintf "file ~s exited code ~s" the-file (an-exit-code x))]
                            [else
                             (set! tests-errored #t)
                             (error-display x)]))])
@@ -146,15 +149,18 @@ Thus, In essence this module has three responsibilites:
                    [exit-handler (lambda (x) (raise (an-exit x)))])
       (vprintf "running file: ~s with args: ~s" the-file argv)
       (exec-file the-file submod-name)))
+
+  tests-errored)
+
+;; -> Bool
+(define (tests-failed?)
   (define test-log (get-test-log))
-  (or tests-errored
-      (let ([lg (test-log)])
-        (and (not (= 0 (car lg)))
-             (not (= 0 (cdr lg)))))))
+  (let ([lg (test-log)])
+    (and (not (= 0 (car lg)))
+         (not (= 0 (cdr lg))))))
 
 (define (get-test-log)
-  (with-handlers ([exn:fail? (lambda _
-                               (lambda () (cons 0 0)))])
+  (with-handlers ([exn:fail? (lambda _ (lambda () (cons 0 0)))])
     (parameterize ([current-namespace (get-namespace)])
       (module->namespace 'rackunit/log);make sure its loaded first
       (dynamic-require 'rackunit/log 'test-log))))
@@ -207,18 +213,11 @@ Thus, In essence this module has three responsibilites:
                    (vprintf "compiling ~s with coverage annotations in enviornment ~s"
                             file
                             (get-topic))
-                   (let ([x ((annotate-top file)
+                   ((annotate-top file)
                              (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
-                             (namespace-base-phase (current-namespace)))])
-                     (vprintf "\ncurrently using ~aGB memory after file ~a\n"
-                              (* 0.000000001 (current-memory-use))
-                              file)
-                     ;(pretty-print (syntax->datum x))
-                     x)]))
+                             (namespace-base-phase (current-namespace)))]))
         (compile to-compile immediate-eval?))))
   cover-compile)
-
-(require racket/pretty)
 
 (define (get-source stx)
   (and (syntax? stx)
@@ -234,20 +233,7 @@ Thus, In essence this module has three responsibilites:
                  f)
              (do-loop)))))
 
-#;
-(thread
- (lambda ()
-   (let loop ()
-     (fprintf (current-error-port)
-              "\ncurrently using ~aGB memory in random check\n"
-              (* 0.000000001 (current-memory-use)))
-     (sleep 10)
-     (loop))))
-
 ;;; ---------------------- Environments ---------------------------------
-
-(define (clear-coverage!)
-  (current-cover-environment (make-cover-environment)))
 
 (define (make-cover-environment [ns (make-empty-namespace)])
   (kernelize-namespace! ns)
