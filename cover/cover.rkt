@@ -291,11 +291,11 @@ Thus, In essence this module has three responsibilites:
     (define vecmap (get-coverage-vector-mapping))
     (define raw-coverage
       (for*/hash ([(_ filemap) (in-hash (get-coverage-srcloc-mapping))]
-                  [(srcloc loc) (in-hash filemap)])
+                  [(srcloc spot) (in-hash filemap)])
+        (match-define (list file loc) spot)
         (values srcloc
                 (vector-ref
-                 (hash-ref vecmap
-                           (first srcloc))
+                 (hash-ref vecmap file)
                  loc))))
 
 

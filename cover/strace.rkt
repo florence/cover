@@ -76,14 +76,14 @@ The module implements code coverage annotations as described in cover.rkt
         (lambda (stx)
           (define loc (stx->srcloc stx))
           (unless (hash-has-key? loc->vecref loc)
-            (hash-set! loc->vecref loc count)
+            (hash-set! loc->vecref loc (list file count))
             (set! count (add1 count))))))
 
   (define (test-covered stx)
     (define loc (stx->srcloc stx))
     (with-syntax ([vector-name vector-name]
                   [unsafe-vector-set! unsafe-vector-set!-name]
-                  [vecloc (hash-ref loc->vecref loc)])
+                  [vecloc (cadr (hash-ref loc->vecref loc))])
       #`(#%plain-app unsafe-vector-set! vector-name vecloc #t)))
 
   ;; ---- IN ----
