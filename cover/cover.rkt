@@ -57,8 +57,9 @@ Thus, In essence this module has three responsibilites:
 ;; a handler for `current-compile`
 ;; a function that will annoate expanded code, given a file name
 ;; a topic for logs to be reiceved on. Must be unique for every environment
-;; a hash map from srcloc to index
-;; a hash map from filename to vector
+;; a hash map from srcloc to (List filename index)
+;; a hash map from filename to [Vector bool]. Each vector location maps to a srcloc
+;;   via the table in coverage-srcloc-mapping
 (struct environment (namespace compile ann-top topic
                                coverage-srcloc-mapping
                                coverage-vector-mapping))
