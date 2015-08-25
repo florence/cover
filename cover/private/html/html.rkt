@@ -157,7 +157,7 @@
      (define covered? (curry (get-test-coverage) f))
      (define lines (string-split (file->string f) "\n"))
      (check-equal? (file->html f covered?)
-                   `(div ()
+                   `(div ([class "lines-wrapper"])
                      ,(div:line-numbers (length lines))
                      ,(div:file-lines lines covered?))))))
 
