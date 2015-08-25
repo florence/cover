@@ -55,7 +55,7 @@ div.report-container {
 
 div.line-numbers {
   display: table-cell;
-  margin-right: 1em;
+  padding-right: 1em;
   text-align: right;
 }
 
