@@ -145,7 +145,7 @@
 (define (file->html path covered?)
   (define file (file->string path))
   (define lines (string-split file "\n"))
-  `(div ()
+  `(div ([class "lines-wrapper"])
         ,(div:line-numbers (length lines))
         ,(div:file-lines lines covered?)))
 
@@ -157,7 +157,7 @@
      (define covered? (curry (get-test-coverage) f))
      (define lines (string-split (file->string f) "\n"))
      (check-equal? (file->html f covered?)
-                   `(div ()
+                   `(div ([class "lines-wrapper"])
                      ,(div:line-numbers (length lines))
                      ,(div:file-lines lines covered?))))))
 
