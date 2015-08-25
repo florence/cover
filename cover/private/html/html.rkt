@@ -145,7 +145,7 @@
 (define (file->html path covered?)
   (define file (file->string path))
   (define lines (string-split file "\n"))
-  `(div ()
+  `(div ([class "lines-wrapper"])
         ,(div:line-numbers (length lines))
         ,(div:file-lines lines covered?)))
 
