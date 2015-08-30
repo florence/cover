@@ -31,7 +31,7 @@ The @exec{raco cover} command accepts the following flags:
                --- enable verbose logging}
          @item{@Flag{s} or @DFlag{submod}
                --- run the given submodule instead of the test submodule.}
-         @item{@Flag{e} or @DFlag{include-extensions}
+         @item{@Flag{e} or @DFlag{irrelevant-submodules}
                --- Concider the given submodules irrelevant when generating coverage. If not
                provided defaults to all submodules. Can be included more than once.}
          @item{@Flag{c} or @DFlag{collection}
@@ -47,7 +47,8 @@ The @exec{raco cover} command accepts the following flags:
 In addition @exec{raco cover} supports the @racket[_test-omit-paths] and
 @racket[_test-command-line-arguments] @filepath{info.rkt} options like @exec{raco test}.  In
 addition cover supports @racket[_cover-omit-paths], which is identical to @racket[_test-omit-paths],
-but is specific to cover.
+but is specific to cover. The same holds for @racket[_test-include-paths] and
+@racket[_cover-include-paths].
 
 @section{Gotchas}
 
