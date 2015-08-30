@@ -251,8 +251,18 @@
 
 ;; path (listof absolute-paths) -> boolean
 (define (should-omit? path omits)
+  (define epath (explode-path (->absolute path)))
   (for/or ([o omits])
-    (regexp-match? o path)))
+    (if (regexp? o)
+        (regexp-match? o path)
+        (let ([eo (explode-path (->absolute o))])
+          (let loop ([eo eo] [ep epath])
+            (cond [(and (null? eo) (null? ep)) #t]
+                  [(null? eo) #t]
+                  [(null? ep) #f]
+                  [(equal? (car eo) (car ep))
+                   (loop (cdr eo) (cdr ep))]
+                  [else #f]))))))
 
 (module+ test
   (check-true (should-omit? "/Test/t.rkt" '("/Test")))
