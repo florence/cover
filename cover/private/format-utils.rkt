@@ -7,10 +7,14 @@
          racket/port
          racket/set
          racket/bool
+
          syntax-color/racket-lexer
          syntax-color/lexer-contract
          syntax/modread
          syntax/parse
+
+         data/interval-map
+
          "shared.rkt")
 
 (module+ test (require rackunit racket/runtime-path racket/set))
@@ -29,9 +33,9 @@
   (define submods (irrelevant-submodules))
   (define file-location-coverage-cache
     (coverage-cache-file key c submods))
+  (local-require racket/dict)
   (lambda (loc)
-    (hash-ref file-location-coverage-cache loc
-              'irrelevant)))
+    (interval-map-ref file-location-coverage-cache loc 'irrelevant)))
 
 ;; (or/c #f (listof symbol))
 (define irrelevant-submodules (make-parameter #f))
@@ -40,26 +44,19 @@
 ;; build a hash caching coverage info for that file
 (define (coverage-cache-file key c submods)
   (vprintf "caching coverage info for ~s\n" key)
-  (if (not (path-string? key))
-      (for/hash ([i (in-range 1 (biggest c))])
-        (values i (raw-covered? i c)))
-      (with-input-from-file key
-        (thunk
-         (define lexer
-           (maybe-wrap-lexer
-            (with-handlers ([exn:fail:read? (const racket-lexer)])
-              (define f (read-language))
-              (if f
-                  (f 'color-lexer racket-lexer)
-                  racket-lexer))))
-         (define irrelevant? (make-irrelevant? lexer key submods))
-         (define file-length (string-length (file->string key)))
-         (define cache
-           (for/hash ([i (in-range 1 (add1 file-length))])
-             (values i
-                     (cond [(irrelevant? i) 'irrelevant]
-                           [else (raw-covered? i c)]))))
-         cache))))
+  (define get-covered (raw-covered c))
+  (when (path-string? key)
+    (with-input-from-file key
+      (thunk
+       (define lexer
+         (maybe-wrap-lexer
+          (with-handlers ([exn:fail:read? (const racket-lexer)])
+            (define f (read-language))
+            (if f
+                (f 'color-lexer racket-lexer)
+                racket-lexer))))
+       (make-irrelevant! lexer key submods get-covered))))
+  get-covered)
 
 ;; FileCoverage -> Natural
 (define (biggest c)
@@ -72,10 +69,10 @@
         (define-values (a b c d e) (lexer in))
         (values a b c d e 0 #f))))
 
-;; Lexer(in the sence of color:text<%>) InputPort (Maybe (Listof Symbol)) -> (Natural -> Boolean)
+;; Lexer(in the sence of color:text<%>) InputPort (Maybe (Listof Symbol)) CoverageIntervalMap
+;;   -> Void
 ;; builds a function that determines if a given location in that port is irrelivent.
-(define (make-irrelevant? lexer f submods)
-  (define s (mutable-set))
+(define (make-irrelevant! lexer f submods cmap)
   (define-values (for-lex for-str) (replicate-file-port f (current-input-port)))
   (define str (apply vector (string->list (port->string for-str))))
   (define init-offset (- (string-length (file->string f))
@@ -83,6 +80,7 @@
 
   (define offset (make-byte->str-offset str))
 
+  ;; first do comments
   (let loop ([mode #f])
     (define-values (v type _m start end backup-dist new-mode/ds)
       (lexer for-lex 0 mode))
@@ -92,10 +90,13 @@
     (case type
       [(eof) (void)]
       [(comment sexp-comment no-color white-space)
-       (for ([i (in-range (- start (offset start)) (- end (offset end)))])
-         (set-add! s (+ init-offset i)))
+       (define s (+ init-offset (- start (offset start))))
+       (define e (+ init-offset (- end (offset end))))
+       (interval-map-set! cmap s e 'irrelevant)
        (loop new-mode)]
       [else (loop new-mode)]))
+
+  ;; then do submodules
   (define stx
     (with-input-from-file f
       (thunk (with-module-reading-parameterization read-syntax))))
@@ -116,11 +117,9 @@
        (when ?start
          (define start (- ?start (* 2 (offset/mod ?start))))
          (define end (+ start (syntax-span stx)))
-         (for ([i (in-range start end)])
-           (set-add! s i)))]
+         (interval-map-set! cmap start end 'irrelevant))]
       [(e ...) (for-each loop* (syntax->list #'(e ...)))]
-      [_else (void)]))
-  (lambda (i) (set-member? s i)))
+      [_else (void)])))
 
 ;; Path FilePort -> FilePort FilePort
 ;; creates two ports to that file at the same position at the first
@@ -131,36 +130,41 @@
   (file-position f2 (file-position p))
   (values f1 f2))
 
-;; Natural Coverage -> (U 'covered 'uncovered 'irrelevant)
-;; lookup i in c. irrelevant if its not contained
-(define (raw-covered? i c)
-  (define loc i)
-  (define-values (mode _)
-    (for/fold ([mode 'none] [last-start 0])
-              ([pair (in-list c)])
-      (match pair
-        [(list m (srcloc _ _ _ start range))
-         (if (and (<= start loc (+ start range -1))
-                  (or (eq? mode 'none)
-                      (> start last-start)))
-             (values m start)
-             (values mode last-start))])))
-  (case mode
-    [(#t) 'covered]
-    [(#f) 'uncovered]
-    [else 'irrelevant]))
+;; Coverage -> (IntervalMap (U 'covered 'uncovered 'irrelevant))
+;; create map for looking up coverage information. irrelevant if its not contained
+;; this code assumes that if two expression ranges overlap, then one is completely
+;; contained within the other.
+(define (raw-covered c)
+  (define ordered (sort c srcloc<= #:key second))
+  (define r (make-interval-map))
+  (for ([pair (in-list ordered)])
+    (match-define (list m (srcloc _ _ _ start range)) pair)
+    (define val (if m 'covered 'uncovered))
+    (interval-map-set! r start (+ start range) val))
+  r)
+
+(define (srcloc<= locl locr)
+  (match-define (srcloc _ _ _ startl rangel) locl)
+  (match-define (srcloc _ _ _ startr ranger) locr)
+  (or (<= startl startr)
+      (<= ranger rangel)))
 
 ;; String -> (Natural -> Natural)
 ;; used for determining character/byte offsets for a given
 ;; 1 indexed byte locaiton
-(define ((make-byte->str-offset str) offset)
-  (let loop ([s 0] [b 0])
-    (cond [(or (= (sub1 offset) b)
-               (>= s (vector-length str)))
-           (- b s)]
-          [else
-           (define l (char-utf-8-length (vector-ref str s)))
-           (loop (add1 s) (+ b l))])))
+(define (make-byte->str-offset str)
+  (define lmapping
+    (let loop ([s 0] [b 0] [acc null])
+      (cond [(>= s (vector-length str)) acc]
+            [else
+             (define l (char-utf-8-length (vector-ref str s)))
+             (define adds (build-list l (const (- b s))))
+             (loop (add1 s) (+ b l) (append adds acc))])))
+  (define mapping (list->vector (reverse lmapping)))
+  (lambda (offset)
+    (if (> offset (vector-length mapping))
+        (vector-ref mapping (sub1 (vector-length mapping)))
+        (vector-ref mapping (sub1 offset)))))
 
 (module+ test
   (require racket/lazy-require)
