@@ -54,3 +54,16 @@ but is specific to cover.
 Internally cover uses the logger to transmit coverage. This means that dynamically loading a module
 with @racket[current-logger] set to a logger who's (transitive) parent is not the global logger may
 cause cover to hang.
+
+Cover runs submodules directly. This means that if the test submodule is not constructed with a
+@racket[module+] or a @racket[module*] with @racket[#f] for the language the enclosing module will
+not be run.
+
+Cover annotates fully expanded programs, and infers what areas of the original program to mark as
+covered via @racket[syntax-location]. This means that sometimes, If a macro does not correctly
+propagate the @racket[syntax-location] for some syntax object, the coverage information will appear
+to be incorrect. For example, the @racket[for] loops will always have their variable binding
+positions marked as uncovered, unless the for clause binds only one variable and uses one of the
+special sequence forms like @racket[in-list]. Another common instance of this is that
+@racket[provide]s in @seclink["top" #:doc '(lib "typed-racket/scribblings/ts-guide.scrbl")
+"typed/racket"].
