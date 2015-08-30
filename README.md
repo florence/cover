@@ -46,7 +46,15 @@ You can also build a custom output format. For more detailed usage see
 Cover works with Travis CI, however you may want to install an output format specialized to cover
 coverage service, like [cover-coveralls](https://github.com/rpless/cover-coveralls).
 
-## Internals
+## Gotchas and Bugs
+
+There is a list of odd behavior you may encounter when using Cover in the
+[Gotcha's Section](http://pkg-build.racket-lang.org/doc/cover/basics.html#%28part._.Gotcha_s%29)
+of the documentation.
+
+## Racket API
 
 Cover comes with a racket API, which can be read about in
 [the full documentation](http://pkg-build.racket-lang.org/doc/cover/index.html).
+
+
