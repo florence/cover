@@ -50,7 +50,7 @@
        "exclude any paths named this from the coverage report."
        (set! exclude-paths (cons t exclude-paths))]
       [("-i" "--include-extensions") f
-       "include these extensions in files to cover."
+       "include these extensions in files to cover. Accepts regular expressions"
        (set! include-exts (cons f include-exts))]
       [("-s" "--submodule") s
        "Run the given submodule instead of the test submodule"
@@ -186,9 +186,11 @@
   (do-test ->absolute))
 
 ;; -> (HorribyNestedListsOf (or PathString (list path-string vector))
-(define (expand-directory exts [omit-paths null] [args null])
+(define (expand-directory inc-paths [omit-paths null] [args null])
   (define new-omits (get-new-omits))
   (define full-omits (append new-omits omit-paths))
+  (define new-incs (get-new-incs))
+  (define full-incs (append new-incs inc-paths))
   (define new-argv (get-info-var (current-directory) 'test-command-line-arguments))
   (define expanded-argv
     (if (not new-argv)
@@ -203,8 +205,8 @@
       (for/list ([p (in-list (directory-list))])
         (cond [(directory-exists? p)
                (parameterize ([current-directory (build-path (current-directory) p)])
-                 (expand-directory exts full-omits full-argv))]
-              [(ormap (lambda (r) (regexp-match r (path->string p))) exts)
+                 (expand-directory inc-paths full-omits full-argv))]
+              [(ormap (lambda (r) (regexp-match r (path->string p))) inc-paths)
                (define path (path->string (build-path (current-directory) p)))
                (if (should-omit? path full-omits) null (path-add-argv path full-argv))]
               [else null]))))
@@ -223,14 +225,20 @@
                    (format "~s ~s" o dirs)))))
 
 (define (get-new-omits)
-  (append (get-omits 'test-omit-paths)
-          (get-omits 'cover-omit-paths)))
-(define (get-omits s)
+  (append (get-omits/incs 'test-omit-paths)
+          (get-omits/incs 'cover-omit-paths)))
+
+(define (get-new-incs)
+  (append (get-omits/incs 'test-include-paths)
+          (get-omits/incs 'cover-include-paths)))
+
+(define (get-omits/incs s)
   (define new-omits (get-info-var (current-directory) s))
   (case new-omits
     [(#f) null]
     [(all) (->absolute (current-directory))]
-    [else (map ->absolute new-omits)]))
+    [else (map (lambda (x) (if (regexp? x) x (->absolute x)))
+               new-omits)]))
 
 (define (path-add-argv path argvs)
   (define x (assoc path argvs))
@@ -243,16 +251,8 @@
 
 ;; path (listof absolute-paths) -> boolean
 (define (should-omit? path omits)
-  (define epath (explode-path (->absolute path)))
   (for/or ([o omits])
-    (define eo (explode-path (->absolute o)))
-    (let loop ([eo eo] [ep epath])
-      (cond [(and (null? eo) (null? ep)) #t]
-            [(null? eo) #t]
-            [(null? ep) #f]
-            [(equal? (car eo) (car ep))
-             (loop (cdr eo) (cdr ep))]
-            [else #f]))))
+    (regexp-match? o path)))
 
 (module+ test
   (check-true (should-omit? "/Test/t.rkt" '("/Test")))
