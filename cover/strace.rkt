@@ -101,6 +101,10 @@ The module implements code coverage annotations as described in cover.rkt
     #t]
    [_ #f]))
 
+;; Syntax PathString Symbol -> Syntax
+;; This function inserts the necessary requires and definitions for cover to run
+;; properly. It only touches begins, begin-for-syntaxes, and submodules. Everything
+;; else should be ignored.
 (define (add-cover-require expr file topic)
   (define bfs-depth (get-syntax-depth expr))
 
@@ -119,6 +123,8 @@ The module implements code coverage annotations as described in cover.rkt
           (eq? 'module* (syntax-e #'m)))
       (let ()
         (define lexical? (eq? #f (syntax-e #'lang)))
+        ;; When we enter a lexically scoped submodule we must shift its
+        ;; phase to 0, then back again after we annotate
         (define phase-shift (if lexical? phase 0))
         (define shifted (syntax-shift-phase-level disarmed (- phase-shift)))
         (syntax-case shifted ()
@@ -149,6 +155,8 @@ The module implements code coverage annotations as described in cover.rkt
 
      [_ (if top #f expr)])))
 
+;; Syntax -> Natural
+;; Maxiumum depth of begin-for-syntaxes
 (define (get-syntax-depth expr)
   (kernel-syntax-case
    (disarm expr) #f
@@ -162,6 +170,8 @@ The module implements code coverage annotations as described in cover.rkt
     (apply max 1 (map get-syntax-depth (syntax->list #'(b ...))))]
    [_ 1]))
 
+;; Natural PathString Symbol -> Syntax
+;; Build a set of requires and definitions for cover to insert
 (define (build-adds bfs-depth file topic)
   (with-syntax ([log-message log-message-name]
                 [current-logger current-logger-name]
