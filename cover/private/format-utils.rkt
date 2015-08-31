@@ -88,7 +88,7 @@
                          new-mode/ds))
     (case type
       [(eof) (void)]
-      [(comment sexp-comment no-color white-space)
+      [(comment sexp-comment white-space)
        (define s (+ init-offset (- start (offset start))))
        (define e (+ init-offset (- end (offset end))))
        (interval-map-set! cmap s e 'irrelevant)
