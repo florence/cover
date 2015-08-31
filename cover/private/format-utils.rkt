@@ -33,7 +33,6 @@
   (define submods (irrelevant-submodules))
   (define file-location-coverage-cache
     (coverage-cache-file key c submods))
-  (local-require racket/dict)
   (lambda (loc)
     (interval-map-ref file-location-coverage-cache loc 'irrelevant)))
 
