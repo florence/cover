@@ -20,7 +20,7 @@ The @exec{raco cover} command accepts the following flags:
          @item{@Flag{d} or @DFlag{directory}
                --- Specifies the directory to output coverage information to.
                defaults to @filepath{coverage}.}
-         @item{@Flag{n} or @DFlag{--no-output-for-path}
+         @item{@Flag{n} or @DFlag{no-output-for-path}
                --- excludes any directories by name from the coverage report.
                Files in these directories are still run, they are just excluded from the
                outputted coverage. This flag may appear any number of times.}
@@ -30,7 +30,7 @@ The @exec{raco cover} command accepts the following flags:
          @item{@Flag{v} or @DFlag{verbose}
                --- enable verbose logging}
          @item{@Flag{s} or @DFlag{submod}
-               --- run the given submodule instead of the test submodule.}
+               --- run the given submodule instead of the @racket[_test] submodule.}
          @item{@Flag{e} or @DFlag{irrelevant-submodules}
                --- Concider the given submodules irrelevant when generating coverage. If not
                provided defaults to all submodules. Can be included more than once.}
@@ -41,7 +41,12 @@ The @exec{raco cover} command accepts the following flags:
                --- Interprets the arguments as packages whose contents should be tested
                (in the same way as directory content). All package scopes are searched
                for the first, most specific
-               @tech[#:doc '(lib "pkg/scribblings/pkg.scrbl")]{package scope}.}]
+               @tech[#:doc '(lib "pkg/scribblings/pkg.scrbl")]{package scope}.}
+         @item{@Flag{m} or @DFlag{modules}
+               --- Interpret arguments as modules. This ignores arguments unless
+               they are files with the extension @filepath{.rkt}, or @filepath{.scrbl}.}
+         @item{@Flag{l} or @DFlag{lib}
+               --- Interpret arguments as libraries.}]
 
 
 In addition @exec{raco cover} supports the @racket[_test-omit-paths] and
