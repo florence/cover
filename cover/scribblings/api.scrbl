@@ -5,6 +5,8 @@
 
 @defmodule[cover #:use-sources (cover)]
 
+@bold{Warning:} The API presented here is unstable, and may change without warning.
+
 In addition to being a raco tool, Cover provides racket bindings for running
 tests and collecting coverage information. The following are the basic
 functions of test coverage.
