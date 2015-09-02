@@ -145,8 +145,9 @@
 (define (srcloc<= locl locr)
   (match-define (srcloc _ _ _ startl rangel) locl)
   (match-define (srcloc _ _ _ startr ranger) locr)
-  (or (<= startl startr)
-      (<= ranger rangel)))
+  (or (< startl startr)
+      (and (= startl startr)
+           (<= ranger rangel))))
 
 ;; String -> (Natural -> Natural)
 ;; used for determining character/byte offsets for a given
@@ -188,4 +189,7 @@
        (check-equal? (covered? 35) 'covered)
        (check-equal? (covered? 52) 'irrelevant)
        (check-equal? (covered? 53) 'irrelevant)
-       (check-equal? (covered? 54) 'irrelevant)))))
+       (check-equal? (covered? 54) 'irrelevant)
+       (check-equal? (covered? 50) 'uncovered)
+       (check-equal? (covered? 78) 'uncovered)
+       (check-equal? (covered? 106) 'uncovered)))))
