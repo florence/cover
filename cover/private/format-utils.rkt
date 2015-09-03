@@ -46,15 +46,15 @@
   (define get-covered (raw-covered c))
 
   (when (path-string? key)
-    (with-input-from-file key
-      (thunk
+    (call-with-input-file key
+      (lambda (input)
        (define lexer
          (maybe-wrap-lexer
           (with-handlers ([exn:fail:read? (const racket-lexer)])
-            (define f (read-language))
+            (define f (read-language input))
             (cond [f (f 'color-lexer racket-lexer)]
                   [else racket-lexer]))))
-       (make-irrelevant! lexer key submods get-covered))))
+       (make-irrelevant! lexer key input submods get-covered))))
 
   get-covered)
 
@@ -67,11 +67,11 @@
         (define-values (a b c d e) (lexer in))
         (values a b c d e 0 #f))))
 
-;; Lexer(in the sence of color:text<%>) InputPort (Maybe (Listof Symbol)) CoverageIntervalMap
+;; Lexer(see color:text<%>) FileName InputPort (Maybe (Listof Symbol)) CoverageIntervalMap
 ;;   -> Void
 ;; builds a function that determines if a given location in that port is irrelivent.
-(define (make-irrelevant! lexer f submods cmap)
-  (define-values (for-lex for-str) (replicate-file-port f (current-input-port)))
+(define (make-irrelevant! lexer f input submods cmap)
+  (define-values (for-lex for-str) (replicate-file-port f input))
   (define str (apply vector (string->list (port->string for-str))))
   (define init-offset (- (string-length (file->string f))
                          (vector-length str)))
