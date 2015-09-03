@@ -1,7 +1,9 @@
 #lang setup/infotab
 
-(define cover-formats '(("html" cover generate-html-coverage)
-                        ("raw" cover generate-raw-coverage)))
+(define cover-formats
+  '(("html" cover generate-html-coverage)
+    ;; Undocumented. Meant for internal/debugging only
+    ("raw" cover generate-raw-coverage)))
 
 (define test-omit-paths (list "tests/error-file.rkt" "scribblings"))
 (define cover-omit-paths (list "tests/nested.rkt" "tests/bfs+module.rkt"))
