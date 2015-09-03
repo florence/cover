@@ -20,6 +20,7 @@
   (require rackunit "../../cover.rkt" racket/runtime-path racket/set "../file-utils.rkt")
   (define-runtime-path root "../..")
   (define-runtime-path tests/basic/prog.rkt "../../tests/basic/prog.rkt")
+  (define-runtime-path tests/basic/not-run.rkt "../../tests/basic/not-run.rkt")
   (define (mock-covered? pos)
     (cond [(<= 1 pos 6) 'covered]
           [(= 6 pos) 'missing]
@@ -144,7 +145,7 @@
 
 (define (file->html path covered?)
   (define file (file->string path))
-  (define lines (string-split file "\n"))
+  (define lines (string-split file "\n" #:trim? #f))
   `(div ([class "lines-wrapper"])
         ,(div:line-numbers (length lines))
         ,(div:file-lines lines covered?)))
@@ -155,11 +156,20 @@
      (define f (path->string (simplify-path tests/basic/prog.rkt)))
      (test-files! f)
      (define covered? (curry (get-test-coverage) f))
-     (define lines (string-split (file->string f) "\n"))
+     (define lines (string-split (file->string f) "\n" #:trim? #f))
      (check-equal? (file->html f covered?)
                    `(div ([class "lines-wrapper"])
                      ,(div:line-numbers (length lines))
-                     ,(div:file-lines lines covered?))))))
+                     ,(div:file-lines lines covered?)))
+   (parameterize ([current-cover-environment (make-cover-environment)])
+    (define f2 (path->string (simplify-path tests/basic/not-run.rkt)))
+    (test-files! f2)
+    (define covered? (curry (get-test-coverage) f2))
+    (define lines (string-split (file->string f2) "\n" #:trim? #f))
+    (check-equal? (file->html f2 covered?)
+                  `(div ([class "lines-wrapper"])
+                    ,(div:line-numbers 4)
+                    ,(div:file-lines lines covered?)))))))
 
 ;; File Report
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
