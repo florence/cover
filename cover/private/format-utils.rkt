@@ -44,6 +44,7 @@
 (define (coverage-cache-file key c submods)
   (vprintf "caching coverage info for ~s\n" key)
   (define get-covered (raw-covered c))
+
   (when (path-string? key)
     (with-input-from-file key
       (thunk
@@ -51,16 +52,14 @@
          (maybe-wrap-lexer
           (with-handlers ([exn:fail:read? (const racket-lexer)])
             (define f (read-language))
-            (if f
-                (f 'color-lexer racket-lexer)
-                racket-lexer))))
+            (cond [f (f 'color-lexer racket-lexer)]
+                  [else racket-lexer]))))
        (make-irrelevant! lexer key submods get-covered))))
+
   get-covered)
 
-;; FileCoverage -> Natural
-(define (biggest c)
-  (apply max (map second c)))
-
+;; There are two variatese of racket lexers
+;; if we are given the one argument kind, wrap it to the three arg kind
 (define (maybe-wrap-lexer lexer)
   (if (procedure-arity-includes? lexer 3)
       lexer
@@ -100,7 +99,6 @@
     (with-input-from-file f
       (thunk (with-module-reading-parameterization read-syntax))))
 
-  (define offset/mod (make-byte->str-offset str))
   (let loop ([stx stx] [first? #t])
     (define (loop* stx) (loop stx #f))
     (syntax-parse stx
@@ -109,12 +107,10 @@
         n:id
         e ...)
        #:when (and (not first?)
-                   (submods
-                    . implies .
-                    (member (syntax-e #'n) submods)))
+                   (implies submods (member (syntax-e #'n) submods)))
        (define ?start (syntax-position stx))
        (when ?start
-         (define start (- ?start (* 2 (offset/mod ?start))))
+         (define start (- ?start (* 2 (offset ?start))))
          (define end (+ start (syntax-span stx)))
          (interval-map-set! cmap start end 'irrelevant))]
       [(e ...) (for-each loop* (syntax->list #'(e ...)))]
@@ -136,10 +132,12 @@
 (define (raw-covered c)
   (define ordered (sort c srcloc<= #:key second))
   (define r (make-interval-map))
+
   (for ([pair (in-list ordered)])
     (match-define (list m (srcloc _ _ _ start range)) pair)
     (define val (if m 'covered 'uncovered))
     (interval-map-set! r start (+ start range) val))
+
   r)
 
 (define (srcloc<= locl locr)
