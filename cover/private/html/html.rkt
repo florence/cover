@@ -44,15 +44,19 @@
     (check-true (file-exists? (build-path temp-dir "tests/basic/prog.html")))))
 
 (define (get-files coverage files dir)
+  (define pref
+    (for/fold ([r (explode-path (current-directory))])
+              ([l (in-list files)])
+      (take-common-prefix r (explode-path l))))
   (define file-list
     (for/list ([k (in-list files)]
                #:when (absolute-path? k))
       (vprintf "building html coverage for: ~a\n" k)
       (define exploded (explode-path k))
       (define-values (_ dir-list)
-        (split-at exploded (length (explode-path (current-directory)))))
+        (split-at exploded (length pref)))
       (define coverage-dir-list
-        (cons dir (take dir-list (sub1 (length dir-list)))))
+        (cons dir (take dir-list (max 0 (sub1 (length dir-list))))))
       (define relative-output-file (path-replace-suffix (last exploded) ".html"))
       (define output-file
         (apply build-path (append coverage-dir-list (list relative-output-file))))
@@ -64,7 +68,13 @@
                         (list "assets/")))))
       (define xexpr (make-html-file coverage k assets-path))
       (list output-file output-dir xexpr)))
-  (define index (generate-index coverage files))
+  (define file/path-mapping
+    (for/hash ([k (in-list files)]
+               [p (in-list file-list)])
+      (values k
+              (path->string
+               (apply build-path (rest (explode-path (first p))))))))
+  (define index (generate-index coverage files file/path-mapping))
   (cons (list (build-path dir "index.html") dir index)
         file-list))
 
@@ -236,9 +246,9 @@
 ;; Index File
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Coverage (Listof PathString) -> Xexpr
+;; Coverage (Listof PathString) (HashoF PathString PathString) -> Xexpr
 ;; Generate the index html page for the given coverage information
-(define (generate-index coverage files)
+(define (generate-index coverage files file/path-mapping)
   (define expression-coverage (expression-coverage/all coverage files))
   `(html
     (head ()
@@ -248,7 +258,7 @@
     (body ()
           (div ([class "report-container"])
                ,(div:total-coverage expression-coverage)
-               ,(table:file-reports expression-coverage)))))
+               ,(table:file-reports expression-coverage file/path-mapping)))))
 
 ;; [Hash FilePath ExpressionInfo] -> Xexpr
 (define (div:total-coverage expr-coverages)
@@ -264,7 +274,7 @@
                             '(div ([class "total-coverage"]) "Total Project Coverage: 50%"))))
 
 ;; [Hash FilePath ExpressionInfo] -> Xexpr
-(define (table:file-reports expr-coverages)
+(define (table:file-reports expr-coverages file/path-mapping)
   `(table ([class "file-list"])
           (thead ()
                  (tr ()
@@ -274,7 +284,8 @@
                      (th ([class "uncovered-expressions"]) "Uncovered Expressions" ,(file-sorter "uncovered-expressions"))
                      (th ([class "total-expressions"]) "Total Expressions" ,(file-sorter "total-expressions"))))
           (tbody ()
-                 ,@(for/list ([(path expr-info) (in-hash expr-coverages)])
+                 ,@(for/list ([(k expr-info) (in-hash expr-coverages)])
+                     (define path (hash-ref file/path-mapping k))
                      (tr:file-report path expr-info)))))
 
 (define (file-sorter class-name)
