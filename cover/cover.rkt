@@ -98,8 +98,7 @@ Thus, In essence this module has three responsibilites:
     (not tests-failed)))
 
 (define-syntax-rule (with-cover-loggers e ...)
-  (with-intercepted-logging/receiver
-      (cover-give-file-mapping (format-symbol "~a~a" (get-topic) 'cover-internal-send-vector-mapping))
+  (with-intercepted-logging/receiver (cover-give-file-mapping)
     (lambda () e ...)
     (make-log-receiver
      (current-logger)
@@ -107,12 +106,14 @@ Thus, In essence this module has three responsibilites:
      (format-symbol "~a~a" (get-topic) 'cover-internal-request-vector-mapping))))
 
 ;; we dont care what the msg content is, just send the vector back
-(define ((cover-give-file-mapping topic) _)
-  (log-message (current-logger)
-               'info
-               topic
-               ""
-               (get-coverage-vector-mapping)))
+(define (cover-give-file-mapping)
+  (define topic (format-symbol "~a~a" (get-topic) 'cover-internal-send-vector-mapping))
+  (lambda (_)
+    (log-message (current-logger)
+                 'info
+                 topic
+                 ""
+                 (get-coverage-vector-mapping))))
 
 ;;; ---------------------- Running Aux ---------------------------------
 

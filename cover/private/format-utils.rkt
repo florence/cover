@@ -71,20 +71,25 @@
 ;;   -> Void
 ;; builds a function that determines if a given location in that port is irrelivent.
 (define (make-irrelevant! lexer f input submods cmap)
-  (define-values (for-lex for-str) (replicate-file-port f input))
-  (define str (apply vector (string->list (port->string for-str))))
-  (define init-offset (- (string-length (file->string f))
-                         (vector-length str)))
-
+  (define str (port->string input))
+  (define full-str (file->string f))
   (define offset (make-byte->str-offset str))
 
-  ;; first do comments
+  (lex-irrelevant! lexer full-str str offset cmap)
+  (submod-irrelevant! full-str submods offset cmap))
+
+;; Lexer String String (-> Natural Natural) Interval-Map -> Void
+;; make comments irrelevant
+(define (lex-irrelevant! lexer fstr str offset cmap)
+  (define init-offset (- (string-length fstr) (string-length str)))
+  (define for-lex (open-input-string str))
   (let loop ([mode #f])
     (define-values (v type _m start end backup-dist new-mode/ds)
       (lexer for-lex 0 mode))
-    (define new-mode (if (dont-stop? new-mode/ds)
-                         (dont-stop-val new-mode/ds)
-                         new-mode/ds))
+    (define new-mode
+      (if (dont-stop? new-mode/ds)
+          (dont-stop-val new-mode/ds)
+          new-mode/ds))
     (case type
       [(eof) (void)]
       [(comment sexp-comment white-space)
@@ -92,11 +97,13 @@
        (define e (+ init-offset (- end (offset end))))
        (interval-map-set! cmap s e 'irrelevant)
        (loop new-mode)]
-      [else (loop new-mode)]))
+      [else (loop new-mode)])))
 
-  ;; then do submodules
+;; String (Maybe (Listof Symbol)) (-> Natural Natural) Interval-Map -> Void
+;; make listed submodules irrelevant
+(define (submod-irrelevant! str submods offset cmap)
   (define stx
-    (with-input-from-file f
+    (with-input-from-string str
       (thunk (with-module-reading-parameterization read-syntax))))
 
   (let loop ([stx stx] [first? #t])
@@ -116,15 +123,6 @@
       [(e ...) (for-each loop* (syntax->list #'(e ...)))]
       [_else (void)])))
 
-;; Path FilePort -> FilePort FilePort
-;; creates two ports to that file at the same position at the first
-(define (replicate-file-port f p)
-  (define f1 (open-input-file f))
-  (define f2 (open-input-file f))
-  (file-position f1 (file-position p))
-  (file-position f2 (file-position p))
-  (values f1 f2))
-
 ;; Coverage -> (IntervalMap (U 'covered 'uncovered 'irrelevant))
 ;; create map for looking up coverage information. irrelevant if its not contained
 ;; this code assumes that if two expression ranges overlap, then one is completely
@@ -140,6 +138,8 @@
 
   r)
 
+;; srcloc srcloc -> bool
+;; based on start pos, with fallback to range
 (define (srcloc<= locl locr)
   (match-define (srcloc _ _ _ startl rangel) locl)
   (match-define (srcloc _ _ _ startr ranger) locr)
@@ -153,9 +153,9 @@
 (define (make-byte->str-offset str)
   (define lmapping
     (let loop ([s 0] [b 0] [acc null])
-      (cond [(>= s (vector-length str)) acc]
+      (cond [(>= s (string-length str)) acc]
             [else
-             (define l (char-utf-8-length (vector-ref str s)))
+             (define l (char-utf-8-length (string-ref str s)))
              (define adds (build-list l (const (- b s))))
              (loop (add1 s) (+ b l) (append adds acc))])))
   (define mapping (list->vector (reverse lmapping)))
