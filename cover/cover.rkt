@@ -43,7 +43,6 @@ Thus, In essence this module has three responsibilites:
          racket/path
          racket/syntax
          rackunit/log
-         unstable/error
          racket/list
          racket/port
          custom-load
@@ -146,7 +145,11 @@ Thus, In essence this module has three responsibilites:
                             (vprintf "file ~s exited code ~s" the-file (an-exit-code x))]
                            [else
                             (set! tests-errored #t)
-                            (error-display x)]))])
+                            ((error-display-handler)
+                             (if (exn? x)
+                                 (exn-message x)
+                                 "non-exn error:")
+                             x)]))])
     (parameterize ([current-command-line-arguments argv]
                    [exit-handler (lambda (x) (raise (an-exit x)))])
       (vprintf "running file: ~s with args: ~s" the-file argv)
