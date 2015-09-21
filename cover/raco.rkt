@@ -4,7 +4,6 @@
          racket/match
          racket/contract/base
          racket/function
-         compiler/module-suffix
          "main.rkt"
          (only-in "private/contracts.rkt" coverage-gen/c)
          "private/shared.rkt"
@@ -106,8 +105,6 @@
     'debug
     'cover))
 
-(define extensions '(#rx"\\.rkt$" #rx"\\.ss$" #rx"\\.scrbl"))
-
 (define (expand-lib files [exts null])
   (define (find x)
     (define rmp ((current-module-name-resolver) x #f #f #f))
@@ -131,6 +128,15 @@
     [(_ [id:id e] b ...)
      #'(let ([id e])
          (and id (maybe b ...)))]))
+
+(define extensions #px#"^(.*)\\.(?i:rkt|scm|scrbl|ss)$")
+(define get-module-suffix-regexp
+  (with-handlers ([(lambda (e) (or (exn:fail:filesystem? e)
+                                   (exn:fail:contract? e)))
+                   (const (const extensions))])
+    (dynamic-require 'compiler/module-suffix
+                     'get-module-suffix-regexp)))
+
 (define (filter-exts files [exts null])
   (for/list ([f files]
              #:when (maybe [ext? (filename-extension f)]
@@ -152,7 +158,7 @@
                            (if (absolute-path? f)
                                f
                                (build-path (current-directory) f))])
-             (expand-directory (append extensions comped)))))))
+             (expand-directory (cons extensions comped)))))))
   (let loop ([paths paths+vectors])
     (match paths
       [(list) null]
@@ -213,12 +219,12 @@
   (define-runtime-path cur ".")
   (parameterize ([current-directory (build-path cur "tests/basic")])
     (check-equal? (list->set (map (compose path->string ->relative)
-                                  (flatten (expand-directory extensions))))
+                                  (flatten (expand-directory (list extensions)))))
                   (set "prog.rkt"
                        "not-run.rkt")))
   (parameterize ([current-directory cur])
     (define omit (map ->absolute (get-info-var cur 'test-omit-paths)))
-    (define dirs (map ->absolute (filter list? (flatten (expand-directory extensions)))))
+    (define dirs (map ->absolute (filter list? (flatten (expand-directory (list extensions))))))
     (for ([o omit])
       (check-false (member o dirs)
                    (format "~s ~s" o dirs)))))
