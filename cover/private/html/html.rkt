@@ -307,17 +307,17 @@
           (tbody ()
                  ,@(for/list ([(k expr-info) (in-hash expr-coverages)])
                      (define path (hash-ref file/path-mapping k))
-                     (tr:file-report path expr-info)))))
+                     (tr:file-report k path expr-info)))))
 
 (define (file-sorter class-name)
   `(div ([class "sort-icon-up"])))
 
-;; PathString ExpressionInfo -> Xexpr
+;; PathString PathString ExpressionInfo -> Xexpr
 ;; create a div that holds a link to the file report and expression
 ;; coverage information
-(define (tr:file-report path expr-coverage-info)
+(define (tr:file-report name path expr-coverage-info)
   (define local-file
-    (path->string (find-relative-path (current-directory) (string->path path))))
+    (path->string (find-relative-path (current-directory) (string->path name))))
   (define covered (first expr-coverage-info))
   (define total (second expr-coverage-info))
   (define percentage (* 100 (/ covered total)))
@@ -330,14 +330,14 @@
        (td ([class "total-expressions"]) ,(~r total #:precision 2))))
 
 (module+ test
-  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 0 1))
+  (test-begin (check-equal? (tr:file-report "foo.rkt" "foo.html" (list 0 1))
                             '(tr ((class "file-info"))
                                   (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
                                   (td ([class "coverage-percentage"]) "0")
                                   (td ([class "covered-expressions"]) "0")
                                   (td ([class "uncovered-expressions"]) "1")
                                   (td ([class "total-expressions"]) "1"))))
-  (test-begin (check-equal? (tr:file-report "foo.rkt" (list 10 10))
+  (test-begin (check-equal? (tr:file-report "foo.rkt" "foo.html" (list 10 10))
                             '(tr ((class "file-info"))
                                   (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
                                   (td ([class "coverage-percentage"]) "100")
