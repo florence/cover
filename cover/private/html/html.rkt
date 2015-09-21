@@ -323,7 +323,7 @@
   (define percentage (* 100 (/ covered total)))
   (define styles `([class "file-info"]))
   `(tr ,styles
-       (td ([class "file-name"]) (a ([href ,(coverage-report-link path)]) ,local-file))
+       (td ([class "file-name"]) (a ([href ,path]) ,local-file))
        (td ([class "coverage-percentage"]) ,(~r percentage #:precision 2))
        (td ([class "covered-expressions"]) ,(~r covered #:precision 2))
        (td ([class "uncovered-expressions"]) ,(~r (- total covered) #:precision 2))
@@ -344,17 +344,6 @@
                                   (td ([class "covered-expressions"]) "10")
                                   (td ([class "uncovered-expressions"]) "0")
                                   (td ([class "total-expressions"]) "10")))))
-
-;; Path -> String
-;; Generate a link to the coverage report
-(define (coverage-report-link path)
-  (define local-file (find-relative-path (current-directory) path))
-  (path->string (path-replace-suffix local-file ".html")))
-
-(module+ test
-  (test-begin
-   (check-equal? (coverage-report-link "format-utils.rkt")
-                 "format-utils.html")))
 
 ;; Percentage
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
