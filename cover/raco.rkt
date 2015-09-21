@@ -4,6 +4,7 @@
          racket/match
          racket/contract/base
          racket/function
+         compiler/module-suffix
          "main.rkt"
          (only-in "private/contracts.rkt" coverage-gen/c)
          "private/shared.rkt"
@@ -134,14 +135,12 @@
   (for/list ([f files]
              #:when (maybe [ext? (filename-extension f)]
                            [ext (bytes->string/locale ext?)]
-                           [res (ormap (curryr regexp-match? (string-append "." ext))
-                                       extensions)]))
+                           [res (regexp-match (get-module-suffix-regexp) (string-append "." ext))]))
     f))
 (module+ test
-  (check-equal? (filter-exts '("a.rkt" "b.rkt" "c/d/e.scrbl" "a/b/c" "a/b.pop"))
+  (check-equal? (filter-exts '("a.rkt" "b.rkt" "c/d/e.scrbl" "a/b/c" "a/b.qqq"))
                 '("a.rkt" "b.rkt" "c/d/e.scrbl")))
 
-;; TODO allow for arbitrary extensions
 (define (expand-directories files [exts null])
   (define comped (map regexp exts))
   (define paths+vectors
@@ -230,7 +229,8 @@
 
 (define (get-new-incs)
   (append (get-omits/incs 'test-include-paths)
-          (get-omits/incs 'cover-include-paths)))
+          (get-omits/incs 'cover-include-paths)
+          (get-omits/incs 'module-suffixes)))
 
 (define (get-omits/incs s)
   (define new-omits (get-info-var (current-directory) s))
