@@ -243,7 +243,10 @@
   (case new-omits
     [(#f) null]
     [(all) (->absolute (current-directory))]
-    [else (map (lambda (x) (if (regexp? x) x (->absolute x)))
+    [else (map (lambda (x)
+                 (cond [(regexp? x) x]
+                       [(bytes? x) (regexp (bytes->string/locale x))]
+                       [else (->absolute x)]))
                new-omits)]))
 
 (define (path-add-argv path argvs)
