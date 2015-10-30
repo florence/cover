@@ -99,7 +99,12 @@
       (define coverage (get-test-coverage))
       (printf "dumping coverage info into ~s\n" coverage-dir)
       (parameterize ([irrelevant-submodules irrel-submods])
-        (generate-coverage coverage cleaned-files coverage-dir))
+        (generate-coverage coverage
+                           (for/list ([f cleaned-files])
+                             (cond
+                               [(path? f) (path->string f)]
+                               [else f]))
+                           coverage-dir))
       (unless passed
         (printf "some tests failed\n")))
     'debug
