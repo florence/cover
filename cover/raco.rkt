@@ -44,7 +44,7 @@
        (set! verbose #t)]
       [("-b" "--exclude-pkg-basics")
         "exclude info.rkt, the tests directory, and the scribblings directory from the coverage report"
-        (set! exclude-paths (append '("info.rkt" "tests" "scribblings") exclude-paths))]
+        (set! exclude-paths (list* "info.rkt" "tests" "scribblings" exclude-paths))]
       #:multi
       [("-n" "--no-output-for-path") t
        "exclude any paths named this from the coverage report."
@@ -90,13 +90,13 @@
           [(package) (lambda (a b)
                        (expand-directories (map pkg-directory a) b))]))
       (define files (path-expand args include-exts))
+      (define cleaned-files (remove-excluded-paths files exclude-paths))
       (define generate-coverage
         (hash-ref (get-formats) output-format
                   (lambda _ (error 'cover "given unknown coverage output format: ~s" output-format))))
-      (printf "generating test coverage for ~s\n" files)
+      (printf "generating test coverage for ~s\n" cleaned-files)
       (define passed (apply test-files! #:submod submod files))
       (define coverage (get-test-coverage))
-      (define cleaned-files (remove-excluded-paths files exclude-paths))
       (printf "dumping coverage info into ~s\n" coverage-dir)
       (parameterize ([irrelevant-submodules irrel-submods])
         (generate-coverage coverage cleaned-files coverage-dir))
