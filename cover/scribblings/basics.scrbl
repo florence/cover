@@ -22,8 +22,8 @@ The @exec{raco cover} command accepts the following flags:
                defaults to @filepath{coverage}.}
          @item{@Flag{n} or @DFlag{no-output-for-path}
                --- excludes any directories by name from the coverage report.
-               Files in these directories are still run, they are just excluded from the
-               outputted coverage. This flag may appear any number of times.}
+               Files in these directories are still run, but are not annotated and omitted from the coverage
+               report. This flag may appear any number of times.}
          @item{@Flag{i} or @DFlag{include-extensions}
                --- include the given regular expression in the list of file patterns
                    used when expanding directories, searching for files to cover.}
