@@ -11,7 +11,8 @@
   [coverage/c contract?]
 
   [test-files! (->* () (#:submod symbol?
-                        #:env environment?)
+                        #:env environment?
+                        #:dont-compile (listof path-string?))
                     #:rest
                     (listof (or/c path-string?
                                   (list/c path-string?

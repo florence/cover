@@ -70,7 +70,9 @@ Thus, In essence this module has three responsibilites:
 
 ;; Test files and build coverage map
 ;; returns true if no tests reported as failed, and no files errored.
-(define (test-files! #:submod [submod-name 'test] #:env [env (current-cover-environment)] . files)
+(define (test-files! #:submod [submod-name 'test] #:env [env (current-cover-environment)]
+                     #:dont-compile [dont-compile null]
+                     . files)
   (parameterize ([current-cover-environment env])
     (define abs
       (for/list ([p (in-list files)])
@@ -82,15 +84,18 @@ Thus, In essence this module has three responsibilites:
         (match p
           [(cons p _) p]
           [_ p])))
+    (define excludes (map ->absolute dont-compile))
     (define cover-load/use-compiled (make-cover-load/use-compiled abs-names))
     (define tests-failed
       (parameterize* ([current-load/use-compiled cover-load/use-compiled]
                       [current-namespace (get-namespace)])
         (with-cover-loggers
-          (for ([f (in-list abs-names)])
-            (vprintf "forcing compilation of ~a" f)
+          (for ([f (in-list abs-names)]
+                #:unless (member f excludes))
+            (printf "cover: instrumenting: ~a\n" f)
             (compile-file f))
           (for/fold ([tests-failed #f]) ([f (in-list abs)])
+            (printf "cover: running file: ~a\n" f)
             (define failed? (handle-file f submod-name))
             (or failed? tests-failed)))))
     (vprintf "ran ~s\n" files)

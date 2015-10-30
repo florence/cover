@@ -94,8 +94,10 @@
       (define generate-coverage
         (hash-ref (get-formats) output-format
                   (lambda _ (error 'cover "given unknown coverage output format: ~s" output-format))))
-      (printf "generating test coverage for ~s\n" cleaned-files)
-      (define passed (apply test-files! #:submod submod files))
+      (define passed (apply test-files!
+                            #:submod submod
+                            #:dont-compile exclude-paths
+                            files))
       (define coverage (get-test-coverage))
       (printf "dumping coverage info into ~s\n" coverage-dir)
       (parameterize ([irrelevant-submodules irrel-submods])
