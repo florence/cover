@@ -32,7 +32,7 @@ The @exec{raco cover} command accepts the following flags:
          @item{@Flag{s} or @DFlag{submod}
                --- run the given submodule instead of the @racket[_test] submodule.}
          @item{@Flag{e} or @DFlag{irrelevant-submodules}
-               --- Concider the given submodules irrelevant when generating coverage. If not
+               --- Consider the given submodules irrelevant when generating coverage. If not
                provided defaults to all submodules. Can be included more than once.}
          @item{@Flag{c} or @DFlag{collection}
                --- Interprets the arguments as collections whose content should be
@@ -71,5 +71,5 @@ propagate the @racket[syntax-location] for some syntax object, the coverage info
 to be incorrect. For example, the @racket[for] loops will always have their variable binding
 positions marked as uncovered, unless the for clause binds only one variable and uses one of the
 special sequence forms like @racket[in-list]. Another common instance of this is that
-@racket[provide]s in @seclink["top" #:doc '(lib "typed-racket/scribblings/ts-guide.scrbl")
-"typed/racket"].
+@racket[provide]d identifiers in @seclink["top" #:doc
+ '(lib "typed-racket/scribblings/ts-guide.scrbl") "typed/racket"] are marked as uncovered.
