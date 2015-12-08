@@ -56,7 +56,7 @@
        "Run the given submodule instead of the test submodule"
        (set! submod (string->symbol s))]
       [("-e" "--irrelevant-submodules") s
-       "Concider the given submodules irrelevant when generating coverage. If not provided defaults to all submodules."
+       "Consider the given submodules irrelevant when generating coverage. If not provided defaults to all submodules."
        (unless irrel-submods
          (set! irrel-submods null))
        (set! irrel-submods (cons (string->symbol s) irrel-submods))]
