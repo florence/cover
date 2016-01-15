@@ -10,7 +10,7 @@
  (contract-out
   [coverage/c contract?]
 
-  [test-files! (->* () (#:submod symbol?
+  [test-files! (->* () (#:submod (or/c symbol? (listof symbol?))
                         #:env environment?
                         #:dont-compile (listof path-string?))
                     #:rest

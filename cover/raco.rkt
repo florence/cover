@@ -24,7 +24,7 @@
   (define output-format "html")
   (define exclude-paths '())
   (define include-exts '())
-  (define submod 'test)
+  (define submods 'test)
   (define expansion-type 'dir)
   (define irrel-submods #f)
   (define verbose #f)
@@ -53,8 +53,8 @@
        "include these extensions in files to cover. Accepts regular expressions"
        (set! include-exts (cons f include-exts))]
       [("-s" "--submodule") s
-       "Run the given submodule instead of the test submodule"
-       (set! submod (string->symbol s))]
+       "Run the given submodule instead of the test submodule."
+       (set! submods (cons (string->symbol s) (if (symbol? submods) '() submods)))]
       [("-e" "--irrelevant-submodules") s
        "Consider the given submodules irrelevant when generating coverage. If not provided defaults to all submodules."
        (unless irrel-submods
@@ -95,7 +95,7 @@
         (hash-ref (get-formats) output-format
                   (lambda _ (error 'cover "given unknown coverage output format: ~s" output-format))))
       (define passed (apply test-files!
-                            #:submod submod
+                            #:submod submods
                             #:dont-compile exclude-paths
                             files))
       (define coverage (get-test-coverage))
