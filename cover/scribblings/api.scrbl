@@ -25,14 +25,14 @@ reading it. Typically this is the @racket[string?] for of the absolute path of t
 
 The character locations are @racket[1] indexed.
 
-@defproc[(test-files! (#:submod submod symbol? 'test)
+@defproc[(test-files! (#:submod submod (or/c symbol? (listof symbol?)) 'test)
                       (files
                         (or/c path-string?
                               (list/c path-string?
                                        (vectorof string? #:immutable #t)))) ...)
                       any]{
 
-Runs all given @racket[files] and their submodule @racket[submod] (if it exists), storing the
+Runs all given @racket[files] and each submodule @racket[submod] (if it exists), storing the
 coverage information.  If the path is paired with a vector then that vector is used as the
 @racket[current-command-line-arguments] when executing that file. This vector must be immutable and
 not wrapped by a @racket[chaperone?] or @racket[impersonator?], nor may its elements be wrapped in a

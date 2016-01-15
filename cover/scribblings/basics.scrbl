@@ -29,8 +29,9 @@ The @exec{raco cover} command accepts the following flags:
                    used when expanding directories, searching for files to cover.}
          @item{@Flag{v} or @DFlag{verbose}
                --- enable verbose logging}
-         @item{@Flag{s} or @DFlag{submod}
-               --- run the given submodule instead of the @racket[_test] submodule.}
+         @item{@Flag{s} or @DFlag{submodule}
+               --- run the given submodule instead of the @racket[_test] submodule. Can be
+               included more than once.}
          @item{@Flag{e} or @DFlag{irrelevant-submodules}
                --- Concider the given submodules irrelevant when generating coverage. If not
                provided defaults to all submodules. Can be included more than once.}

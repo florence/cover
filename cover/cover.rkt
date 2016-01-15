@@ -70,7 +70,7 @@ Thus, In essence this module has three responsibilites:
 
 ;; Test files and build coverage map
 ;; returns true if no tests reported as failed, and no files errored.
-(define (test-files! #:submod [submod-name 'test] #:env [env (current-cover-environment)]
+(define (test-files! #:submod [submod-names 'test] #:env [env (current-cover-environment)]
                      #:dont-compile [dont-compile null]
                      . files)
   (parameterize ([current-cover-environment env])
@@ -94,7 +94,11 @@ Thus, In essence this module has three responsibilites:
                 #:unless (member f excludes))
             (printf "cover: instrumenting: ~a\n" f)
             (compile-file f))
-          (for/fold ([tests-failed #f]) ([f (in-list abs)])
+          (for*/fold ([tests-failed #f])
+                     ([f (in-list abs)]
+                      [submod-name (in-list (if (symbol? submod-names)
+                                                (list submod-names)
+                                                submod-names))])
             (printf "cover: running file: ~a\n" f)
             (define failed? (handle-file f submod-name))
             (or failed? tests-failed)))))
