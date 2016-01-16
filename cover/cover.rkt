@@ -96,9 +96,9 @@ Thus, In essence this module has three responsibilites:
             (compile-file f))
           (for*/fold ([tests-failed #f])
                      ([f (in-list abs)]
-                      [submod-name (in-list (if (symbol? submod-names)
-                                                (list submod-names)
-                                                submod-names))])
+                      [submod-name (in-list (if (list? submod-names)
+                                                submod-names
+                                                (list submod-names)))])
             (printf "cover: running file: ~a\n" f)
             (define failed? (handle-file f submod-name))
             (or failed? tests-failed)))))
