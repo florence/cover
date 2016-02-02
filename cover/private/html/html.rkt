@@ -73,7 +73,7 @@
                [p (in-list file-list)])
       (values k
               (path->string
-               (apply build-path (rest (explode-path (first p))))))))
+               (find-relative-path dir (first p))))))
   (define index (generate-index coverage files file/path-mapping))
   (cons (list (build-path dir "index.html") dir index)
         file-list))
