@@ -10,8 +10,7 @@ You can also create your own coverage formats.
 
 ## How to install
 
-Install via `raco pkg install cover`. To install for development, checkout the repository, `cd` into
-the new directory and run `raco pkg install`.
+Install via `raco pkg install cover`, or from the `"File" -> "Install Package..."` menu in DrRacket.
 
 ## Basic Usage
 
