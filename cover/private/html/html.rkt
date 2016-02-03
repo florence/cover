@@ -210,33 +210,36 @@
 (define (div:line-numbers line-count)
   `(div ([class "line-numbers"])
         ,@(for/list ([num (in-range 1 (add1 line-count))])
-            `(div () ,(number->string num)))))
+            (let ([str-num (number->string num)])
+              `(div () (a ([href ,(string-append "#" str-num)]) ,str-num))))))
 
 (module+ test
   (check-equal?
    (div:line-numbers 5)
    `(div ([class "line-numbers"])
-         ,@(build-list 5 (λ (n) `(div () ,(number->string (add1 n))))))))
+         ,@(build-list 5 (λ (n) `(div () (a ([href ,(format "#~a" (add1 n))])
+                                            ,(number->string (add1 n)))))))))
 
 ;; [List String] Covered? -> Xexpr
 (define (div:file-lines file-lines covered?)
-  (define-values (line-divs _)
-    (for/fold ([lines '()] [pos 1]) ([line (in-list file-lines)])
-      (values (cons (div:file-line line pos covered?) lines)
-              (add1 (+ pos (string-length line))))))
+  (define-values (line-divs _1 _2)
+    (for/fold ([lines '()] [pos 1] [line-number 1]) ([line (in-list file-lines)])
+      (values (cons (div:file-line line pos covered? line-number) lines)
+              (add1 (+ pos (string-length line)))
+              (add1 line-number))))
   `(div ([class "file-lines"]) ,@(reverse line-divs)))
 
 (module+ test
   (define lines '("hello world" "goodbye"))
   (check-equal? (div:file-lines lines mock-covered?)
                 `(div ([class "file-lines"])
-                      ,(div:file-line (first lines) 1 mock-covered?)
-                      ,(div:file-line (second lines) 12 mock-covered?))))
+                      ,(div:file-line (first lines) 1 mock-covered? 1)
+                      ,(div:file-line (second lines) 12 mock-covered? 2))))
 
 ;; String Nat Covered? -> Xexpr
 ;; Build a single line into an Xexpr
-(define (div:file-line line pos covered?)
-  (cond [(zero? (string-length line)) '(br ())]
+(define (div:file-line line pos covered? line-number)
+  (cond [(zero? (string-length line)) `(br ([id ,(number->string line-number)]))]
         [else
          (define (build-span str type) `(span ([class ,(symbol->string type)]) ,str))
          (define (add-expr cover-type expr cover-exprs)
@@ -255,12 +258,13 @@
                    [else
                     (define new-expr (add-expr current-cover-type expr/acc covered-exp))
                     (values new-expr (string c) (covered? (+ pos offset)))])))
-         `(div ([class "line"]) ,@(reverse (add-expr coverage-type acc/str xexpr)))]))
+         `(div ([class "line"] [id ,(number->string line-number)])
+               ,@(reverse (add-expr coverage-type acc/str xexpr)))]))
 
 (module+ test
-  (check-equal? (div:file-line "" 1 mock-covered?) '(br ()))
-  (check-equal? (div:file-line "hello world" 1 mock-covered?)
-                '(div ([class "line"]) (span ([class "covered"]) "hello")
+  (check-equal? (div:file-line "" 1 mock-covered? 999) '(br ([id "999"])))
+  (check-equal? (div:file-line "hello world" 1 mock-covered? 2)
+                '(div ([class "line"] [id "2"]) (span ([class "covered"]) "hello")
                       nbsp
                       (span ([class "uncovered"]) "world"))))
 

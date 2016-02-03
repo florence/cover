@@ -38,7 +38,7 @@ td a, td a:visited {
   color: #07A;
 }
 
-tr.stripe {
+tr.stripe, :target {
   background-color: #F5F5EC;
 }
 
@@ -57,6 +57,16 @@ div.line-numbers {
   display: table-cell;
   padding-right: 1em;
   text-align: right;
+}
+
+.line-numbers a {
+  color: black;
+  text-decoration: none;
+}
+
+.line-numbers a:hover {
+  color: blue;
+  text-decoration: underline;
 }
 
 div.file-lines {
