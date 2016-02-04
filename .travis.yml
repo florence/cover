@@ -23,4 +23,6 @@ install:
 
 script:
  - raco test -Q $TRAVIS_BUILD_DIR
+
+after_success:
  - raco cover -f coveralls -d $TRAVIS_BUILD_DIR/coverage -b $TRAVIS_BUILD_DIR
