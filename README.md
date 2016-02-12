@@ -5,8 +5,8 @@
 [![Stories in Ready](https://badge.waffle.io/florence/cover.png?label=ready&title=Ready)](https://waffle.io/florence/cover)
 
 This library is an extensible code coverage tool for racket. It comes with the ability to generate
-HTML reports, and has extensions to submit coverage reports to [Coveralls](https://coveralls.io/).
-You can also create your own coverage formats.
+HTML reports, and has extensions to submit coverage reports to [Codecov](https://codecov.io/) and
+[Coveralls](https://coveralls.io/).  You can also create your own coverage formats.
 
 ## How to install
 
@@ -33,6 +33,9 @@ Code coverage can be generated in a different format by specifying the `-f <form
 
 The only built in format is `html` simply generates html files for each source file containing
 coverage information and highlighted source code. This is the default.
+
+If you would like to use Cover with [Codecov](https://codecov.io/) see
+[cover-codecov](https://github.com/rpless/cover-codecov)
 
 If you would like to use Cover with [Coveralls](https://coveralls.io/) see
 [cover-coveralls](https://github.com/rpless/cover-coveralls).
