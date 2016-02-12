@@ -1,6 +1,6 @@
 # Cover
 [![Build Status](https://img.shields.io/travis/florence/cover/master.svg)](https://travis-ci.org/florence/cover)
-[![Coverage Status](https://img.shields.io/coveralls/florence/cover/master.svg)](https://coveralls.io/r/florence/cover?branch=master)
+[![Coverage Status](https://codecov.io/github/florence/cover/coverage.svg?branch=master)](https://codecov.io/github/florence/cover?branch=master)
 [![Scribble](https://img.shields.io/badge/Docs-Scribble-blue.svg)](http://pkg-build.racket-lang.org/doc/cover/index.html)
 [![Stories in Ready](https://badge.waffle.io/florence/cover.png?label=ready&title=Ready)](https://waffle.io/florence/cover)
 

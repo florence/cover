@@ -19,10 +19,10 @@ before_install:
 
 install:
   - raco pkg install --deps search-auto $TRAVIS_BUILD_DIR
-  - raco pkg install cover-coveralls
+  - raco pkg install cover-codecov
 
 script:
  - raco test -Q $TRAVIS_BUILD_DIR
 
 after_success:
- - raco cover -f coveralls -d $TRAVIS_BUILD_DIR/coverage -b $TRAVIS_BUILD_DIR
+ - raco cover -f codecov -d $TRAVIS_BUILD_DIR/coverage -b $TRAVIS_BUILD_DIR
