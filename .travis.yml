@@ -7,6 +7,8 @@ env:
     - RACKET_VERSION=6.1.1
     - RACKET_VERSION=6.2
     - RACKET_VERSION=6.2.1
+    - RACKET_VERSION=6.3
+    - RACKET_VERSION=6.4
     - RACKET_VERSION=HEAD
     
 matrix:
@@ -22,7 +24,7 @@ install:
   - raco pkg install cover-codecov
 
 script:
- - raco test -Q $TRAVIS_BUILD_DIR
+ - raco test $TRAVIS_BUILD_DIR
 
 after_success:
  - raco cover -f codecov -d $TRAVIS_BUILD_DIR/coverage -b $TRAVIS_BUILD_DIR
