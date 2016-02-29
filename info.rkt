@@ -10,4 +10,5 @@
 
 (define build-deps
   '("racket-doc" "scribble-lib" "typed-racket-doc" "htdp-lib"
-    "net-doc" "scribble-doc" "at-exp-lib" "scheme-lib"))
+    "net-doc" "scribble-doc" "at-exp-lib" "scheme-lib" "typed-racket-lib"
+    "macro-debugger"))

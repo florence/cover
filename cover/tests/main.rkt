@@ -54,7 +54,7 @@
          (cons a (ranges->numbers (cons (list (add1 a) b) r))))]))
 
 (module+ test
-  (define-runtime-path-list test-dirs '("basic" "simple-multi" "syntax" "at-exp"))
+  (define-runtime-path-list test-dirs '("basic" "simple-multi" "syntax" "at-exp" "multibyte-coverage"))
   (for-each (compose test-dir path->string) test-dirs)
   (define-runtime-path submods "submods")
   (parameterize ([irrelevant-submodules null])

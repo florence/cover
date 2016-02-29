@@ -102,6 +102,7 @@
 ;; String (Maybe (Listof Symbol)) (-> Natural Natural) Interval-Map -> Void
 ;; make listed submodules irrelevant
 (define (submod-irrelevant! str submods offset cmap)
+  ;; stx positions are in terms of bytes
   (define stx
     (with-input-from-string str
       (thunk (with-module-reading-parameterization read-syntax))))
@@ -118,7 +119,8 @@
        (define ?start (syntax-position stx))
        (when ?start
          (define start (- ?start (* 2 (offset ?start))))
-         (define end (+ start (syntax-span stx)))
+         (define end* (+ ?start (syntax-span stx)))
+         (define end (- end* (* 2 (offset end*))))
          (interval-map-set! cmap start end 'irrelevant))]
       [(e ...) (for-each loop* (syntax->list #'(e ...)))]
       [_else (void)])))
