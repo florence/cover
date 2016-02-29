@@ -54,11 +54,12 @@
          (cons a (ranges->numbers (cons (list (add1 a) b) r))))]))
 
 (module+ test
+  (require (for-syntax version/utils) version/utils)
   (define-runtime-path-list test-dirs (list* "basic" "simple-multi" "syntax" "at-exp"
                                              ;; submodules don't work prior to this version!
                                              (if (version<=? (version) "6.2.900")
                                                  null
-                                                 "multibyte-coverage")))
+                                                 (list "multibyte-coverage"))))
   (for-each (compose test-dir path->string) test-dirs)
   (define-runtime-path submods "submods")
   (parameterize ([irrelevant-submodules null])
