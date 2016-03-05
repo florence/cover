@@ -38,25 +38,27 @@
 
 ;; (or/c #f (listof symbol))
 (define irrelevant-submodules (make-parameter #f))
+(define current-file (make-parameter #f))
 
 ;; Path FileCoverage -> [Hashof Natural Cover]
 ;; build a hash caching coverage info for that file
 (define (coverage-cache-file key c submods)
-  (vprintf "caching coverage info for ~s\n" key)
-  (define get-covered (raw-covered c))
+  (parameterize ([current-file key] [port-count-lines-enabled #f])
+    (vprintf "caching coverage info for ~s\n" key)
+    (define get-covered (raw-covered c))
 
-  (when (path-string? key)
-    (call-with-input-file key
-      (lambda (input)
-       (define lexer
-         (maybe-wrap-lexer
-          (with-handlers ([exn:fail:read? (const racket-lexer)])
-            (define f (read-language input))
-            (cond [f (f 'color-lexer racket-lexer)]
-                  [else racket-lexer]))))
-       (make-irrelevant! lexer key input submods get-covered))))
+    (when (path-string? key)
+      (call-with-input-file key
+        (lambda (input)
+          (define lexer
+            (maybe-wrap-lexer
+             (with-handlers ([exn:fail:read? (const racket-lexer)])
+               (define f (read-language input))
+               (cond [f (f 'color-lexer racket-lexer)]
+                     [else racket-lexer]))))
+          (make-irrelevant! lexer key input submods get-covered))))
 
-  get-covered)
+    get-covered))
 
 ;; There are two variatese of racket lexers
 ;; if we are given the one argument kind, wrap it to the three arg kind
@@ -83,6 +85,7 @@
 (define (lex-irrelevant! lexer fstr str offset cmap)
   (define init-offset (- (string-length fstr) (string-length str)))
   (define for-lex (open-input-string str))
+
   (let loop ([mode #f])
     (define-values (v type _m start end backup-dist new-mode/ds)
       (lexer for-lex 0 mode))
@@ -95,7 +98,7 @@
       [(comment sexp-comment white-space)
        (define s (+ init-offset (- start (offset start))))
        (define e (+ init-offset (- end (offset end))))
-       (interval-map-set! cmap s e 'irrelevant)
+       (update-map! cmap s e 'irrelevant)
        (loop new-mode)]
       [else (loop new-mode)])))
 
@@ -121,7 +124,7 @@
          (define start (- ?start (* 2 (offset ?start))))
          (define end* (+ ?start (syntax-span stx)))
          (define end (- end* (* 2 (offset end*))))
-         (interval-map-set! cmap start end 'irrelevant))]
+         (update-map! cmap start end 'irrelevant))]
       [(e ...) (for-each loop* (syntax->list #'(e ...)))]
       [_else (void)])))
 
@@ -136,7 +139,7 @@
   (for ([pair (in-list ordered)])
     (match-define (list m (srcloc _ _ _ start range)) pair)
     (define val (if m 'covered 'uncovered))
-    (interval-map-set! r start (+ start range) val))
+    (update-map! r start (+ start range) val))
 
   r)
 
@@ -165,6 +168,20 @@
     (if (> offset (vector-length mapping))
         (vector-ref mapping (sub1 (vector-length mapping)))
         (vector-ref mapping (sub1 offset)))))
+
+;; intervalmap nat nat any file -> void
+;; sets the interval map if the range makes sense
+;; logs a warning otherwise
+(define (update-map! i s e v [extra-debug #f])
+  (if (> e s)
+      (interval-map-set! i s e v)
+      (log-message
+       (current-logger)
+       'warning
+       'cover
+       (format "found non-sensable character range [~a,~a) in file ~a. Skiping coverage info for that range ~a"
+               s e (current-file) (or extra-debug ""))
+       (current-continuation-marks))))
 
 (module+ test
   (require racket/lazy-require)

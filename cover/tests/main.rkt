@@ -21,7 +21,8 @@
               (path->string (path-replace-suffix f ".rktl")))))
 
   (define (do-test files)
-    (parameterize ([current-cover-environment (make-cover-environment)])
+    (parameterize ([current-cover-environment (make-cover-environment)]
+                   [port-count-lines-enabled (> 0.5 (random))])
       (apply test-files! files)
 
       (define coverage (get-test-coverage))
