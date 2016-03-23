@@ -233,7 +233,8 @@
     (check-equal? (list->set (map (compose path->string ->relative)
                                   (flatten (expand-directory (list extensions)))))
                   (set "prog.rkt"
-                       "not-run.rkt")))
+                       "not-run.rkt"
+                       "no-expressions.rkt")))
   (parameterize ([current-directory cur])
     (define omit (map ->absolute (get-info-var cur 'test-omit-paths)))
     (define dirs (map ->absolute (filter list? (flatten (expand-directory (list extensions))))))

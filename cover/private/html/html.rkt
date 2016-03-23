@@ -21,6 +21,7 @@
   (define-runtime-path root "../..")
   (define-runtime-path tests/basic/prog.rkt "../../tests/basic/prog.rkt")
   (define-runtime-path tests/basic/not-run.rkt "../../tests/basic/not-run.rkt")
+  (define-runtime-path tests/basic/no-expressions.rkt "../../tests/basic/no-expressions.rkt")
   (define (mock-covered? pos)
     (cond [(<= 1 pos 6) 'covered]
           [(= 6 pos) 'missing]
@@ -151,7 +152,7 @@
           (meta ([charset "utf-8"]))
           (link ([rel "stylesheet"] [type "text/css"] [href ,(string-append assets-path "main.css")])))
     (body ()
-          ,(%s->xexpr (/ covered total))
+          ,(%s->xexpr (if (= total 0) 1 (/ covered total)))
           (div ([class "code"]) ,(file->html path covered?)))))
 
 (define (%s->xexpr %)
@@ -161,6 +162,20 @@
   (test-begin
    (parameterize ([current-cover-environment (make-cover-environment)])
      (define f (path->string (simplify-path tests/basic/prog.rkt)))
+     (test-files! f)
+     (define cov (get-test-coverage))
+     (define covered? (curry cov f))
+     (check-equal? (make-html-file cov f "assets/")
+                   `(html ()
+                     (head ()
+                           (meta ([charset "utf-8"]))
+                           (link ([rel "stylesheet"] [type "text/css"] [href "assets/main.css"])))
+                     (body ()
+                           (p () "expr: 100%" (br ()))
+                           (div ([class "code"])
+                                ,(file->html f covered?))))))
+   (parameterize ([current-cover-environment (make-cover-environment)])
+     (define f (path->string (simplify-path tests/basic/no-expressions.rkt)))
      (test-files! f)
      (define cov (get-test-coverage))
      (define covered? (curry cov f))
@@ -191,16 +206,27 @@
      (check-equal? (file->html f covered?)
                    `(div ([class "lines-wrapper"])
                      ,(div:line-numbers (length lines))
-                     ,(div:file-lines lines covered?)))
+                     ,(div:file-lines lines covered?)))))
+  (test-begin
    (parameterize ([current-cover-environment (make-cover-environment)])
-    (define f2 (path->string (simplify-path tests/basic/not-run.rkt)))
-    (test-files! f2)
-    (define covered? (curry (get-test-coverage) f2))
-    (define lines (string-split (file->string f2) "\n" #:trim? #f))
-    (check-equal? (file->html f2 covered?)
-                  `(div ([class "lines-wrapper"])
-                    ,(div:line-numbers 4)
-                    ,(div:file-lines lines covered?)))))))
+     (define f (path->string (simplify-path tests/basic/not-run.rkt)))
+     (test-files! f)
+     (define covered? (curry (get-test-coverage) f))
+     (define lines (string-split (file->string f) "\n" #:trim? #f))
+     (check-equal? (file->html f covered?)
+                   `(div ([class "lines-wrapper"])
+                     ,(div:line-numbers 4)
+                     ,(div:file-lines lines covered?)))))
+  (test-begin
+   (parameterize ([current-cover-environment (make-cover-environment)])
+     (define f (path->string (simplify-path tests/basic/no-expressions.rkt)))
+     (test-files! f)
+     (define covered? (curry (get-test-coverage) f))
+     (define lines (string-split (file->string f) "\n" #:trim? #f))
+     (check-equal? (file->html f covered?)
+                   `(div ([class "lines-wrapper"])
+                     ,(div:line-numbers 1)
+                     ,(div:file-lines lines covered?))))))
 
 ;; File Report
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -324,7 +350,7 @@
     (path->string (find-relative-path (current-directory) (string->path name))))
   (define covered (first expr-coverage-info))
   (define total (second expr-coverage-info))
-  (define percentage (* 100 (/ covered total)))
+  (define percentage (* 100 (if (= total 0) 1 (/ covered total))))
   (define styles `([class "file-info"]))
   `(tr ,styles
        (td ([class "file-name"]) (a ([href ,path]) ,local-file))
@@ -347,7 +373,14 @@
                                   (td ([class "coverage-percentage"]) "100")
                                   (td ([class "covered-expressions"]) "10")
                                   (td ([class "uncovered-expressions"]) "0")
-                                  (td ([class "total-expressions"]) "10")))))
+                                  (td ([class "total-expressions"]) "10"))))
+  (test-begin (check-equal? (tr:file-report "foo.rkt" "foo.html" (list 0 0))
+                            '(tr ((class "file-info"))
+                                  (td ([class "file-name"]) (a ((href "foo.html")) "foo.rkt"))
+                                  (td ([class "coverage-percentage"]) "100")
+                                  (td ([class "covered-expressions"]) "0")
+                                  (td ([class "uncovered-expressions"]) "0")
+                                  (td ([class "total-expressions"]) "0")))))
 
 ;; Percentage
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -359,14 +392,19 @@
 (define (expression-coverage-percentage/all all-expr-info)
   (define total-covered (for/sum ([v (in-list (hash-values all-expr-info))]) (first v)))
   (define total-exprs (for/sum ([v (in-list (hash-values all-expr-info))]) (second v)))
-  (* (/ total-covered total-exprs) 100))
+  (* (if (= total-exprs 0) 1 (/ total-covered total-exprs)) 100))
 
 (module+ test
   (test-begin
    (check-equal?
     (expression-coverage-percentage/all (hash "foo.rkt" (list 0 10)
                                               "bar.rkt" (list 10 10)))
-    50)))
+    50))
+  (test-begin
+   (check-equal?
+    (expression-coverage-percentage/all (hash "foo.rkt" (list 0 0)
+                                              "bar.rkt" (list 0 0)))
+    100)))
 
 ;; Expression Coverage
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
