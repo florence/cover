@@ -1,4 +1,4 @@
-#lang setup/infotab
+#lang info
 
 (define cover-formats
   '(("html" cover generate-html-coverage)
@@ -14,3 +14,5 @@
   '(("cover" (submod cover/raco main) "a code coverage tool" 30)))
 
 (define scribblings '(("scribblings/cover.scrbl" (multi-page))))
+
+(define pkg-authors '("spencer@florence.io"))

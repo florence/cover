@@ -1,4 +1,4 @@
-#lang setup/infotab
+#lang info
 
 (define name "cover")
 (define collection 'multi)
@@ -12,3 +12,5 @@
   '("racket-doc" "scribble-lib" "typed-racket-doc" "htdp-lib"
     "net-doc" "scribble-doc" "at-exp-lib" "scheme-lib" "typed-racket-lib"
     "macro-debugger"))
+
+(define pkg-authors '("spencer@florence.io"))
