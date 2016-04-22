@@ -1,11 +1,8 @@
 #lang racket
 ;; These tests modified from https://github.com/jackfirth/point-free
-(provide define/compose
-         arg-count
+(provide arg-count
          define/arg-count)
 
-(define-syntax-rule (define/compose id f ...)
-  (define id (compose f ...)))
 
 (define-syntax-rule (arg-count n expr)
   (lambda args

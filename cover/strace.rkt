@@ -24,7 +24,10 @@ The module implements code coverage annotations as described in cover.rkt
 (define vector-name #'cover-coverage-vector)
 (define make-log-receiver-name #'make-log-receiver)
 (define sync-name #'sync)
+(define app-name #'#%app)
 (define hash-ref-name #'hash-ref)
+(define bfs-name #'begin-for-syntax)
+(define begin-name #'begin)
 
 ;; symbol [Hash srcloclist index] [Hash pathstring vector]
 ;; -> (pathstring -> annotator)
@@ -43,7 +46,9 @@ The module implements code coverage annotations as described in cover.rkt
         (cond [(cross-phase-persist? stx)
                ;; special case: cross-phase-pesistant files
                ;; are not coverable, but immutable so basically always covered
-               (initialize-test-coverage-point stx)
+               (define loc (stx->srcloc stx))
+               (when loc
+                 (initialize-test-coverage-point stx loc))
                (do-final-init! #t)
                stx]
               [else
@@ -64,8 +69,8 @@ The module implements code coverage annotations as described in cover.rkt
      e #f
      [(begin e mod)
       (begin
-        (syntax-case #'e (#%plain-app)
-          [(#%plain-app vector-set vec loc #t)
+        (syntax-case #'e (quote)
+          [(_ #;#%app vector-set vec (quote loc) (quote #t))
            (vector-set! (hash-ref vecmapping file) (syntax-e #'loc) #t)])
         #'mod)]
      [_ e]))
@@ -73,21 +78,27 @@ The module implements code coverage annotations as described in cover.rkt
   (define initialize-test-coverage-point
     (if initialized?
         void
-        (lambda (stx)
-          (define loc (stx->srcloc stx))
+        (lambda (stx loc)
           (unless (hash-has-key? loc->vecref loc)
             (hash-set! loc->vecref loc (list file count))
             (set! count (add1 count))))))
 
-  (define (test-covered stx)
-    (define loc (stx->srcloc stx))
+  (define (test-covered stx loc)
     (with-syntax ([vector-name vector-name]
+                  [#%papp app-name]
                   [unsafe-vector-set! unsafe-vector-set!-name]
                   [vecloc (cadr (hash-ref loc->vecref loc))])
-      #`(#%plain-app unsafe-vector-set! vector-name vecloc #t)))
+      #`(#%papp unsafe-vector-set! vector-name 'vecloc '#t)))
+
+  (define (test-coverage-point body expr phase)
+    (define loc (stx->srcloc expr))
+    (cond [loc
+           (initialize-test-coverage-point expr loc)
+           #`(#,begin-name #,(test-covered expr loc) #,body)]
+          [else body]))
 
   ;; ---- IN ----
-  (define-values/invoke-unit/infer stacktrace@)
+  (define-values/invoke-unit/infer stacktrace/annotator@)
   (make-cover-annotate-top annotate-top))
 
 ;;  -------- Annotation Helpers --------------
@@ -166,6 +177,8 @@ The module implements code coverage annotations as described in cover.rkt
     (get-syntax-depth #'mb)]
    [(begin-for-syntax b ...)
     (add1 (apply max 1 (map get-syntax-depth (syntax->list #'(b ...)))))]
+   [(define-syntaxes a ...)
+    2]
    [(b ...)
     (apply max 1 (map get-syntax-depth (syntax->list #'(b ...))))]
    [_ 1]))
@@ -182,17 +195,32 @@ The module implements code coverage annotations as described in cover.rkt
                 [sync sync-name]
                 [file file]
                 [hash-ref hash-ref-name]
-                [#%papp #'#%app]
+                [#%papp app-name]
                 [pdefine-values #'define-values]
-                [pbegin #'begin]
+                [pbegin begin-name]
                 [prequire '#%require]
+                [pbegin-for-syntax bfs-name]
                 [send-name (format-symbol "~a~a" topic 'cover-internal-send-vector-mapping)]
                 [req-name (format-symbol "~a~a" topic 'cover-internal-request-vector-mapping)])
+    (define startup-code
+      #`(pbegin
+          (pdefine-values (lgr) (#%papp current-logger))
+          (pdefine-values (rec) (#%papp make-log-receiver lgr 'info 'send-name))
+          (pdefine-values (vector-name)
+                          (pbegin
+                           (#%papp log-message lgr 'info 'req-name '"" '#f)
+                           (#%papp hash-ref
+                                   (#%papp unsafe-vector-ref
+                                           (#%papp sync rec)
+                                           '2)
+                                   'file)))))
     #`(#,@(for/list ([i bfs-depth])
-            #`(#%require (for-meta #,i (rename '#%kernel prequire #%require))))
+            #`(#%require
+               (for-meta #,i (only '#%kernel quote))
+               (for-meta #,i (rename '#%kernel prequire #%require))))
        #,@(for/list ([i bfs-depth])
-            #`(prequire (only '#%kernel quote)
-                        (for-meta #,i (rename '#%kernel log-message log-message))
+            #`(prequire (for-meta #,i (rename '#%kernel log-message log-message))
+                        (for-meta #,i (rename '#%kernel pbegin-for-syntax begin-for-syntax))
                         (for-meta #,i (rename '#%kernel current-logger current-logger))
                         (for-meta #,i (rename '#%kernel make-log-receiver make-log-receiver))
                         (for-meta #,i (rename '#%kernel sync sync))
@@ -202,16 +230,9 @@ The module implements code coverage annotations as described in cover.rkt
                         (for-meta #,i (rename '#%kernel pbegin begin))
                         (for-meta #,i (rename '#%unsafe unsafe-vector-ref unsafe-vector-ref))
                         (for-meta #,i (rename '#%unsafe unsafe-vector-set! unsafe-vector-set!))))
-       (pdefine-values (lgr) (#%papp current-logger))
-       (pdefine-values (rec) (#%papp make-log-receiver lgr 'info 'send-name))
-       (pdefine-values (vector-name)
-                       (pbegin
-                        (#%papp log-message lgr 'info 'req-name "" #f)
-                        (#%papp hash-ref
-                                (#%papp unsafe-vector-ref
-                                        (#%papp sync rec)
-                                        2)
-                                file))))))
+       (prequire (for-meta #,bfs-depth (rename '#%kernel pbegin begin)))
+       #,(for/fold ([stx #'(pbegin)]) ([i bfs-depth])
+           #`(pbegin #,startup-code (pbegin-for-syntax #,stx))))))
 
 (define inspector (variable-reference->module-declaration-inspector
                    (#%variable-reference)))
@@ -242,7 +263,6 @@ The module implements code coverage annotations as described in cover.rkt
 
 ;;  -------- Generic `stacktrace^` Imports --------------
 (define (with-mark src dest phase) dest)
-(define test-coverage-enabled (make-parameter #t))
 (define profile-key (gensym))
 (define profiling-enabled (make-parameter #f))
 (define initialize-profile-point void)
