@@ -5,7 +5,7 @@
 
 (define version "3.1.0")
 
-(define deps '(("base" #:version "6.1.1") ("errortrace-lib" #:version "1.1")
+(define deps '(("base" #:version "6.5.0.4") ("errortrace-lib" #:version "1.1")
                "rackunit-lib" "syntax-color-lib" "compiler-lib"
                "custom-load" "data-lib"))
 
