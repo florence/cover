@@ -6,6 +6,7 @@
 (define-runtime-path-list others
   (list "bfs+module-nolex.rkt"
         "bfs+module.rkt"
+        "bfs+define-syntax.rkt"
         "lazy-require.rkt"))
 (test-case
  "begin-for-syntax with modules should be okay"

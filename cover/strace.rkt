@@ -168,19 +168,21 @@ The module implements code coverage annotations as described in cover.rkt
 
 ;; Syntax -> Natural
 ;; Maxiumum depth of begin-for-syntaxes
-(define (get-syntax-depth expr)
-  (kernel-syntax-case
-   (disarm expr) #f
+(define (get-syntax-depth expr [phase 0])
+  (kernel-syntax-case/phase
+   (disarm expr) phase
    [(module _ _ mb)
     (get-syntax-depth #'mb)]
    [(module* _ _ mb)
     (get-syntax-depth #'mb)]
    [(begin-for-syntax b ...)
-    (add1 (apply max 1 (map get-syntax-depth (syntax->list #'(b ...)))))]
+    (add1 (apply max 1 (for/list ([b (in-list (syntax->list #'(b ...)))])
+                         (get-syntax-depth b (add1 phase)))))]
    [(define-syntaxes a ...)
     2]
    [(b ...)
-    (apply max 1 (map get-syntax-depth (syntax->list #'(b ...))))]
+    (apply max 1 (for/list ([b (in-list (syntax->list #'(b ...)))])
+                   (get-syntax-depth b phase)))]
    [_ 1]))
 
 ;; Natural PathString Symbol -> Syntax
