@@ -187,7 +187,7 @@ Thus, In essence this module has three responsibilites:
 
 ;; ModulePath -> Any
 (define (run-mod to-run)
-  (vprintf "running ~s in envoronment ~s" to-run (get-topic))
+  (vprintf "running ~s in environment ~s" to-run (get-topic))
   (dynamic-require to-run 0)
   (vprintf "finished running ~s" to-run))
 
@@ -224,7 +224,7 @@ Thus, In essence this module has three responsibilites:
                        (not file))
                    e]
                   [else
-                   (vprintf "compiling ~s with coverage annotations in enviornment ~s"
+                   (vprintf "compiling ~s with coverage annotations in environment ~s"
                             file
                             (get-topic))
                    ((annotate-top file)
