@@ -39,7 +39,7 @@ The @exec{raco cover} command accepts the following flags:
                --- Interprets the arguments as collections whose content should be
                tested (in the same way as directory content).}
          @item{@Flag{p} or @DFlag{package}
-               --- Interprets the arguments as packages whose contents should be tested
+               --- Interprets all arguments as packages whose contents should be tested
                (in the same way as directory content). All package scopes are searched
                for the first, most specific
                @tech[#:doc '(lib "pkg/scribblings/pkg.scrbl")]{package scope}.}
@@ -56,21 +56,17 @@ addition cover supports @racket[_cover-omit-paths], which is identical to @racke
 but is specific to cover. The same holds for @racket[_test-include-paths] and
 @racket[_cover-include-paths].
 
-@section{Gotchas}
+@section{Caveats, Known Bugs, and Odd Behavior}
 
-Internally cover uses the logger to transmit coverage. This means that dynamically loading a module
-with @racket[current-logger] set to a logger who's (transitive) parent is not the global logger may
-cause cover to hang.
+Cover is capable of covering code at @tech[#:doc '(lib
+"scribblings/reference/reference.scrbl")]{phases} above 0. However cover runs post-expansion, which
+means it can only cover the body of macros that are used outside of their defining module.
 
-Cover runs submodules directly. This means that if the test submodule is not constructed with a
-@racket[module+] or a @racket[module*] with @racket[#f] for the language the enclosing module will
-not be run.
+Sometimes, if a macro does not propagate the @racket[syntax-location] for some syntax object in
+a way cover understands, the coverage information will appear to be incorrect.
 
-Cover annotates fully expanded programs, and infers what areas of the original program to mark as
-covered via @racket[syntax-location]. This means that sometimes, If a macro does not correctly
-propagate the @racket[syntax-location] for some syntax object, the coverage information will appear
-to be incorrect. For example, the @racket[for] loops will always have their variable binding
-positions marked as uncovered, unless the for clause binds only one variable and uses one of the
-special sequence forms like @racket[in-list]. Another common instance of this is that
-@racket[provide]d identifiers in @seclink["top" #:doc
- '(lib "typed-racket/scribblings/ts-guide.scrbl") "typed/racket"] are marked as uncovered.
+If a test submodule is not constructed with a @racket[module+] or a @racket[module*] with
+@racket[#f] for the language the enclosing module will not be run.
+
+Dynamically loading a covered module with @racket[current-logger] set to a logger who's (transitive)
+parent is not the global logger may cause Cover to hang.
