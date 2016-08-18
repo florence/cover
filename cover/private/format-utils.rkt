@@ -165,9 +165,13 @@
              (loop (add1 s) (+ b l) (append adds acc))])))
   (define mapping (list->vector (reverse lmapping)))
   (lambda (offset)
-    (if (> offset (vector-length mapping))
-        (vector-ref mapping (sub1 (vector-length mapping)))
-        (vector-ref mapping (sub1 offset)))))
+    (cond
+      [(= (vector-length mapping) 0)
+       0]
+      [(> offset (vector-length mapping))
+       (vector-ref mapping (sub1 (vector-length mapping)))]
+      [else
+       (vector-ref mapping (sub1 offset))])))
 
 ;; intervalmap nat nat any file -> void
 ;; sets the interval map if the range makes sense
