@@ -397,3 +397,35 @@ Thus, In essence this module has three responsibilites:
          (check-true  (or (eq? c 'covered)
                           (eq? c 'irrelevant))
                       (~a i)))))))
+
+;; test modules with same source and nondeterministic expansion
+(module+ test
+  (test-begin
+    (for ([i (in-range 10)])
+      (define env (make-cover-environment))
+      (define ns (environment-namespace env))
+      (define path "/a/b/c")
+      (define l/c (make-cover-load/use-compiled (list path)))
+      (parameterize ([current-cover-environment env]
+                     [current-namespace ns])
+        (namespace-require 'racket/base)
+        (define mod-rand
+          `(module rand racket
+              (require (for-syntax racket))
+              (define-syntax (f stx)
+                (datum->syntax stx ''0
+                               (vector
+                                ,path
+                                #f
+                                #f
+                                1
+                                (random 2))))
+              (void (f))))
+        (define mod-load
+          '(module rand2 racket
+              (require (for-syntax 'rand) 'rand)))
+        (parameterize ([current-load/use-compiled l/c]
+                       [current-compile (get-compile)])
+          (eval mod-rand)
+          (eval mod-load)
+          (namespace-require ''rand2))))))

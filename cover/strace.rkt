@@ -29,6 +29,7 @@ The module implements code coverage annotations as described in cover.rkt
 (define bfs-name #'begin-for-syntax)
 (define begin-name #'begin)
 
+(require racket/pretty)
 ;; symbol [Hash srcloclist index] [Hash pathstring vector]
 ;; -> (pathstring -> annotator)
 (define ((make-annotate-top topic file->loc->vecref vecmapping) file)
@@ -45,7 +46,7 @@ The module implements code coverage annotations as described in cover.rkt
       (define e
         (cond [(cross-phase-persist? stx)
                ;; special case: cross-phase-pesistant files
-               ;; are not coverable, but immutable so basically always covered
+               ;; are not annotatable, but can be concidered completely covered
                (define loc (stx->srcloc stx))
                (when loc
                  (initialize-test-coverage-point stx loc))
@@ -56,11 +57,19 @@ The module implements code coverage annotations as described in cover.rkt
                (do-final-init!)
                (define r (add-cover-require (annotate-clean top) file topic))
                (or r stx)]))
+      (pretty-print (syntax->datum e))
       e))
 
   (define (do-final-init! [value #f])
-    (unless initialized?
-      (hash-set! vecmapping file (make-vector count value))))
+    (cond
+      [(not initialized?)
+       (hash-set! vecmapping file (make-vector count value))]
+      [(not (zero? count))
+       (define old (hash-ref vecmapping file))
+       (define new-vector (make-vector (+ count (vector-length old)) value))
+       (vector-copy! new-vector 0 old)
+       (hash-set! vecmapping file new-vector)]
+      [else (void)]))
 
   ;; in order to write modules to disk the top level needs to
   ;; be a module. so we trust that the module is loaded and trim the expression
@@ -75,19 +84,17 @@ The module implements code coverage annotations as described in cover.rkt
         #'mod)]
      [_ e]))
 
-  (define initialize-test-coverage-point
-    (if initialized?
-        void
-        (lambda (stx loc)
-          (unless (hash-has-key? loc->vecref loc)
-            (hash-set! loc->vecref loc (list file count))
-            (set! count (add1 count))))))
+  (define (initialize-test-coverage-point stx loc)
+    (unless (hash-has-key? loc->vecref loc)
+      (hash-set! loc->vecref loc (list file count))
+      (set! count (add1 count))))
 
   (define (test-covered stx loc)
     (with-syntax ([vector-name vector-name]
                   [#%papp app-name]
                   [unsafe-vector-set! unsafe-vector-set!-name]
-                  [vecloc (cadr (hash-ref loc->vecref loc))])
+                  [vecloc (cadr
+                           (hash-ref loc->vecref loc))])
       #`(#%papp unsafe-vector-set! vector-name 'vecloc '#t)))
 
   (define (test-coverage-point body expr phase)
