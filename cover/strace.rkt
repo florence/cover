@@ -57,7 +57,7 @@ The module implements code coverage annotations as described in cover.rkt
                (do-final-init!)
                (define r (add-cover-require (annotate-clean top) file topic))
                (or r stx)]))
-      (pretty-print (syntax->datum e))
+      ;(pretty-print (syntax->datum e))
       e))
 
   (define (do-final-init! [value #f])
@@ -192,6 +192,9 @@ The module implements code coverage annotations as described in cover.rkt
                    (get-syntax-depth b phase)))]
    [_ 1]))
 
+(define i* (make-syntax-introducer 'add))
+(define in:#%require (i* #'#%require))
+
 ;; Natural PathString Symbol -> Syntax
 ;; Build a set of requires and definitions for cover to insert
 (define (build-adds bfs-depth file topic)
@@ -224,7 +227,7 @@ The module implements code coverage annotations as described in cover.rkt
                                            '2)
                                    'file)))))
     #`(#,@(for/list ([i bfs-depth])
-            #`(#%require
+            #`(#,in:#%require
                (for-meta #,i (only '#%kernel quote))
                (for-meta #,i (rename '#%kernel prequire #%require))))
        #,@(for/list ([i bfs-depth])
