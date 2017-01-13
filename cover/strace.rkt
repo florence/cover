@@ -210,7 +210,7 @@ The module implements code coverage annotations as described in cover.rkt
                 [#%papp app-name]
                 [pdefine-values #'define-values]
                 [pbegin begin-name]
-                [prequire '#%require]
+                [prequire in:#%require]
                 [pbegin-for-syntax bfs-name]
                 [send-name (format-symbol "~a~a" topic 'cover-internal-send-vector-mapping)]
                 [req-name (format-symbol "~a~a" topic 'cover-internal-request-vector-mapping)])
@@ -227,9 +227,7 @@ The module implements code coverage annotations as described in cover.rkt
                                            '2)
                                    'file)))))
     #`(#,@(for/list ([i bfs-depth])
-            #`(#,in:#%require
-               (for-meta #,i (only '#%kernel quote))
-               (for-meta #,i (rename '#%kernel prequire #%require))))
+            #`(#,in:#%require (for-meta #,i (only '#%kernel quote))))
        #,@(for/list ([i bfs-depth])
             #`(prequire (for-meta #,i (rename '#%kernel log-message log-message))
                         (for-meta #,i (rename '#%kernel pbegin-for-syntax begin-for-syntax))
