@@ -235,17 +235,24 @@ Thus, In essence this module has three responsibilites:
 
 (define (get-source stx)
   (and (syntax? stx)
-       (let loop ([e stx])
-         (define f (syntax-source e))
-         (define (do-loop)
-           (define next (syntax->list e))
-           (and next
-                (ormap loop next)))
-         (if f
-             (if (path? f)
-                 (path->string f)
-                 f)
-             (do-loop)))))
+       (or (let ([maybe-source (current-module-declare-source)])
+             (cond [(symbol? maybe-source)
+                    ;TODO lookup actual source
+                    #f]
+                   [(path? maybe-source)
+                    (path->string maybe-source)]
+                   [else #f]))
+           (let loop ([e stx])
+             (define f (syntax-source e))
+             (define (do-loop)
+               (define next (syntax->list e))
+               (and next
+                    (ormap loop next)))
+             (if f
+                 (if (path? f)
+                     (path->string f)
+                     f)
+                 (do-loop))))))
 
 ;;; ---------------------- Environments ---------------------------------
 

@@ -1,5 +1,6 @@
 #lang racket
-(require "../main.rkt" (only-in "../cover.rkt" coverage-wrapper-map) rackunit racket/runtime-path)
+(require "../main.rkt" (only-in "../cover.rkt" coverage-wrapper-map) rackunit racket/runtime-path
+         cover/private/file-utils)
 
 (define-runtime-path error "error-file.rkt")
 (define-runtime-path main "main.rkt")
@@ -16,6 +17,6 @@
       (for-each
        (lambda (x) (check-not-false (member x covered) s))
        files)))
-  (define files (map path->string (list error main)))
+  (define files (map ->absolute (list error main)))
   (do-test files)
   (do-test (reverse files))))
