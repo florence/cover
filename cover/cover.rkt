@@ -196,7 +196,7 @@ Thus, In essence this module has three responsibilites:
 
 ;; PathString -> ModulePath
 (define (build-file-require the-file)
-  `(file ,(if (path? the-file) (path->string the-file) the-file)))
+  `(file ,the-file))
 
 ;;; ---------------------- Compiling ---------------------------------
 
@@ -238,7 +238,10 @@ Thus, In essence this module has three responsibilites:
 
 (define (get-source stx)
   (and (syntax? stx)
-       (or (let ([maybe-source (current-module-declare-source)])
+       (or (let ([maybe-source (or (current-module-declare-source)
+                                   (and (current-module-declare-name)
+                                        (resolved-module-path-name
+                                         (current-module-declare-name))))])
              (cond [(symbol? maybe-source)
                     ;TODO lookup actual source
                     #f]
@@ -280,11 +283,6 @@ Thus, In essence this module has three responsibilites:
   (define cns (current-namespace))
   (namespace-attach-module cns ''#%builtin ns))
 
-(define (get-annotate-top)
-  (get-val environment-ann-top))
-(define (load-annotate-top)
-  (make-annotate-top))
-
 (define (get-namespace)
   (get-val environment-namespace))
 
@@ -306,7 +304,6 @@ Thus, In essence this module has three responsibilites:
 (struct coverage-wrapper (map function)
         #:property prop:procedure (struct-field-index function))
 
-(require racket/pretty)
 ;; -> coverage/c
 (define (get-test-coverage [env (current-cover-environment)])
   (parameterize ([current-cover-environment env])

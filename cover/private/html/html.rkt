@@ -79,27 +79,6 @@
   (cons (list (build-path dir "index.html") dir index)
         file-list))
 
-
-;; copied from the internals for backwards compatability reasons
-(define (take-common-prefix as bs [same? equal?])
-  (let-values ([(prefix atail btail)
-                (internal-split-common-prefix as bs same? #t 'take-common-prefix)])
-    prefix))
-(define (internal-split-common-prefix as bs same? keep-prefix? name)
-  (unless (list? as)
-    (raise-argument-error name "list?" as))
-  (unless (list? bs)
-    (raise-argument-error name "list?" bs))
-  (unless (and (procedure? same?)
-               (procedure-arity-includes? same? 2))
-    (raise-argument-error name "(any/c any/c . -> . any/c)" same?))
-  (let loop ([as as] [bs bs])
-    (if (and (pair? as) (pair? bs) (same? (car as) (car bs)))
-        (let-values ([(prefix atail btail) (loop (cdr as) (cdr bs))])
-          (values (and keep-prefix? (cons (car as) prefix)) atail btail))
-        (values null as bs))))
-
-
 (module+ test
   (test-begin
    (parameterize ([current-directory root]

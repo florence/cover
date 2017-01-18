@@ -1,9 +1,11 @@
 #lang racket/base
 (require racket/list racket/cmdline raco/command-name
          setup/getinfo
+         compiler/module-suffix
          racket/match
          racket/contract/base
          racket/function
+         racket/logging
          "main.rkt"
          (only-in "private/contracts.rkt" coverage-gen/c)
          "private/shared.rkt"
@@ -141,14 +143,6 @@
      #'(let ([id e])
          (and id (maybe b ...)))]))
 
-(define extensions #px#"^(.*)\\.(?i:rkt|scm|scrbl|ss)$")
-(define get-module-suffix-regexp
-  (with-handlers ([(lambda (e) (or (exn:fail:filesystem? e)
-                                   (exn:fail:contract? e)))
-                   (const (const extensions))])
-    (dynamic-require 'compiler/module-suffix
-                     'get-module-suffix-regexp)))
-
 (define (filter-exts files [exts null])
   (for/list ([f files]
              #:when (maybe [ext? (filename-extension f)]
@@ -170,17 +164,17 @@
                            (if (absolute-path? f)
                                f
                                (build-path (current-directory) f))])
-             (expand-directory (cons extensions comped)))))))
+             (expand-directory (cons (get-module-suffix-regexp) comped)))))))
   (let loop ([paths paths+vectors])
     (match paths
       [(list) null]
-      [(list x) (list x)]
       [(list* a (? vector? b) r)
        (cons (list a b) (loop r))]
       [(list* a r)
        (cons a (loop r))])))
 
 (module+ test
+  (define extensions #px#"^(.*)\\.(?i:rkt|scm|scrbl|ss)$")
   (define-runtime-path root ".")
   (define-runtime-path private "private")
   (define-runtime-path main.rkt "main.rkt")
@@ -197,7 +191,7 @@
     (check-equal? (list->set
                    (map (compose path->string ->relative)
                         (expand-directories (list (path->string main.rkt)
-                                                  (->(path->string private))))))
+                                                  (-> (path->string private))))))
                   out)))
   (do-test ->relative)
   (do-test ->absolute))
@@ -234,6 +228,7 @@
                                   (flatten (expand-directory (list extensions)))))
                   (set "prog.rkt"
                        "not-run.rkt"
+                       "raise.rkt"
                        "no-expressions.rkt")))
   (parameterize ([current-directory cur])
     (define omit (map ->absolute (get-info-var cur 'test-omit-paths)))
@@ -275,7 +270,7 @@
 (define (should-omit? path omits)
   (define epath (explode-path (->absolute path)))
   (for/or ([o omits])
-    (if (regexp? o)
+    (if (or (byte-regexp? o) (regexp? o))
         (regexp-match? o path)
         (let ([eo (explode-path (->absolute o))])
           (let loop ([eo eo] [ep epath])
@@ -291,7 +286,11 @@
   (check-true (should-omit? "/Test/t.rkt" '("/Test/t.rkt")))
   (check-true (should-omit? "/Users/florence/playground/cover/tests/error-file.rkt"
                             '("/Users/florence/playground/cover/tests/error-file.rkt")))
-  (check-false (should-omit? "/Test/t.rkt" '("/OtherDir"))))
+  (check-false (should-omit? "/Test/t.rkt" '("/OtherDir")))
+  (check-true (should-omit? "/Users/florence/playground/cover/tests/error-file.rkt"
+                            (list extensions)))
+  (check-false (should-omit? "/Users/florence/playground/cover/tests/error-file.qq"
+                             (list extensions))))
 
 ;; (listof (U path (list Path Vector)) (listof path) -> (listof path-string)
 (define (remove-excluded-paths files paths)

@@ -57,11 +57,7 @@
 (module+ test
   (require (for-syntax version/utils) version/utils)
   (define-runtime-path-list test-dirs (append  (list "basic" "simple-multi" "syntax" "at-exp"
-                                                     "multibyte-coverage")
-                                               ;; fails due to old errortrace bug.
-                                               (if (version<=? (version) "6.5.0.5")
-                                                   null
-                                                   (list "provide-define-syntax"))))
+                                                     "multibyte-coverage" "provide-define-syntax")))
   (for-each (compose test-dir path->string) test-dirs)
   (define-runtime-path submods "submods")
   (parameterize ([irrelevant-submodules null])
