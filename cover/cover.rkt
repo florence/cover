@@ -45,6 +45,7 @@ Thus, In essence this module has three responsibilites:
          rackunit/log
          racket/list
          racket/port
+         racket/set
          custom-load
          "private/shared.rkt"
          "private/file-utils.rkt"
@@ -67,6 +68,7 @@ Thus, In essence this module has three responsibilites:
 (struct an-exit (code))
 
 ;;; ---------------------- Running Files ---------------------------------
+(define current-live-files (make-parameter #f))
 
 ;; Test files and build coverage map
 ;; returns true if no tests reported as failed, and no files errored.
@@ -88,7 +90,8 @@ Thus, In essence this module has three responsibilites:
     (define cover-load/use-compiled (make-cover-load/use-compiled abs-names))
     (define tests-failed
       (parameterize* ([current-load/use-compiled cover-load/use-compiled]
-                      [current-namespace (get-namespace)])
+                      [current-namespace (get-namespace)]
+                      [current-live-files (list->set abs-names)])
         (with-cover-loggers
           (for ([f (in-list abs-names)]
                 #:unless (member f excludes))
@@ -202,10 +205,10 @@ Thus, In essence this module has three responsibilites:
 ;; forces the given files to be recompiled whenever load/use-compiled is called
 (define (make-cover-load/use-compiled paths)
   (make-custom-load/use-compiled
-   #:blacklist (for/list ([p (in-list paths)])
+   #:blacklist (for/list ([p (in-set paths)])
                  (regexp (regexp-quote p)))))
 
-;; -> Compiler
+;; Namespace (Syntax -> Syntax) -> Compiler
 ;; makes a value sutable for current-compile, such that compile
 ;; annotates the source code with annotate-top. meant to be called
 ;; only by make-cover-environment
@@ -227,9 +230,9 @@ Thus, In essence this module has three responsibilites:
                    (vprintf "compiling ~s with coverage annotations in environment ~s"
                             file
                             (get-topic))
-                   ((annotate-top file)
-                             (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
-                             (namespace-base-phase (current-namespace)))]))
+                   ((annotate-top file (current-live-files))
+                    (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
+                    (namespace-base-phase (current-namespace)))]))
         (compile to-compile immediate-eval?))))
   cover-compile)
 
