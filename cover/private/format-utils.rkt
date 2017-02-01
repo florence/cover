@@ -121,9 +121,9 @@
                    (implies submods (member (syntax-e #'n) submods)))
        (define ?start (syntax-position stx))
        (when ?start
-         (define start (- ?start (* 2 (offset ?start))))
+         (define start (- ?start (offset ?start)))
          (define end* (+ ?start (syntax-span stx)))
-         (define end (- end* (* 2 (offset end*))))
+         (define end (- end* (offset end*)))
          (update-map! cmap start end 'irrelevant))]
       [(e ...) (for-each loop* (syntax->list #'(e ...)))]
       [_else (void)])))
