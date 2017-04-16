@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/florence/cover.png?label=ready&title=Ready)](https://waffle.io/florence/cover)
 # Cover
 [![Build Status](https://img.shields.io/travis/florence/cover/master.svg)](https://travis-ci.org/florence/cover)
 [![Coverage Status](https://codecov.io/github/florence/cover/coverage.svg?branch=master)](https://codecov.io/github/florence/cover?branch=master)
