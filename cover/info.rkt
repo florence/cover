@@ -13,6 +13,6 @@
 (define raco-commands
   '(("cover" (submod cover/raco main) "a code coverage tool" 30)))
 
-(define scribblings '(("scribblings/cover.scrbl" (multi-page))))
+(define scribblings '(("scribblings/cover.scrbl" (multi-page) (tool))))
 
 (define pkg-authors '("spencer@florence.io"))
