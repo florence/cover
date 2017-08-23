@@ -24,7 +24,7 @@
     (parameterize ([current-cover-environment (make-cover-environment)]
                    [port-count-lines-enabled (> 0.5 (random))]
                    [current-error-port (current-output-port)])
-        (apply test-files! files)))
+      (apply test-files! files)
 
       (define coverage (get-test-coverage))
       (for ([(program cover) covered])
@@ -68,8 +68,8 @@
   (define-runtime-path prog.rkt "prog.rkt")
   (test-begin
    (parameterize ([current-cover-environment (make-cover-environment)])
-    (test-files! (->absolute prog.rkt))
-    (define abs (coverage-wrapper-map (get-test-coverage)))
-    (test-files! (build-path (->relative prog.rkt)))
-    (define rel (coverage-wrapper-map (get-test-coverage)))
-    (check-equal? abs rel))))
+     (test-files! (->absolute prog.rkt))
+     (define abs (coverage-wrapper-map (get-test-coverage)))
+     (test-files! (build-path (->relative prog.rkt)))
+     (define rel (coverage-wrapper-map (get-test-coverage)))
+     (check-equal? abs rel))))
