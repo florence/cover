@@ -22,8 +22,9 @@
 
   (define (do-test files)
     (parameterize ([current-cover-environment (make-cover-environment)]
-                   [port-count-lines-enabled (> 0.5 (random))])
-      (apply test-files! files)
+                   [port-count-lines-enabled (> 0.5 (random))]
+                   [current-error-port (current-output-port)])
+        (apply test-files! files)))
 
       (define coverage (get-test-coverage))
       (for ([(program cover) covered])
