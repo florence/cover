@@ -43,7 +43,7 @@
 ;; Path FileCoverage -> [Hashof Natural Cover]
 ;; build a hash caching coverage info for that file
 (define (coverage-cache-file key c submods)
-  (parameterize ([current-file key] [port-count-lines-enabled #f])
+  (parameterize ([current-file key] [port-count-lines-enabled #t])
     (vprintf "caching coverage info for ~s\n" key)
     (define get-covered (raw-covered c))
 
@@ -72,17 +72,16 @@
 ;; Lexer(see color:text<%>) FileName InputPort (Maybe (Listof Symbol)) CoverageIntervalMap
 ;;   -> Void
 ;; builds a function that determines if a given location in that port is irrelivent.
-(define (make-irrelevant! lexer f input submods cmap)
+(define (make-irrelevant! lexer file input submods cmap)
   (define str (port->string input))
-  (define full-str (file->string f))
-  (define offset (make-byte->str-offset str))
+  (define fstr (file->string file))
 
-  (lex-irrelevant! lexer full-str str offset cmap)
-  (submod-irrelevant! full-str submods offset cmap))
+  (lex-irrelevant! lexer fstr str cmap)
+  (submod-irrelevant! fstr submods cmap))
 
 ;; Lexer String String (-> Natural Natural) Interval-Map -> Void
 ;; make comments irrelevant
-(define (lex-irrelevant! lexer fstr str offset cmap)
+(define (lex-irrelevant! lexer fstr str cmap)
   (define init-offset (- (string-length fstr) (string-length str)))
   (define for-lex (open-input-string str))
 
@@ -96,15 +95,15 @@
     (case type
       [(eof) (void)]
       [(comment sexp-comment white-space)
-       (define s (+ init-offset (- start (offset start))))
-       (define e (+ init-offset (- end (offset end))))
+       (define s (+ init-offset start))
+       (define e (+ init-offset end))
        (update-map! cmap s e 'irrelevant)
        (loop new-mode)]
       [else (loop new-mode)])))
 
 ;; String (Maybe (Listof Symbol)) (-> Natural Natural) Interval-Map -> Void
 ;; make listed submodules irrelevant
-(define (submod-irrelevant! str submods offset cmap)
+(define (submod-irrelevant! str submods cmap)
   ;; stx positions are in terms of bytes
   (define stx
     (with-input-from-string str
@@ -121,9 +120,8 @@
                    (implies submods (member (syntax-e #'n) submods)))
        (define ?start (syntax-position stx))
        (when ?start
-         (define start (- ?start (offset ?start)))
-         (define end* (+ ?start (syntax-span stx)))
-         (define end (- end* (offset end*)))
+         (define start ?start)
+         (define end (+ ?start (syntax-span stx)))
          (update-map! cmap start end 'irrelevant))]
       [(e ...) (for-each loop* (syntax->list #'(e ...)))]
       [_else (void)])))
@@ -151,27 +149,6 @@
   (or (< startl startr)
       (and (= startl startr)
            (<= ranger rangel))))
-
-;; String -> (Natural -> Natural)
-;; used for determining character/byte offsets for a given
-;; 1 indexed byte locaiton
-(define (make-byte->str-offset str)
-  (define lmapping
-    (let loop ([s 0] [b 0] [acc null])
-      (cond [(>= s (string-length str)) acc]
-            [else
-             (define l (char-utf-8-length (string-ref str s)))
-             (define adds (build-list l (const (- b s))))
-             (loop (add1 s) (+ b l) (append adds acc))])))
-  (define mapping (list->vector (reverse lmapping)))
-  (lambda (offset)
-    (cond
-      [(= (vector-length mapping) 0)
-       0]
-      [(> offset (vector-length mapping))
-       (vector-ref mapping (sub1 (vector-length mapping)))]
-      [else
-       (vector-ref mapping (sub1 offset))])))
 
 ;; intervalmap nat nat any file -> void
 ;; sets the interval map if the range makes sense
