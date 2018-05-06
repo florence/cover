@@ -84,6 +84,7 @@
 (define (lex-irrelevant! lexer fstr str cmap)
   (define init-offset (- (string-length fstr) (string-length str)))
   (define for-lex (open-input-string str))
+  (port-count-lines! for-lex)
 
   (let loop ([mode #f])
     (define-values (v type _m start end backup-dist new-mode/ds)
