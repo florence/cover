@@ -34,6 +34,8 @@ The module implements code coverage annotations as described in cover.rkt
 (define bfs-name (i* #'begin-for-syntax))
 (define begin-name (i* #'begin))
 (define quote-name (i* #'quote))
+(define error-name (i* #'error))
+(define lambda-name (i* #'lambda))
 (define define-values-name (i* #'define-values))
 
 ;; symbol [Hash srcloclist index] [Hash pathstring vector] (Setof String)
@@ -61,7 +63,7 @@ The module implements code coverage annotations as described in cover.rkt
               [else
                (define top (annotate-top stx phase))
                (do-final-init!)
-               (define r (add-cover-require (annotate-clean top) file topic))
+               (define r (add-cover-require (annotate-clean top) file topic count))
                (or r stx)]))
       e))
 
@@ -124,15 +126,15 @@ The module implements code coverage annotations as described in cover.rkt
     #t]
    [_ #f]))
 
-;; Syntax PathString Symbol -> Syntax
+;; Syntax PathString Symbol Index -> Syntax
 ;; This function inserts the necessary requires and definitions for cover to run
 ;; properly. It only touches begins, begin-for-syntaxes, and submodules. Everything
 ;; else should be ignored.
-(define (add-cover-require expr file topic)
+(define (add-cover-require expr file topic count)
   (define bfs-depth (get-syntax-depth expr))
 
   (define/with-syntax (add ...)
-    (build-adds bfs-depth file topic))
+    (build-adds bfs-depth file topic count))
 
   ;; -- IN --
 
@@ -197,9 +199,9 @@ The module implements code coverage annotations as described in cover.rkt
                    (get-syntax-depth b phase)))]
    [_ 1]))
 
-;; Natural PathString Symbol -> Syntax
+;; Natural PathString Symbol Index -> Syntax
 ;; Build a set of requires and definitions for cover to insert
-(define (build-adds bfs-depth file topic)
+(define (build-adds bfs-depth file topic count)
   (with-syntax ([log-message log-message-name]
                 [current-logger current-logger-name]
                 [unsafe-vector*-ref unsafe-vector*-ref-name]
@@ -215,19 +217,31 @@ The module implements code coverage annotations as described in cover.rkt
                 [pbegin-for-syntax bfs-name]
                 [send-name (format-symbol "~a~a" topic 'cover-internal-send-vector-mapping)]
                 [req-name (format-symbol "~a~a" topic 'cover-internal-request-vector-mapping)]
-                [quote quote-name])
+                [quote quote-name]
+                [perror error-name]
+                [plambda lambda-name])
     (define startup-code
       #`(pbegin
-          (pdefine-values (lgr) (#%papp current-logger))
-          (pdefine-values (rec) (#%papp make-log-receiver lgr 'info 'send-name))
-          (pdefine-values (vector-name)
-                          (pbegin
-                           (#%papp log-message lgr 'info 'req-name '"" '#f)
-                           (#%papp hash-ref
-                                   (#%papp unsafe-vector*-ref
-                                           (#%papp sync rec)
-                                           '2)
-                                   'file)))))
+         (pdefine-values (lgr) (#%papp current-logger))
+         (pdefine-values (rec) (#%papp make-log-receiver lgr 'info 'send-name))
+         (pdefine-values (vector-name)
+                         (pbegin
+                          (#%papp log-message lgr 'info 'req-name '"" '#f)
+                          (#%papp hash-ref
+                                  (#%papp vector-ref
+                                          (#%papp sync rec)
+                                          '2)
+                                  'file
+                                  (plambda () (#%papp perror 'cover
+                                                      '"internal error, coverage vector not loaded")))))
+         (if (#%papp eq?
+                     (#%papp vector-length vector-name)
+                     '#,count)
+             (#%papp void)
+             (pbegin
+              (#%papp log-message lgr 'fatal 'cover '"internal error, length miss-match in coverage vector, further execution is unsafe, aborting.")
+              (#%papp exit '255)
+              (#%papp perror 'cover '"current exit handler did not abort")))))
     #`(#,@(for/list ([i bfs-depth])
             #`(prequire (for-meta #,i (only '#%kernel quote))
                         (for-meta #,i (rename '#%kernel log-message log-message))
@@ -239,7 +253,16 @@ The module implements code coverage annotations as described in cover.rkt
                         (for-meta #,i (rename '#%kernel #%papp #%app))
                         (for-meta #,i (rename '#%kernel pdefine-values define-values))
                         (for-meta #,i (rename '#%kernel pbegin begin))
+                        (for-meta #,i (rename '#%kernel plambda lambda))
+                        (for-meta #,i (rename '#%kernel perror error))
+                        (for-meta #,i (rename '#%kernel if if))
+                        (for-meta #,i (rename '#%kernel void void))
+                        (for-meta #,i (rename '#%kernel eq? eq?))
+                        (for-meta #,i (rename '#%kernel exit exit))
+                        (for-meta #,i (rename '#%kernel vector-ref vector-ref))
+                        (for-meta #,i (rename '#%kernel vector-length vector-length))
                         (for-meta #,i (rename '#%unsafe unsafe-vector*-ref unsafe-vector*-ref))
+                        (for-meta #,i (rename '#%unsafe unsafe-vector*-set! unsafe-vector*-set!))
                         (for-meta #,i (rename '#%unsafe unsafe-vector*-set! unsafe-vector*-set!))))
        (prequire (for-meta #,bfs-depth (rename '#%kernel pbegin begin)))
        #,(for/fold ([stx #'(pbegin)]) ([i bfs-depth])
