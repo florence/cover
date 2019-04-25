@@ -13,7 +13,6 @@
 
     (check-equal? (eval (quote-syntax (+ 1 1)) ) 2)
     (check-not-exn (lambda () (eval (quote-syntax (begin-for-syntax (+ 1 1))))))
-    (check-not-exn (lambda () (eval (quote-syntax (begin-for-syntax (eval '(+ 1 1)))))))
     (check-equal? (eval (strip-context (quote-syntax (+ 1 1)))) 2)
     (check-not-exn (lambda () (eval (strip-context (quote-syntax (begin-for-syntax (+ 1 1)))))))
     ;; it looks like the old C expander doesn't pass the namespace along properly,
