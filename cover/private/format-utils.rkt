@@ -44,7 +44,7 @@
 ;; build a hash caching coverage info for that file
 (define (coverage-cache-file key c submods)
   (parameterize ([current-file key] [port-count-lines-enabled #t])
-    (vprintf "caching coverage info for ~s\n" key)
+    (log-cover-debug "caching coverage info for ~s\n")
     (define get-covered (raw-covered c))
 
     (when (path-string? key)

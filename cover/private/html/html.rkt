@@ -52,7 +52,7 @@
   (define file-list
     (for/list ([k (in-list files)]
                #:when (absolute-path? k))
-      (vprintf "building html coverage for: ~a\n" k)
+      (log-cover-debug "building html coverage for: ~a\n" k)
       (define exploded (explode-path k))
       (define-values (_ dir-list)
         (split-at exploded (length pref)))
@@ -102,7 +102,7 @@
 (define (write-files f)
   (for ([l (in-list f)])
     (match-define (list f d e) l)
-    (vprintf "writing html coverage: ~s\n" f)
+    (log-cover-debug "writing html coverage: ~s\n" f)
     (make-directory* d)
     (with-output-to-file f
       #:exists 'replace

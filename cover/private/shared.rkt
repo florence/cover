@@ -1,19 +1,18 @@
 #lang racket/base
-(provide vprintf
-         logger-init-message
+(provide logger-init-message
          logger-covered-message
-         with-intercepted-logging/receiver)
+         with-intercepted-logging/receiver
+         log-cover-debug
+         log-cover-info
+         log-cover-warning
+         log-cover-error
+         log-cover-fatal)
 
 (define logger-init-message "init")
 (define logger-covered-message "covered")
 
-;; like printf but only in verbose mode
-(define (vprintf #:formatter [format format] . a)
-  (log-message (current-logger)
-               'debug
-               'cover
-               (apply format a)
-               #f))
+
+(define-logger cover)
 
 ;; copied from racket/logging for backwards combatability reasons,
 ;; and so we can use the internals

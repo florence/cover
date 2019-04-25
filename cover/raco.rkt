@@ -297,8 +297,8 @@
   (define (->path p) (if (path-string? p) p (first p)))
   (for/list ([k (in-list (map ->path files))]
              #:unless (and (is-excluded-path? k paths)
-                           (vprintf "excluding path ~s from output\n" k)))
-    (vprintf "including path ~s in output\n" k)
+                           (log-cover-debug "excluding path ~s from output\n" k)))
+    (log-cover-debug "including path ~s in output\n" k)
     k))
 
 (module+ test

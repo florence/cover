@@ -105,7 +105,7 @@ Thus, In essence this module has three responsibilites:
             (printf "cover: running file: ~a\n" f)
             (define failed? (handle-file f submod-name))
             (or failed? tests-failed)))))
-    (vprintf "ran ~s\n" files)
+    (log-cover-info "ran ~s\n" files)
     (not tests-failed)))
 
 (define-syntax-rule (with-cover-loggers e ...)
@@ -140,7 +140,7 @@ Thus, In essence this module has three responsibilites:
 ;; (or PathString (list PathString Vector)) Symbol -> Boolean
 ;; returns true if any tests failed or errors occured
 (define (handle-file maybe-path submod-name)
-  (vprintf "attempting to run ~s in environment ~s\n" maybe-path (get-topic))
+  (log-cover-debug "attempting to run ~s in environment ~s\n" maybe-path (get-topic))
   (define the-file (if (list? maybe-path) (first maybe-path) maybe-path))
   (define argv (if (list? maybe-path) (second maybe-path) #()))
 
@@ -154,7 +154,7 @@ Thus, In essence this module has three responsibilites:
   (with-handlers ([(lambda (x) (not (exn:break? x)))
                    (lambda (x)
                      (cond [(an-exit? x)
-                            (vprintf "file ~s exited code ~s" the-file (an-exit-code x))]
+                            (log-cover-debug "file ~s exited code ~s" the-file (an-exit-code x))]
                            [else
                             (set! tests-errored #t)
                             ((error-display-handler)
@@ -164,7 +164,7 @@ Thus, In essence this module has three responsibilites:
                              x)]))])
     (parameterize ([current-command-line-arguments argv]
                    [exit-handler (lambda (x) (raise (an-exit x)))])
-      (vprintf "running file: ~s with args: ~s" the-file argv)
+      (log-cover-info "running file: ~s with args: ~s" the-file argv)
       (exec-file the-file submod-name)))
 
   tests-errored)
@@ -190,9 +190,9 @@ Thus, In essence this module has three responsibilites:
 
 ;; ModulePath -> Any
 (define (run-mod to-run)
-  (vprintf "running ~s in environment ~s" to-run (get-topic))
+  (log-cover-info "running ~s in environment ~s" to-run (get-topic))
   (dynamic-require to-run 0)
-  (vprintf "finished running ~s" to-run))
+  (log-cover-info "finished running ~s" to-run))
 
 ;; PathString -> ModulePath
 (define (build-file-require the-file)
@@ -237,9 +237,9 @@ Thus, In essence this module has three responsibilites:
                         [_ #f])))
                  e]
                 [else
-                 (vprintf "compiling ~s with coverage annotations in environment ~s"
-                          file
-                          (get-topic))
+                 (log-cover-debug "compiling ~s with coverage annotations in environment ~s"
+                                  file
+                                  (get-topic))
                  ((annotate-top file (current-live-files))
                   (expand-syntax e)
                   (namespace-base-phase (current-namespace)))]))
@@ -317,7 +317,7 @@ Thus, In essence this module has three responsibilites:
 ;; -> coverage/c
 (define (get-test-coverage [env (current-cover-environment)])
   (parameterize ([current-cover-environment env])
-    (vprintf "generating test coverage\n")
+    (log-cover-info "generating test coverage\n")
 
     (define vecmap (get-coverage-vector-mapping))
     (define raw-coverage
