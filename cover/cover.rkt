@@ -218,21 +218,31 @@ Thus, In essence this module has three responsibilites:
   (define phase (namespace-base-phase ns))
   ;; define so its named in stack traces
   (define cover-compile
-    (lambda (e immediate-eval?)
+    (lambda (e* immediate-eval?)
+      (define e (if (syntax? e*) e* (datum->syntax #f e*)))
       (define file (get-source e))
       (with-handlers ([void (lambda (e) (displayln file) (raise e))])
-          (define to-compile
-            (cond [(or (compiled-expression? (if (syntax? e) (syntax-e e) e))
-                       (not (eq? reg (namespace-module-registry (current-namespace))))
-                       (not file))
-                   e]
-                  [else
-                   (vprintf "compiling ~s with coverage annotations in environment ~s"
-                            file
-                            (get-topic))
-                   ((annotate-top file (current-live-files))
-                    (if (syntax? e) (expand-syntax e) (datum->syntax #f e))
-                    (namespace-base-phase (current-namespace)))]))
+        (define to-compile
+          (cond [(or (compiled-expression? (syntax-e e))
+                     (not (eq? reg (namespace-module-registry (current-namespace))))
+                     (not file)
+                     ;; only annotate module forms
+                     ;; to prevent phase 1 evals from executing
+                     ;; covered code before the coverage table is ready
+                     (not
+                      (syntax-parse e
+                        [(mod:id . _)
+                         (free-identifier=? #'mod #'module
+                                            (namespace-base-phase (current-namespace)))]
+                        [_ #f])))
+                 e]
+                [else
+                 (vprintf "compiling ~s with coverage annotations in environment ~s"
+                          file
+                          (get-topic))
+                 ((annotate-top file (current-live-files))
+                  (expand-syntax e)
+                  (namespace-base-phase (current-namespace)))]))
         (compile to-compile immediate-eval?))))
   cover-compile)
 
