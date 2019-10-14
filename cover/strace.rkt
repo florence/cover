@@ -71,12 +71,11 @@ The module implements code coverage annotations as described in cover.rkt
     (cond
       [(not initialized?)
        (hash-set! vecmapping file (make-vector count value))]
-      [(not (zero? count))
+      [else
        (define old (hash-ref vecmapping file))
        (define new-vector (make-vector (+ count (vector-length old)) value))
        (vector-copy! new-vector 0 old)
-       (hash-set! vecmapping file new-vector)]
-      [else (void)]))
+       (hash-set! vecmapping file new-vector)]))
 
   ;; in order to write modules to disk the top level needs to
   ;; be a module. so we trust that the module is loaded and trim the expression

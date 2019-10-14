@@ -240,9 +240,14 @@ Thus, In essence this module has three responsibilites:
                  (log-cover-debug "compiling ~s with coverage annotations in environment ~s"
                                   file
                                   (get-topic))
-                 ((annotate-top file (current-live-files))
-                  (expand-syntax e)
-                  (namespace-base-phase (current-namespace)))]))
+                 (define compiled
+                   ((annotate-top file (current-live-files))
+                    (expand-syntax e)
+                    (namespace-base-phase (current-namespace))))
+                 (log-cover-info "compiled ~a to ~s"
+                                 file
+                                 (syntax->datum compiled))
+                 compiled]))
         (compile to-compile immediate-eval?))))
   cover-compile)
 
@@ -319,9 +324,23 @@ Thus, In essence this module has three responsibilites:
   (parameterize ([current-cover-environment env])
     (log-cover-info "generating test coverage\n")
 
+    #|
+As macros may cause source locations that come from one file
+to actually corrispond to other files we must merge these coverage maps together.
+
+To do this we flatten out the nested table structure then rebuild the indirect version.
+However this forgets about files that have no coverage points, so we must add those
+back manually.
+
+Yes, the extended comments here is an admittance that this code is terrible.
+|#
+
     (define vecmap (get-coverage-vector-mapping))
+    (define srcloc-mapping (get-coverage-srcloc-mapping))
+
+    ;; flatten the coverage map
     (define raw-coverage
-      (for*/hash ([(_ filemap) (in-hash (get-coverage-srcloc-mapping))]
+      (for*/hash ([(_ filemap) (in-hash srcloc-mapping)]
                   [(srcloc spot) (in-hash filemap)])
         (match-define (list file loc) spot)
         (values srcloc
@@ -329,22 +348,36 @@ Thus, In essence this module has three responsibilites:
                  (hash-ref vecmap file)
                  loc))))
 
-
     ;; filtered : (listof (list boolean srcloc))
+    ;; collect this into an inverted mapping from coverage-ness to
+    ;; the source location
     (define filtered (hash-map raw-coverage
                                (λ (k v) (list v (apply make-srcloc k)))))
 
     (define out (make-hash))
 
+    ;; collect the inverted and flattened coverage map
+    ;; back in to an indirected table.
     (for ([v (in-list filtered)])
       (define file (srcloc-source (cadr v)))
       (hash-update! out
                     file
                     (lambda (l) (cons v l))
                     null))
-
+    ;; add back in any empty files
+    (for ([(file _) (in-hash srcloc-mapping)])
+      (unless (hash-has-key? out file)
+        (hash-set! out file empty)))
+    
     ;; Make the hash map immutable
     (define coverage (for/hash ([(k v) (in-hash out)]) (values k v)))
+
+    (log-cover-info "raw coverage maps are\nvecmap:~a\nsrclocmap:~a\nraw:~a\nfinal-table:~a"
+                    vecmap
+                    (get-coverage-srcloc-mapping)
+                    raw-coverage
+                    coverage)
+    
     (define file-map (make-hash))
     (coverage-wrapper
      coverage

@@ -31,7 +31,11 @@
         (define-values (expected-coverage expected-uncoverage)
           (with-input-from-file cover (lambda () (values (ranges->numbers (read))
                                                          (ranges->numbers (read))))))
+        
         (define covered? (curry coverage program))
+        (check-not-exn
+         (lambda ()
+           (covered? 1)))
         (define (test-range range type)
           (for ([i range])
             (define v (covered? i))

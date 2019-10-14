@@ -229,6 +229,7 @@
                   (set "prog.rkt"
                        "not-run.rkt"
                        "raise.rkt"
+                       "empty-ISL.rkt"
                        "no-expressions.rkt")))
   (parameterize ([current-directory cur])
     (define omit (map ->absolute (get-info-var cur 'test-omit-paths)))
