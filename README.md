@@ -2,7 +2,6 @@
 [![Build Status](https://img.shields.io/travis/florence/cover/master.svg)](https://travis-ci.org/florence/cover)
 [![Coverage Status](https://codecov.io/github/florence/cover/coverage.svg?branch=master)](https://codecov.io/github/florence/cover?branch=master)
 [![Scribble](https://img.shields.io/badge/Docs-Scribble-blue.svg)](http://pkg-build.racket-lang.org/doc/cover/index.html)
-[![Stories in Ready](https://badge.waffle.io/florence/cover.png?label=ready&title=Ready)](https://waffle.io/florence/cover)
 
 This library is an extensible code coverage tool for racket. It comes with the ability to generate
 HTML reports, and has extensions to submit coverage reports to [Codecov](https://codecov.io/) and
