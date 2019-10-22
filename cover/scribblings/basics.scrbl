@@ -47,7 +47,10 @@ The @exec{raco cover} command accepts the following flags:
                --- Interpret arguments as modules. This ignores arguments unless
                they are files with the extension @filepath{.rkt}, or @filepath{.scrbl}.}
          @item{@Flag{l} or @DFlag{lib}
-               --- Interpret arguments as libraries.}]
+               --- Interpret arguments as libraries.}
+         @item{@DFlag["--suppress-log-execution"]
+          --- Stop cover from executing all logging statements in the program
+          under coverage.}]
 
 
 In addition @exec{raco cover} supports the @racket[_test-omit-paths] and

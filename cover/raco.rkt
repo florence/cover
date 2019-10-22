@@ -30,6 +30,7 @@
   (define expansion-type 'dir)
   (define irrel-submods #f)
   (define verbose #f)
+  (define supress-log-execution #f)
 
   (define args
      (command-line
@@ -44,6 +45,9 @@
       [("-b" "--exclude-pkg-basics")
         "exclude info.rkt, the tests directory, and the scribblings directory from the coverage report"
         (set! exclude-paths (list* "info.rkt" "tests" "scribblings" exclude-paths))]
+      [("--suppress-log-execution")
+       "Stop cover from executing all logging statements."
+       (set! supress-log-execution #t)]
       #:multi
       [("-f" "--format") format
        "Specify that coverage should be run and optionally what formats. Defaults to html."
@@ -81,7 +85,9 @@
       #:args (file . files)
       (cons file files)))
   (with-logging-to-port
-      (if verbose (current-error-port) (open-output-nowhere))
+      (if verbose
+          (current-error-port)
+          (open-output-nowhere))
     (lambda ()
       (define path-expand
         (case expansion-type
@@ -101,10 +107,17 @@
                            (lambda _
                              (error 'cover "given unknown coverage output format: ~s" output-format)))
                  args)))
-      (define passed (apply test-files!
-                            #:submod submods
-                            #:dont-compile exclude-paths
-                            files))
+      (define (exec)
+        (apply test-files!
+               #:submod submods
+               #:dont-compile exclude-paths
+               files))
+      (define passed
+        (cond
+          [supress-log-execution
+           (exec)]
+          [else 
+           (with-intercepted-logging void exec 'debug)]))
       (define coverage (get-test-coverage))
       (printf "dumping coverage info into ~s\n" coverage-dir)
       (parameterize ([irrelevant-submodules irrel-submods])
