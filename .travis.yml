@@ -18,5 +18,5 @@ install:
   - raco pkg install --deps search-auto $TRAVIS_BUILD_DIR
 
 script:
- - raco test $TRAVIS_BUILD_DIR/cover/tests/bfs+module.rkt $TRAVIS_BUILD_DIR/cover/tests/bfs.rkt $TRAVIS_BUILD_DIR/cover/tests/cross-phase-persist.rkt
+ - raco test $TRAVIS_BUILD_DIR
 
