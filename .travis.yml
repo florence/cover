@@ -5,16 +5,6 @@ env:
     - RACKET_DIR=~/racket
   matrix:
     - RACKET_VERSION=HEADCS
-    - RACKET_VERSION=HEAD
-    - RACKET_VERSION=7.4
-    - RACKET_VERSION=7.3
-    - RACKET_VERSION=7.2
-    - RACKET_VERSION=7.1
-    - RACKET_VERSION=7.0
-    - RACKET_VERSION=6.12
-    - RACKET_VERSION=6.11
-    - RACKET_VERSION=6.10
-    - RACKET_VERSION=6.9
     
 matrix:
   fast_finish: true
@@ -26,10 +16,7 @@ before_install:
 
 install:
   - raco pkg install --deps search-auto $TRAVIS_BUILD_DIR
-  - raco pkg install cover-codecov
 
 script:
- - raco test $TRAVIS_BUILD_DIR
+ - raco test $TRAVIS_BUILD_DIR/cover/tests/cross-phase-persist.rkt
 
-after_success:
- - raco cover -f codecov -d $TRAVIS_BUILD_DIR/coverage -b $TRAVIS_BUILD_DIR
