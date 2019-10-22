@@ -1,6 +1,6 @@
 #lang racket/base
-(require "cover.rkt" "format.rkt" "private/contracts.rkt" "private/format-utils.rkt"
-         "private/raw.rkt" racket/contract)
+(require "cover.rkt" "private/contracts.rkt" "private/format-utils.rkt"
+         racket/contract)
 
 (define (not-impersonated/c c)
   (and/c (lambda (v) (not (impersonator? v)))
@@ -29,5 +29,5 @@
 
   [irrelevant-submodules (parameter/c (or/c #f (listof symbol?)))]
 
-  [generate-html-coverage coverage-gen/c]
-  [generate-raw-coverage coverage-gen/c]))
+  
+  ))
