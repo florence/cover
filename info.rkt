@@ -3,7 +3,7 @@
 (define name "cover")
 (define collection 'multi)
 
-(define version "3.2.1")
+(define version "3.3.0")
 
 (define deps '(("base" #:version "6.9") ("errortrace-lib" #:version "1.1")
                "rackunit-lib" "syntax-color-lib" "compiler-lib"
