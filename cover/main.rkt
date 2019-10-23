@@ -5,7 +5,6 @@
 
 
 (provide
-  coverage/c
   test-files! 
   environment?
   make-cover-environment
