@@ -48,8 +48,7 @@ Thus, In essence this module has three responsibilites:
          racket/set
          custom-load
          "private/shared.rkt"
-         "private/file-utils.rkt"
-         "strace.rkt")
+         "private/file-utils.rkt")
 
 ;; An environment has:
 ;; a `namespace`
@@ -284,7 +283,7 @@ Thus, In essence this module has three responsibilites:
     (define topic (gensym))
     (define loc-table (make-hash))
     (define vector-table (make-hash))
-    (define ann (make-annotate-top topic loc-table vector-table))
+    (define ann (lambda (a b) (lambda (c _) c)))
     (environment
      ns
      (make-cover-compile ns ann)
