@@ -27,7 +27,5 @@
 
   [get-test-coverage (->* () (environment?) coverage/c)]
 
-  [irrelevant-submodules (parameter/c (or/c #f (listof symbol?)))]
-
   
   ))
