@@ -1,5 +1,5 @@
 #lang racket/base
-(require "cover.rkt" "private/contracts.rkt" "private/format-utils.rkt"
+(require "cover.rkt" "private/contracts.rkt"
          racket/contract)
 
 (define (not-impersonated/c c)

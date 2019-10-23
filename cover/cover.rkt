@@ -49,7 +49,6 @@ Thus, In essence this module has three responsibilites:
          custom-load
          "private/shared.rkt"
          "private/file-utils.rkt"
-         "private/format-utils.rkt"
          "strace.rkt")
 
 ;; An environment has:
@@ -384,8 +383,7 @@ Yes, the extended comments here is an admittance that this code is terrible.
      (lambda (key location)
        (define f
          (hash-ref! file-map key
-                    (lambda ()
-                      (make-covered? coverage key))))
+                    (lambda () #f)))
        (f location)))))
 
 (define current-cover-environment
