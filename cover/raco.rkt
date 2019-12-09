@@ -96,7 +96,9 @@
           [(lib) expand-lib]
           [(collection) (lambda (a b) (expand-directories (flatten (map collection-paths a)) b))]
           [(package) (lambda (a b)
-                       (expand-directories (map pkg-directory a) b))]))
+                       (expand-directories
+                        (map ensure-pkg-exists (map pkg-directory a) a)
+                        b))]))
       (define files (path-expand args include-exts))
       (define cleaned-files (remove-excluded-paths files exclude-paths))
       (define (generate-coverage . args)
@@ -141,6 +143,14 @@
     (match (find `(lib ,f))
       [#f (error 'cover "module not found: ~a" f)]
       [l l])))
+
+;; given a (U path-string? false?) representing
+;; the result of calling pkg-directory on a string and
+;; the name of the specified package,
+;; ensure that the argument is a path-string and not a #f
+(define (ensure-pkg-exists path-str pkg-name)
+  (or path-str
+      (error 'cover "no such installed package: ~v" pkg-name)))
 
 (module+ test
   (test-begin
