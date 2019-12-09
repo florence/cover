@@ -94,11 +94,17 @@
           [(dir) expand-directories]
           [(file) filter-exts]
           [(lib) expand-lib]
-          [(collection) (lambda (a b) (expand-directories (flatten (map collection-paths a)) b))]
-          [(package) (lambda (a b)
-                       (expand-directories
-                        (map ensure-pkg-exists (map pkg-directory a) a)
-                        b))]))
+          [(collection)
+           (lambda (a b)
+             (expand-directories
+              (flatten
+               (map ensure-collection-exists (map collection-paths a) a))
+              b))]
+          [(package)
+           (lambda (a b)
+             (expand-directories
+              (map ensure-pkg-exists (map pkg-directory a) a)
+              b))]))
       (define files (path-expand args include-exts))
       (define cleaned-files (remove-excluded-paths files exclude-paths))
       (define (generate-coverage . args)
@@ -151,6 +157,13 @@
 (define (ensure-pkg-exists path-str pkg-name)
   (or path-str
       (error 'cover "no such installed package: ~v" pkg-name)))
+
+;; given a (treeof path-string?) representing
+;; the result of calling collection-paths
+;; ensure that the argument is non-empty
+(define (ensure-collection-exists tree collection-name)
+  (or (and (cons? tree) tree)
+      (error 'cover "no such collection: ~a" collection-name)))
 
 (module+ test
   (test-begin
