@@ -95,17 +95,17 @@ Thus, In essence this module has three responsibilites:
         (with-cover-loggers
           (for ([f (in-list abs-names)]
                 #:unless (member f excludes))
-            (printf "cover: instrumenting: ~a\n" f)
+            (log-cover-info "instrumenting: ~a" f)
             (compile-file f))
           (for*/fold ([tests-failed #f])
                      ([f (in-list abs)]
                       [submod-name (in-list (if (list? submod-names)
                                                 submod-names
                                                 (list submod-names)))])
-            (printf "cover: running file: ~a\n" f)
+            (log-cover-info "cover: running file: ~a" f)
             (define failed? (handle-file f submod-name))
             (or failed? tests-failed)))))
-    (log-cover-info "ran ~s\n" files)
+    (log-cover-debug "ran ~s\n" files)
     (not tests-failed)))
 
 (define-syntax-rule (with-cover-loggers e ...)
@@ -164,7 +164,7 @@ Thus, In essence this module has three responsibilites:
                              x)]))])
     (parameterize ([current-command-line-arguments argv]
                    [exit-handler (lambda (x) (raise (an-exit x)))])
-      (log-cover-info "running file: ~s with args: ~s" the-file argv)
+      (log-cover-debug "running file: ~s with args: ~s" the-file argv)
       (exec-file the-file submod-name)))
 
   tests-errored)
@@ -190,9 +190,11 @@ Thus, In essence this module has three responsibilites:
 
 ;; ModulePath -> Any
 (define (run-mod to-run)
-  (log-cover-info "running ~s in environment ~s" to-run (get-topic))
-  (dynamic-require to-run 0)
-  (log-cover-info "finished running ~s" to-run))
+  (log-cover-debug "running ~s in environment ~s" to-run (get-topic))
+  (define output
+    (with-output-to-string (lambda () (dynamic-require to-run 0))))
+  (log-cover-debug "file had output: ~s" output)
+  (log-cover-debug "finished running ~s" to-run))
 
 ;; PathString -> ModulePath
 (define (build-file-require the-file)
@@ -244,7 +246,7 @@ Thus, In essence this module has three responsibilites:
                    ((annotate-top file (current-live-files))
                     (expand-syntax e)
                     (namespace-base-phase (current-namespace))))
-                 (log-cover-info "compiled ~a to ~s"
+                 (log-cover-debug "compiled ~a to ~s"
                                  file
                                  (syntax->datum compiled))
                  compiled]))
@@ -322,7 +324,7 @@ Thus, In essence this module has three responsibilites:
 ;; -> coverage/c
 (define (get-test-coverage [env (current-cover-environment)])
   (parameterize ([current-cover-environment env])
-    (log-cover-info "generating test coverage\n")
+    (log-cover-debug "generating test coverage\n")
 
     #|
 As macros may cause source locations that come from one file
@@ -372,7 +374,7 @@ Yes, the extended comments here is an admittance that this code is terrible.
     ;; Make the hash map immutable
     (define coverage (for/hash ([(k v) (in-hash out)]) (values k v)))
 
-    (log-cover-info "raw coverage maps are\nvecmap:~a\nsrclocmap:~a\nraw:~a\nfinal-table:~a"
+    (log-cover-debug "raw coverage maps are\nvecmap:~a\nsrclocmap:~a\nraw:~a\nfinal-table:~a"
                     vecmap
                     (get-coverage-srcloc-mapping)
                     raw-coverage

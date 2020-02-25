@@ -33,112 +33,117 @@
   (define supress-log-execution #f)
 
   (define args
-     (command-line
-      #:program (short-program+command-name)
-      #:once-each
-      [("-d" "--directory") d
-       "Specify output directory. Defaults to ./coverage."
-       (set! coverage-dir d)]
-      [("-v" "--verbose")
-       "Verbose mode"
-       (set! verbose #t)]
-      [("-b" "--exclude-pkg-basics")
-        "exclude info.rkt, the tests directory, and the scribblings directory from the coverage report"
-        (set! exclude-paths (list* "info.rkt" "tests" "scribblings" exclude-paths))]
-      [("--suppress-log-execution")
-       "Stop cover from executing all logging statements."
-       (set! supress-log-execution #t)]
-      #:multi
-      [("-f" "--format") format
-       "Specify that coverage should be run and optionally what formats. Defaults to html."
-       (set! output-formats (cons format (if (list? output-formats) output-formats '())))]
-      [("-n" "--no-output-for-path") t
-       "exclude any paths named this from the coverage report."
-       (set! exclude-paths (cons t exclude-paths))]
-      [("-i" "--include-extensions") f
-       "include these extensions in files to cover. Accepts regular expressions"
-       (set! include-exts (cons f include-exts))]
-      [("-s" "--submodule") s
-       "Run the given submodule instead of the test submodule."
-       (set! submods (cons (string->symbol s) (if (list? submods) submods '())))]
-      [("-e" "--irrelevant-submodules") s
-       "Consider the given submodules irrelevant when generating coverage. If not provided defaults to all submodules."
-       (unless irrel-submods
-         (set! irrel-submods null))
-       (set! irrel-submods (cons (string->symbol s) irrel-submods))]
-      #:once-any
-      [("-c" "--collection")
-       ("Interprets the arguments as collections whose content"
-        " should be tested (in the same way as directory content).")
-       (set! expansion-type 'collection)]
-      [("-p" "--package")
-       ("Interprets the arguments as packages whose contents"
-        " should be tested (in the same way as directory content).")
-       (set! expansion-type 'package)]
-      [("-m" "--modules")
-       ("Interpret arguments as modules"
-        "  (ignore argument unless \".rkt\", \".scrbl\")")
-       (set! expansion-type 'file)]
-      [("-l" "--lib")
-       "Interperet arguments as libraries"
-       (set! expansion-type 'lib)]
-      #:args (file . files)
-      (cons file files)))
+    (command-line
+     #:program (short-program+command-name)
+     #:once-each
+     [("-d" "--directory") d
+                           "Specify output directory. Defaults to ./coverage."
+                           (set! coverage-dir d)]
+     [("-v" "--verbose")
+      "Verbose mode"
+      (set! verbose #t)]
+     [("-b" "--exclude-pkg-basics")
+      "exclude info.rkt, the tests directory, and the scribblings directory from the coverage report"
+      (set! exclude-paths (list* "info.rkt" "tests" "scribblings" exclude-paths))]
+     [("--suppress-log-execution")
+      "Stop cover from executing all logging statements."
+      (set! supress-log-execution #t)]
+     #:multi
+     [("-f" "--format") format
+                        "Specify that coverage should be run and optionally what formats. Defaults to html."
+                        (set! output-formats (cons format (if (list? output-formats) output-formats '())))]
+     [("-n" "--no-output-for-path") t
+                                    "exclude any paths named this from the coverage report."
+                                    (set! exclude-paths (cons t exclude-paths))]
+     [("-i" "--include-extensions") f
+                                    "include these extensions in files to cover. Accepts regular expressions"
+                                    (set! include-exts (cons f include-exts))]
+     [("-s" "--submodule") s
+                           "Run the given submodule instead of the test submodule."
+                           (set! submods (cons (string->symbol s) (if (list? submods) submods '())))]
+     [("-e" "--irrelevant-submodules") s
+                                       "Consider the given submodules irrelevant when generating coverage. If not provided defaults to all submodules."
+                                       (unless irrel-submods
+                                         (set! irrel-submods null))
+                                       (set! irrel-submods (cons (string->symbol s) irrel-submods))]
+     #:once-any
+     [("-c" "--collection")
+      ("Interprets the arguments as collections whose content"
+       " should be tested (in the same way as directory content).")
+      (set! expansion-type 'collection)]
+     [("-p" "--package")
+      ("Interprets the arguments as packages whose contents"
+       " should be tested (in the same way as directory content).")
+      (set! expansion-type 'package)]
+     [("-m" "--modules")
+      ("Interpret arguments as modules"
+       "  (ignore argument unless \".rkt\", \".scrbl\")")
+      (set! expansion-type 'file)]
+     [("-l" "--lib")
+      "Interperet arguments as libraries"
+      (set! expansion-type 'lib)]
+     #:args (file . files)
+     (cons file files)))
   (with-logging-to-port
+   (current-output-port)
+   (lambda ()
+     (with-logging-to-port
       (if verbose
           (current-error-port)
           (open-output-nowhere))
-    (lambda ()
-      (define path-expand
-        (case expansion-type
-          [(dir) expand-directories]
-          [(file) filter-exts]
-          [(lib) expand-lib]
-          [(collection)
-           (lambda (a b)
-             (expand-directories
-              (flatten
-               (map ensure-collection-exists (map collection-paths a) a))
-              b))]
-          [(package)
-           (lambda (a b)
-             (expand-directories
-              (map ensure-pkg-exists (map pkg-directory a) a)
-              b))]))
-      (define files (path-expand args include-exts))
-      (define cleaned-files (remove-excluded-paths files exclude-paths))
-      (define (generate-coverage . args)
-        (for/list ([output-format (in-list (if (list? output-formats)
-                                               output-formats
-                                               (list output-formats)))])
-          (apply (hash-ref (get-formats) output-format
-                           (lambda _
-                             (error 'cover "given unknown coverage output format: ~s" output-format)))
-                 args)))
-      (define (exec)
-        (apply test-files!
-               #:submod submods
-               #:dont-compile exclude-paths
-               files))
-      (define passed
-        (cond
-          [supress-log-execution
-           (exec)]
-          [else 
-           (with-intercepted-logging void exec 'debug)]))
-      (define coverage (get-test-coverage))
-      (printf "dumping coverage info into ~s\n" coverage-dir)
-      (parameterize ([irrelevant-submodules irrel-submods])
-        (generate-coverage coverage
-                           (for/list ([f cleaned-files])
-                             (cond
-                               [(path? f) (path->string f)]
-                               [else f]))
-                           coverage-dir))
-      (unless passed
-        (printf "some tests failed\n")))
-    'debug
-    'cover))
+      (lambda ()
+        (define path-expand
+          (case expansion-type
+            [(dir) expand-directories]
+            [(file) filter-exts]
+            [(lib) expand-lib]
+            [(collection)
+             (lambda (a b)
+               (expand-directories
+                (flatten
+                 (map ensure-collection-exists (map collection-paths a) a))
+                b))]
+            [(package)
+             (lambda (a b)
+               (expand-directories
+                (map ensure-pkg-exists (map pkg-directory a) a)
+                b))]))
+        (define files (path-expand args include-exts))
+        (define cleaned-files (remove-excluded-paths files exclude-paths))
+        (define (generate-coverage . args)
+          (for/list ([output-format (in-list (if (list? output-formats)
+                                                 output-formats
+                                                 (list output-formats)))])
+            (apply (hash-ref (get-formats) output-format
+                             (lambda _
+                               (error 'cover "given unknown coverage output format: ~s" output-format)))
+                   args)))
+        (define (exec)
+          (apply test-files!
+                 #:submod submods
+                 #:dont-compile exclude-paths
+                 files))
+        (define passed
+          (cond
+            [supress-log-execution
+             (exec)]
+            [else 
+             (with-intercepted-logging void exec 'debug)]))
+        (define coverage (get-test-coverage))
+        (printf "dumping coverage info into ~s\n" coverage-dir)
+        (parameterize ([irrelevant-submodules irrel-submods])
+          (generate-coverage coverage
+                             (for/list ([f cleaned-files])
+                               (cond
+                                 [(path? f) (path->string f)]
+                                 [else f]))
+                             coverage-dir))
+        (unless passed
+          (printf "some tests failed\n")))
+      'debug
+      'cover))
+   'info
+   'cover))
 
 (define (expand-lib files [exts null])
   (define (find x)
