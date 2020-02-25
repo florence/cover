@@ -18,10 +18,15 @@
 
 (module+ test
   (require rackunit "../../cover.rkt" racket/runtime-path racket/set "../file-utils.rkt")
-  (define-runtime-path root "../..")
-  (define-runtime-path tests/basic/prog.rkt "../../tests/basic/prog.rkt")
-  (define-runtime-path tests/basic/not-run.rkt "../../tests/basic/not-run.rkt")
-  (define-runtime-path tests/basic/no-expressions.rkt "../../tests/basic/no-expressions.rkt")
+  
+  (define-runtime-module-path tests/basic/prog.rkt2 cover/tests/basic/prog)
+  (define tests/basic/prog.rkt (resolved-module-path-name tests/basic/prog.rkt2))
+  (define-runtime-module-path tests/basic/not-run.rkt2 cover/tests/basic/not-run)
+  (define tests/basic/not-run.rkt (resolved-module-path-name tests/basic/not-run.rkt2))
+  (define-runtime-module-path tests/basic/no-expressions.rkt2 cover/tests/basic/no-expressions)
+  (define tests/basic/no-expressions.rkt (resolved-module-path-name tests/basic/no-expressions.rkt2)) 
+  (define root (simple-form-path (build-path tests/basic/not-run.rkt ".." ".." "..")))
+  
   (define (mock-covered? pos)
     (cond [(<= 1 pos 6) 'covered]
           [(= 6 pos) 'missing]

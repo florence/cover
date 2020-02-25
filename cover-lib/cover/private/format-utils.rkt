@@ -174,7 +174,8 @@
   (define-runtime-path cover.rkt "../cover.rkt")
   (define current-cover-environment
     (dynamic-require cover.rkt 'current-cover-environment))
-  (define-runtime-path path2 "../tests/prog.rkt")
+  (define-runtime-module-path path2* cover/tests/prog)
+  (define path2 (resolved-module-path-name path2*))
   (parameterize ([irrelevant-submodules #f])
     (test-begin
      (parameterize ([current-cover-environment (make-cover-environment)])

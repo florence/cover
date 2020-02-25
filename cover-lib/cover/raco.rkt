@@ -258,21 +258,24 @@
                (if (should-omit? path full-omits) null (path-add-argv path full-argv))]
               [else null]))))
 (module+ test
-  (define-runtime-path cur ".")
-  (parameterize ([current-directory (build-path cur "tests/basic")])
-    (check-equal? (list->set (map (compose path->string ->relative)
-                                  (flatten (expand-directory (list extensions)))))
-                  (set "prog.rkt"
-                       "not-run.rkt"
-                       "raise.rkt"
-                       "empty-ISL.rkt"
-                       "no-expressions.rkt")))
-  (parameterize ([current-directory cur])
-    (define omit (map ->absolute (get-info-var cur 'test-omit-paths)))
-    (define dirs (map ->absolute (filter list? (flatten (expand-directory (list extensions))))))
-    (for ([o omit])
-      (check-false (member o dirs)
-                   (format "~s ~s" o dirs)))))
+  (define-runtime-module-path dir cover/tests/bfs)
+  (test-case "directory expansions"
+    (define cur (simple-form-path (build-path (resolved-module-path-name dir) ".." "..")))
+    (define path (build-path cur "tests" "basic"))
+    (parameterize ([current-directory path])
+      (check-equal? (list->set (map (compose path->string ->relative)
+                                    (flatten (expand-directory (list extensions)))))
+                    (set "prog.rkt"
+                         "not-run.rkt"
+                         "raise.rkt"
+                         "empty-ISL.rkt"
+                         "no-expressions.rkt")))
+    (parameterize ([current-directory cur])
+      (define omit (map ->absolute (get-info-var cur 'test-omit-paths)))
+      (define dirs (map ->absolute (filter list? (flatten (expand-directory (list extensions))))))
+      (for ([o omit])
+        (check-false (member o dirs)
+                     (format "~s ~s" o dirs))))))
 
 (define (get-new-omits)
   (append (get-omits/incs 'test-omit-paths)
@@ -355,10 +358,11 @@
          paths))
 
 (module+ test
-  (parameterize ([current-directory (build-path "/test")])
-    (check-not-false (is-excluded-path? "/test/test/x.rkt" '("test")))
-    (check-false (is-excluded-path? "/test/x.rkt" '("test")))
-    (check-false (is-excluded-path? "/test/t/x.rkt" '("test")))))
+  (test-case "test path exclusion"
+    (parameterize ([current-directory (build-path "/tests")])
+      (check-not-false (is-excluded-path? "/tests/tests/x.rkt" '("tests")))
+      (check-false (is-excluded-path? "/tests/x.rkt" '("tests")))
+      (check-false (is-excluded-path? "/tests/t/x.rkt" '("tests"))))))
 
 (define (get-formats)
   (define dirs (find-relevant-directories '(cover-formats) 'all-available))

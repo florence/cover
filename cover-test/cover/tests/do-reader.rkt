@@ -1,5 +1,5 @@
 #lang racket
-(require racket/runtime-path "../main.rkt" rackunit "../private/shared.rkt")
+(require racket/runtime-path cover rackunit cover/private/shared)
 (define-runtime-path reader.rkt "reader.rkt")
 (check-not-exn
  (thunk

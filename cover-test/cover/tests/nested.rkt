@@ -1,9 +1,10 @@
 #lang racket
 (require rackunit cover racket/runtime-path
-         "../private/file-utils.rkt")
+         cover/private/file-utils)
 
 (define-runtime-path prog "basic/prog.rkt")
-(define-runtime-path cov "../cover.rkt")
+(define-runtime-module-path cover cover/cover)
+(define cov (resolved-module-path-name cover))
 (define-runtime-path other "simple-multi/2.rkt")
 
 (define (do-test . files)

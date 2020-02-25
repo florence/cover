@@ -394,11 +394,13 @@ Yes, the extended comments here is an admittance that this code is terrible.
 ;; here live tests for actually saving compiled files
 (module+ test
   (require rackunit racket/runtime-path compiler/cm compiler/compiler)
-  (define-runtime-path prog.rkt "tests/prog.rkt")
-  (define-runtime-path-list compiled
-    (list
-     "tests/compiled/prog_rkt.zo"
-     "tests/compiled/prog_rkt.dep"))
+  (define-runtime-module-path prog cover/tests/prog)
+  (define prog.rkt (resolved-module-path-name prog))
+  (define compiled
+    (map simple-form-path
+         (list
+          (build-path prog.rkt ".." "compiled/prog_rkt.zo")
+          (build-path prog.rkt ".." "compiled/prog_rkt.dep"))))
   (define (df)
     (for-each (lambda (f) (when (file-exists? f) (delete-file f)))
               compiled))
@@ -423,7 +425,8 @@ Yes, the extended comments here is an admittance that this code is terrible.
            racket/format
            racket/lazy-require)
   ;; break cyclic dependency in testing
-  (define-runtime-path simple-multi/2.rkt "tests/simple-multi/2.rkt")
+  (define-runtime-module-path simple-multi/2 cover/tests/simple-multi/2)
+  (define simple-multi/2.rkt (resolved-module-path-name simple-multi/2))
   (define env (make-cover-environment))
   (define ns (environment-namespace env))
   (parameterize ([current-cover-environment env]

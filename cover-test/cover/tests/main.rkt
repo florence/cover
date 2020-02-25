@@ -5,8 +5,8 @@
 ;; .rktl file of the same name
 (require (only-in cover test-files! get-test-coverage irrelevant-submodules
                   current-cover-environment make-cover-environment)
-         (only-in "../cover.rkt" coverage-wrapper-map)
-         "../private/file-utils.rkt"
+         (only-in cover/cover coverage-wrapper-map)
+         cover/private/file-utils
          racket/runtime-path rackunit)
 
 (define (test-dir d)

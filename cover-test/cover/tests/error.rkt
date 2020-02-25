@@ -1,5 +1,5 @@
 #lang racket
-(require "../main.rkt" (only-in "../cover.rkt" coverage-wrapper-map) rackunit racket/runtime-path
+(require cover (only-in cover/cover coverage-wrapper-map) rackunit racket/runtime-path
          cover/private/file-utils)
 
 (define-runtime-path error "error-file.rkt")
