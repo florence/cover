@@ -102,7 +102,7 @@ Thus, In essence this module has three responsibilites:
                       [submod-name (in-list (if (list? submod-names)
                                                 submod-names
                                                 (list submod-names)))])
-            (log-cover-info "cover: running file: ~a" f)
+            (log-cover-info "running file: ~a" f)
             (define failed? (handle-file f submod-name))
             (or failed? tests-failed)))))
     (log-cover-debug "ran ~s\n" files)

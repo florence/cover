@@ -81,64 +81,60 @@
      #:args (file . files)
      (cons file files)))
   (with-logging-to-port
-   (current-output-port)
+   (if verbose
+       (current-error-port)
+       (current-output-port))
+   #:logger (current-logger)
    (lambda ()
-     (with-logging-to-port
-      (if verbose
-          (current-error-port)
-          (open-output-nowhere))
-      (lambda ()
-        (define path-expand
-          (case expansion-type
-            [(dir) expand-directories]
-            [(file) filter-exts]
-            [(lib) expand-lib]
-            [(collection)
-             (lambda (a b)
-               (expand-directories
-                (flatten
-                 (map ensure-collection-exists (map collection-paths a) a))
-                b))]
-            [(package)
-             (lambda (a b)
-               (expand-directories
-                (map ensure-pkg-exists (map pkg-directory a) a)
-                b))]))
-        (define files (path-expand args include-exts))
-        (define cleaned-files (remove-excluded-paths files exclude-paths))
-        (define (generate-coverage . args)
-          (for/list ([output-format (in-list (if (list? output-formats)
-                                                 output-formats
-                                                 (list output-formats)))])
-            (apply (hash-ref (get-formats) output-format
-                             (lambda _
-                               (error 'cover "given unknown coverage output format: ~s" output-format)))
-                   args)))
-        (define (exec)
-          (apply test-files!
-                 #:submod submods
-                 #:dont-compile exclude-paths
-                 files))
-        (define passed
-          (cond
-            [supress-log-execution
-             (exec)]
-            [else 
-             (with-intercepted-logging void exec 'debug)]))
-        (define coverage (get-test-coverage))
-        (printf "dumping coverage info into ~s\n" coverage-dir)
-        (parameterize ([irrelevant-submodules irrel-submods])
-          (generate-coverage coverage
-                             (for/list ([f cleaned-files])
-                               (cond
-                                 [(path? f) (path->string f)]
-                                 [else f]))
-                             coverage-dir))
-        (unless passed
-          (printf "some tests failed\n")))
-      'debug
-      'cover))
-   'info
+     (define path-expand
+       (case expansion-type
+         [(dir) expand-directories]
+         [(file) filter-exts]
+         [(lib) expand-lib]
+         [(collection)
+          (lambda (a b)
+            (expand-directories
+             (flatten
+              (map ensure-collection-exists (map collection-paths a) a))
+             b))]
+         [(package)
+          (lambda (a b)
+            (expand-directories
+             (map ensure-pkg-exists (map pkg-directory a) a)
+             b))]))
+     (define files (path-expand args include-exts))
+     (define cleaned-files (remove-excluded-paths files exclude-paths))
+     (define (generate-coverage . args)
+       (for/list ([output-format (in-list (if (list? output-formats)
+                                              output-formats
+                                              (list output-formats)))])
+         (apply (hash-ref (get-formats) output-format
+                          (lambda _
+                            (error 'cover "given unknown coverage output format: ~s" output-format)))
+                args)))
+     (define (exec)
+       (apply test-files!
+              #:submod submods
+              #:dont-compile exclude-paths
+              files))
+     (define passed
+       (cond
+         [supress-log-execution
+          (exec)]
+         [else 
+          (with-intercepted-logging void exec 'debug)]))
+     (define coverage (get-test-coverage))
+     (printf "dumping coverage info into ~s\n" coverage-dir)
+     (parameterize ([irrelevant-submodules irrel-submods])
+       (generate-coverage coverage
+                          (for/list ([f cleaned-files])
+                            (cond
+                              [(path? f) (path->string f)]
+                              [else f]))
+                          coverage-dir))
+     (unless passed
+       (printf "some tests failed\n")))
+   (if verbose 'debug 'info)
    'cover))
 
 (define (expand-lib files [exts null])
