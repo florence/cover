@@ -6,19 +6,15 @@
          racket/contract/base
          racket/function
          racket/logging
-         "main.rkt"
-         (only-in "private/contracts.rkt" coverage-gen/c)
-         "private/shared.rkt"
-         "private/file-utils.rkt"
+         cover
+         (only-in cover/private/contracts coverage-gen/c)
+         cover/private/shared
+         cover/private/file-utils
          (only-in (submod compiler/commands/test paths) collection-paths)
          racket/path
          pkg/lib
          racket/port
          (for-syntax racket/base syntax/parse))
-
-
-(module+ test
-  (require rackunit racket/runtime-path racket/set))
 
 (module+ main
 
@@ -170,11 +166,6 @@
   (or (and (cons? tree) tree)
       (error 'cover "no such collection: ~a" collection-name)))
 
-(module+ test
-  (test-begin
-   (define p (first (expand-lib '("racket/base"))))
-   (check-not-false p)
-   (check-true (file-exists? p))))
 
 (define-syntax (maybe stx)
   (syntax-parse stx
@@ -190,9 +181,6 @@
                            [ext (bytes->string/locale ext?)]
                            [res (regexp-match (get-module-suffix-regexp) (string-append "." ext))]))
     f))
-(module+ test
-  (check-equal? (filter-exts '("a.rkt" "b.rkt" "c/d/e.scrbl" "a/b/c" "a/b.qqq"))
-                '("a.rkt" "b.rkt" "c/d/e.scrbl")))
 
 (define (expand-directories files [exts null])
   (define comped (map regexp exts))
@@ -213,29 +201,6 @@
        (cons (list a b) (loop r))]
       [(list* a r)
        (cons a (loop r))])))
-
-(module+ test
-  (define extensions #px#"^(.*)\\.(?i:rkt|scm|scrbl|ss)$")
-  (define-runtime-path root ".")
-  (define-runtime-path private "private")
-  (define-runtime-path main.rkt "main.rkt")
-  (define out
-    (set "main.rkt"
-         "private/contracts.rkt"
-         "private/html/html.rkt"
-         "private/format-utils.rkt"
-         "private/file-utils.rkt"
-         "private/shared.rkt"
-         "private/raw.rkt"))
-  (define (do-test ->)
-    (parameterize ([current-directory root])
-    (check-equal? (list->set
-                   (map (compose path->string ->relative)
-                        (expand-directories (list (path->string main.rkt)
-                                                  (-> (path->string private))))))
-                  out)))
-  (do-test ->relative)
-  (do-test ->absolute))
 
 ;; -> (HorribyNestedListsOf (or PathString (list path-string vector))
 (define (expand-directory inc-paths [omit-paths null] [args null])
@@ -262,25 +227,6 @@
                (define path (path->string (build-path (current-directory) p)))
                (if (should-omit? path full-omits) null (path-add-argv path full-argv))]
               [else null]))))
-(module+ test
-  (define-runtime-module-path dir cover/tests/bfs)
-  (test-case "directory expansions"
-    (define cur (simple-form-path (build-path (resolved-module-path-name dir) ".." "..")))
-    (define path (build-path cur "tests" "basic"))
-    (parameterize ([current-directory path])
-      (check-equal? (list->set (map (compose path->string ->relative)
-                                    (flatten (expand-directory (list extensions)))))
-                    (set "prog.rkt"
-                         "not-run.rkt"
-                         "raise.rkt"
-                         "empty-ISL.rkt"
-                         "no-expressions.rkt")))
-    (parameterize ([current-directory cur])
-      (define omit (map ->absolute (get-info-var cur 'test-omit-paths)))
-      (define dirs (map ->absolute (filter list? (flatten (expand-directory (list extensions))))))
-      (for ([o omit])
-        (check-false (member o dirs)
-                     (format "~s ~s" o dirs))))))
 
 (define (get-new-omits)
   (append (get-omits/incs 'test-omit-paths)
@@ -326,16 +272,6 @@
                    (loop (cdr eo) (cdr ep))]
                   [else #f]))))))
 
-(module+ test
-  (check-true (should-omit? "/Test/t.rkt" '("/Test")))
-  (check-true (should-omit? "/Test/t.rkt" '("/Test/t.rkt")))
-  (check-true (should-omit? "/Users/florence/playground/cover/tests/error-file.rkt"
-                            '("/Users/florence/playground/cover/tests/error-file.rkt")))
-  (check-false (should-omit? "/Test/t.rkt" '("/OtherDir")))
-  (check-true (should-omit? "/Users/florence/playground/cover/tests/error-file.rkt"
-                            (list extensions)))
-  (check-false (should-omit? "/Users/florence/playground/cover/tests/error-file.qq"
-                             (list extensions))))
 
 ;; (listof (U path (list Path Vector)) (listof path) -> (listof path-string)
 (define (remove-excluded-paths files paths)
@@ -346,28 +282,11 @@
     (log-cover-debug "including path ~s in output\n" k)
     k))
 
-(module+ test
-  (parameterize ([current-directory (build-path "/tests")])
-    (check-equal? (remove-excluded-paths
-                   (list (list "/tests/tests/x.rkt" #())
-                         "/tests/x/tests/x/x.rkt"
-                         "/tests/x.rkt")
-                   '("tests"))
-                  (list "/tests/x.rkt"))))
-
-
 ;; PathString [ListOf PathString]-> any/c
 (define (is-excluded-path? k paths)
   (define expl (explode-path (->relative k)))
   (ormap (lambda (d) (member (build-path d) expl))
          paths))
-
-(module+ test
-  (test-case "test path exclusion"
-    (parameterize ([current-directory (build-path "/tests")])
-      (check-not-false (is-excluded-path? "/tests/tests/x.rkt" '("tests")))
-      (check-false (is-excluded-path? "/tests/x.rkt" '("tests")))
-      (check-false (is-excluded-path? "/tests/t/x.rkt" '("tests"))))))
 
 (define (get-formats)
   (define dirs (find-relevant-directories '(cover-formats) 'all-available))
@@ -393,10 +312,3 @@
 (define (get-info/full/skip dir)
   (with-handlers ([exn:fail? (const #f)])
     (get-info/full dir)))
-
-(module+ test
-  (test-begin
-   ;; we expect that a standard install has "html", "coveralls", and "raw"
-   (define h (get-formats))
-   (check-true (hash-has-key? h "html"))
-   (check-true (hash-has-key? h "raw"))))

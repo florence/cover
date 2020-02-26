@@ -11,5 +11,3 @@
                "errortrace-lib"
                "syntax-color-lib"
                "testing-util-lib"))
-(define build-deps '("cover-test"
-                     "rackunit-lib"))

@@ -17,8 +17,6 @@
 
          "shared.rkt")
 
-(module+ test (require rackunit racket/runtime-path racket/set))
-
 ;;;;; a Coverage is the output of (hash-of any (listof (list boolean srcloc?)))
 
 ;;;;; utils
@@ -164,32 +162,3 @@
        (format "found non-sensable character range [~a,~a) in file ~a. Skiping coverage info for that range ~a"
                s e (current-file) (or extra-debug ""))
        (current-continuation-marks))))
-
-(module+ test
-  (require racket/lazy-require)
-  (lazy-require ["../cover.rkt"
-                 (make-cover-environment
-                  test-files!
-                  get-test-coverage)])
-  (define-runtime-path cover.rkt "../cover.rkt")
-  (define current-cover-environment
-    (dynamic-require cover.rkt 'current-cover-environment))
-  (define-runtime-module-path path2* cover/tests/prog)
-  (define path2 (resolved-module-path-name path2*))
-  (parameterize ([irrelevant-submodules #f])
-    (test-begin
-     (parameterize ([current-cover-environment (make-cover-environment)])
-       (define f (path->string (simplify-path path2)))
-       (test-files! f)
-       (define coverage (get-test-coverage))
-       (define covered? (curry coverage f))
-       (check-equal? (covered? 14) 'irrelevant)
-       (check-equal? (covered? 17) 'irrelevant)
-       (check-equal? (covered? 28) 'irrelevant)
-       (check-equal? (covered? 35) 'covered)
-       (check-equal? (covered? 52) 'irrelevant)
-       (check-equal? (covered? 53) 'irrelevant)
-       (check-equal? (covered? 54) 'irrelevant)
-       (check-equal? (covered? 50) 'uncovered)
-       (check-equal? (covered? 78) 'uncovered)
-       (check-equal? (covered? 106) 'uncovered)))))

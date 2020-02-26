@@ -6,7 +6,9 @@
 (define pkg-desc "A code coverage library -- tests")
 (define pkg-authors '("spencerflorence@gmail.com"))
 
-(define build-deps '("at-exp-lib"
+(define build-deps '("compiler-lib"
+                     "custom-load"
+                     "at-exp-lib"
                      "base"
                      "htdp-lib"
                      "macro-debugger"
