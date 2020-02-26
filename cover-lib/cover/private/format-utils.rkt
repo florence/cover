@@ -153,12 +153,15 @@
 ;; sets the interval map if the range makes sense
 ;; logs a warning otherwise
 (define (update-map! i s e v [extra-debug #f])
-  (if (> e s)
-      (interval-map-set! i s e v)
-      (log-message
-       (current-logger)
-       'warning
-       'cover
-       (format "found non-sensable character range [~a,~a) in file ~a. Skiping coverage info for that range ~a"
-               s e (current-file) (or extra-debug ""))
-       (current-continuation-marks))))
+  (cond [(> e s)
+         (interval-map-set! i s e v)]
+        [(= e s)
+         ;; We sometimes find zero length identifiers (thanks syntax/parser)
+         ;; but intervals in an interval map must be non-empty
+         ;; therefore we just do nothing when they show up.
+         ;; hopefully this doesn't mask any future bugs....
+         (void)]
+        [else
+         (log-cover-warning
+          "found non-sensable character range [~a,~a) in file ~a. Skiping coverage info for that range ~a"
+          s e (current-file) (or extra-debug ""))]))

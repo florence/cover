@@ -3,6 +3,8 @@
 ;; for every .rkt file in those directories it loads
 ;; tests that file and checks its coverage against an
 ;; .rktl file of the same name
+;; also checks that no warnings are logged during coverage (specifically to check that
+;; zero-width id's are valid)
 (require (only-in cover test-files! get-test-coverage irrelevant-submodules
                   current-cover-environment make-cover-environment)
          (only-in cover/cover coverage-wrapper-map)
@@ -24,6 +26,8 @@
     (parameterize ([current-cover-environment (make-cover-environment)]
                    [port-count-lines-enabled (> 0.5 (random))]
                    [current-error-port (current-output-port)])
+      (define reciever (make-log-receiver (current-logger) 'warning 'cover))
+      
       (apply test-files! files)
 
       (define coverage (get-test-coverage))
@@ -45,7 +49,9 @@
                                     i program)))))
         (test-begin
          (test-range expected-coverage 'covered)
-         (test-range expected-uncoverage 'uncovered)))))
+         (test-range expected-uncoverage 'uncovered)))
+      
+      (check-false (sync/timeout (lambda () #f) reciever))))
 
   ;; ensure the results are the same regardless of file order
   (do-test files)
