@@ -29,7 +29,7 @@ before_install:
 
 install:
   - if [ $FROM_PKG_SERVER == "yes" ]; then
-      raco pkg install cover-lib cover-test cover-doc cover;
+      raco pkg install --deps search-auto cover-lib cover-test cover-doc cover;
     else
        raco pkg install --deps search-auto $TRAVIS_BUILD_DIR/cover-lib $TRAVIS_BUILD_DIR/cover-doc $TRAVIS_BUILD_DIR/cover-test $TRAVIS_BUILD_DIR/cover;
     fi
