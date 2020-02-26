@@ -1,7 +1,7 @@
 #lang info
 
 (define collection 'multi)
-(define version "3.3.1")
+(define version "3.3.2")
 (define pkg-desc "A code coverage library -- implementation")
 
 (define deps '("base"
