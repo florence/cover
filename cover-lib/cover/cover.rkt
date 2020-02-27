@@ -117,7 +117,7 @@ Thus, In essence this module has three responsibilites:
                 (or failed? tests-failed)))
             null))
          (log-cover-benchmark-info "run: ~a" (list t11 t22 t33))
-         result)))
+         (first result))))
     (log-cover-debug "ran ~s\n" files)
     (not tests-failed)))
 
@@ -171,6 +171,7 @@ Thus, In essence this module has three responsibilites:
 
   (with-handlers ([(lambda (x) (not (exn:break? x)))
                    (lambda (x)
+                     (log-cover-debug "catching exception while running test: ~a" x)
                      (cond [(an-exit? x)
                             (log-cover-debug "file ~s exited code ~s" the-file (an-exit-code x))]
                            [else
@@ -184,15 +185,17 @@ Thus, In essence this module has three responsibilites:
                    [exit-handler (lambda (x) (raise (an-exit x)))])
       (log-cover-debug "running file: ~s with args: ~s" the-file argv)
       (exec-file the-file submod-name)))
-
+  (log-cover-debug "test errored status for ~a: ~a" the-file tests-errored)
   tests-errored)
 
 ;; -> Bool
 (define (tests-failed?)
   (define test-log (get-test-log))
-  (let ([lg (test-log)])
-    (and (not (= 0 (car lg)))
-         (not (= 0 (cdr lg))))))
+  (define lg (test-log))
+  (log-cover-debug "test log: ~a" lg)
+  (and (not (= 0 (car lg)))
+       (not (= 0 (cdr lg)))))
+  
 
 (define (get-test-log)
   (with-handlers ([exn:fail? (lambda _ (lambda () (cons 0 0)))])
