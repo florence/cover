@@ -3,7 +3,9 @@
 (define pkg-desc "benckmarks for cover")
 
 (define deps
-  '(["cover-lib" #:version "3.3.3"]
+  '("draw-lib"
+    "plot-lib"
+    ["cover-lib" #:version "3.3.3"]
     ["base" #:version "7.6"]
     "custom-load"
     "typed-racket-lib"
