@@ -219,7 +219,6 @@
   (define new-omits (get-new-omits))
   (define full-omits (append new-omits omit-paths))
   (define new-incs (get-new-incs))
-  (define full-incs (append new-incs inc-paths))
   (define new-argv (get-info-var (current-directory) 'test-command-line-arguments))
   (define expanded-argv
     (if (not new-argv)
@@ -253,7 +252,7 @@
   (define new-omits (get-info-var (current-directory) s))
   (case new-omits
     [(#f) null]
-    [(all) (->absolute (current-directory))]
+    [(all) (list (->absolute (current-directory)))]
     [else (map (lambda (x)
                  (cond [(regexp? x) x]
                        [(bytes? x) (regexp (bytes->string/locale x))]
