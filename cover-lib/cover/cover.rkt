@@ -4,7 +4,9 @@
          get-test-coverage
          current-cover-environment environment?
          environment-compile environment-namespace
-         coverage-wrapper-map)
+         coverage-wrapper-map
+         run-file! 
+         kernelize-namespace!)
 
 #|
 
@@ -93,18 +95,29 @@ Thus, In essence this module has three responsibilites:
                       [current-namespace (get-namespace)]
                       [current-live-files (list->set abs-names)])
         (with-cover-loggers
-          (for ([f (in-list abs-names)]
-                #:unless (member f excludes))
-            (log-cover-info "instrumenting: ~a" f)
-            (compile-file f))
-          (for*/fold ([tests-failed #f])
-                     ([f (in-list abs)]
-                      [submod-name (in-list (if (list? submod-names)
-                                                submod-names
-                                                (list submod-names)))])
-            (log-cover-info "running file: ~a" f)
-            (define failed? (handle-file f submod-name))
-            (or failed? tests-failed)))))
+         (define-values (_ t1 t2 t3)
+           (time-apply
+            (lambda ()
+              (for ([f (in-list abs-names)]
+                    #:unless (member f excludes))
+                (log-cover-info "instrumenting: ~a" f)
+                (compile-file f)))
+            null))
+         (log-cover-benchmark-info "compile: ~a" (list t1 t2 t3))
+         (define-values (result t11 t22 t33)
+           (time-apply
+            (lambda ()
+              (for*/fold ([tests-failed #f])
+                         ([f (in-list abs)]
+                          [submod-name (in-list (if (list? submod-names)
+                                                    submod-names
+                                                    (list submod-names)))])
+                (log-cover-info "running file: ~a" f)
+                (define failed? (handle-file f submod-name))
+                (or failed? tests-failed)))
+            null))
+         (log-cover-benchmark-info "run: ~a" (list t1 t2 t3))
+         result)))
     (log-cover-debug "ran ~s\n" files)
     (not tests-failed)))
 

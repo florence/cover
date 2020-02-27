@@ -15,6 +15,7 @@
          pkg/lib
          racket/port
          (for-syntax racket/base syntax/parse))
+(provide get-files)
 
 (module+ main
 
@@ -86,24 +87,8 @@
        (current-output-port))
    #:logger (current-logger)
    (lambda ()
-     (define path-expand
-       (case expansion-type
-         [(dir) expand-directories]
-         [(file) filter-exts]
-         [(lib) expand-lib]
-         [(collection)
-          (lambda (a b)
-            (expand-directories
-             (flatten
-              (map ensure-collection-exists (map collection-paths a) a))
-             b))]
-         [(package)
-          (lambda (a b)
-            (expand-directories
-             (map ensure-pkg-exists (map pkg-directory a) a)
-             b))]))
-     (define files (path-expand args include-exts))
-     (define cleaned-files (remove-excluded-paths files exclude-paths))
+     (define-values (files cleaned-files)
+       (get-files expansion-type args include-exts exclude-paths))
      (define (generate-coverage . args)
        (for/list ([output-format (in-list (if (list? output-formats)
                                               output-formats
@@ -136,6 +121,28 @@
        (printf "some tests failed\n")))
    (if verbose 'debug 'info)
    'cover))
+
+
+(define (get-files expansion-type args include-exts exclude-paths)
+  (define path-expand
+    (case expansion-type
+      [(dir) expand-directories]
+      [(file) filter-exts]
+      [(lib) expand-lib]
+      [(collection)
+       (lambda (a b)
+         (expand-directories
+          (flatten
+           (map ensure-collection-exists (map collection-paths a) a))
+          b))]
+      [(package)
+       (lambda (a b)
+         (expand-directories
+          (map ensure-pkg-exists (map pkg-directory a) a)
+          b))]))
+  (define files (path-expand args include-exts))
+  (define cleaned-files (remove-excluded-paths files exclude-paths))
+  (values files cleaned-files))
 
 (define (expand-lib files [exts null])
   (define (find x)
@@ -286,18 +293,20 @@
 
 (define (get-formats)
   (define dirs (find-relevant-directories '(cover-formats) 'all-available))
-  (for*/hash ([d (in-list dirs)]
-              [f (in-value (get-info/full/skip d))]
-              #:when f
-              [v (in-value (f 'cover-formats (const #f)))]
-              #:when v
-              [l (in-list v)])
-    (with-handlers ([exn:misc:match? (make-cover-load-error d l)])
-      (match-define (list (? string? name) (? module-path? path) (? symbol? ident)) l)
-      (define f (dynamic-require path ident (make-cover-require-error ident path)))
-      (values
-       name
-       (contract coverage-gen/c f 'cover ident ident #f)))))
+  (hash-set
+   (for*/hash ([d (in-list dirs)]
+               [f (in-value (get-info/full/skip d))]
+               #:when f
+               [v (in-value (f 'cover-formats (const #f)))]
+               #:when v
+               [l (in-list v)])
+     (with-handlers ([exn:misc:match? (make-cover-load-error d l)])
+       (match-define (list (? string? name) (? module-path? path) (? symbol? ident)) l)
+       (define f (dynamic-require path ident (make-cover-require-error ident path)))
+       (values
+        name
+        (contract coverage-gen/c f 'cover ident ident #f))))
+   "none" (lambda _ (void))))
 
 (define ((make-cover-load-error dir v) . _)
   (error 'cover "unable to load coverage format from ~s. Found unusable value ~s" dir v))

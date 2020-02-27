@@ -6,13 +6,16 @@
          log-cover-info
          log-cover-warning
          log-cover-error
-         log-cover-fatal)
+         log-cover-fatal
+         log-cover-benchmark-info
+         log-cover-benchmark-warning)
 
 (define logger-init-message "init")
 (define logger-covered-message "covered")
 
 
 (define-logger cover)
+(define-logger cover-benchmark)
 
 ;; copied from racket/logging for backwards combatability reasons,
 ;; and so we can use the internals
