@@ -5,7 +5,8 @@
          racket/format
          racket/match
          racket/system
-         racket/list)
+         racket/list
+         racket/path)
 (provide data benchmark-set)
 (define benchmark-set
   (hash
@@ -21,6 +22,7 @@
   (require racket/cmdline)
   (define clean? #f)
   (define times 10)
+  (define bin-path #f)
   (define to-run
     (command-line
      #:once-each
@@ -33,6 +35,9 @@
       (unless (exact-positive-integer? times)
         (error 'benchmark "bad number of times to run ~a" t))
       (set! times x)]
+     [("-b" "--path-to-bin-dir")
+      b "path the dir with racket and raco"
+      (set! bin-path (simple-form-path b))]
 
      #:args benchmarks
      (if (empty? benchmarks)
@@ -45,13 +50,14 @@
       (error 'benchmark "unknown benchmark ~a" x)))
   (for ([x (in-list to-run)])
     (define r (hash-ref benchmark-set x))
-    (run-benchmark times
+    (run-benchmark bin-path
+                   times
                    (~a x)
                    (first r)
                    (map ~a (rest r))
                    clean?)))
          
-(define (run-benchmark times name type pkgs clean?)
+(define (run-benchmark b times name type pkgs clean?)
   (let/ec return
     (define dir (build-path data name))
     (when (directory-exists? dir)
@@ -62,28 +68,28 @@
               (path->string dir))
              (return)]))
     (make-directory dir)
-    (benchmark-tests times name type pkgs)
-    (benchmark-cover times name type pkgs)))
+    (benchmark-tests b times name type pkgs)
+    (benchmark-cover b times name type pkgs)))
 
 (define-runtime-path test-path "run-test-benchmark.rkt")
-(define (benchmark-tests times name type pkgs)
+(define (benchmark-tests b times name type pkgs)
   (log-cover-benchmark-info (format "starting test run for ~a" name))
   (benchmark-command
    'test
    name
    times
-   "racket"
+   (if b (build-path b "racket") "racket")
    (list*
     (path->string test-path)
     (~a type)
     pkgs)))
-(define (benchmark-cover times name type pkgs)
+(define (benchmark-cover b times name type pkgs)
   (log-cover-benchmark-info (format "starting cover run for ~a" name))
   (benchmark-command
    'cover
    name
    times
-   "raco"
+   (if b (build-path b "raco") "raco")
    (list*
     "cover" "-Q" "-f" "none"
     (case type
@@ -92,7 +98,7 @@
     pkgs)))
 
 (define (benchmark-command type name times exec cmd)
-  (define command-path (find-executable-path exec))
+  (define command-path (if (path? exec) exec (find-executable-path exec)))
   (define file (build-path data name (~a type ".log")))
   (define f* (open-output-file file #:exists 'error))
   (define testing-vars
@@ -122,7 +128,7 @@
        (unless (eq? (get-status 'status) 'done-ok)
          (error 'benchmark
                 "The command ~a errored with status ~a"
-                cmd
+                (cons command-path cmd)
                 (get-status 'exit-code)))))
    (lambda () (close-output-port f*))))
      
