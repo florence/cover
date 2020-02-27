@@ -6,7 +6,7 @@
   '("draw-lib"
     "plot-lib"
     ["cover-lib" #:version "3.3.3"]
-    ["base" #:version "7.6"]
+    "base"
     "custom-load"
     "typed-racket-lib"
     "typed-racket-test"
