@@ -12,6 +12,8 @@
   (hash
    #;'typed-racket
    #;'(package typed-racket-lib typed-racket-test typed-racket-more math-lib)
+   'cover
+   '(package cover-lib cover-test)
    'pict
    '(package pict-lib pict-test)
    'racket-benchmarks
