@@ -116,7 +116,7 @@ Thus, In essence this module has three responsibilites:
                 (define failed? (handle-file f submod-name))
                 (or failed? tests-failed)))
             null))
-         (log-cover-benchmark-info "run: ~a" (list t1 t2 t3))
+         (log-cover-benchmark-info "run: ~a" (list t11 t22 t33))
          result)))
     (log-cover-debug "ran ~s\n" files)
     (not tests-failed)))
