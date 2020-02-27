@@ -115,7 +115,7 @@
          [else 
           (with-intercepted-logging void exec 'debug)]))
      (define coverage (get-test-coverage))
-     (printf "dumping coverage info into ~s\n" coverage-dir)
+     (log-cover-info "dumping coverage info into ~s" coverage-dir)
      (parameterize ([irrelevant-submodules irrel-submods])
        (generate-coverage coverage
                           (for/list ([f cleaned-files])
@@ -124,7 +124,7 @@
                               [else f]))
                           coverage-dir))
      (unless passed
-       (printf "some tests failed\n")))
+       (log-cover-error "some tests failed")))
    (case noise
      [(verbose) 'debug]
      [(normal) 'info]
