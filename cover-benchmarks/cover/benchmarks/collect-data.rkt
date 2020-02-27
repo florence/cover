@@ -9,8 +9,8 @@
 (provide data benchmark-set)
 (define benchmark-set
   (hash
-   'typed-racket
-   '(package typed-racket-lib typed-racket-test typed-racket-more math-lib)
+   #;'typed-racket
+   #;'(package typed-racket-lib typed-racket-test typed-racket-more math-lib)
    'pict
    '(package pict-lib pict-test)
    'racket-benchmarks
