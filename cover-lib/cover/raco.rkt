@@ -26,7 +26,8 @@
   (define submods 'test)
   (define expansion-type 'dir)
   (define irrel-submods #f)
-  (define verbose #f)
+  (define noise 'normal)
+  (define quite #t)
   (define supress-log-execution #f)
 
   (define args
@@ -36,9 +37,6 @@
      [("-d" "--directory") d
                            "Specify output directory. Defaults to ./coverage."
                            (set! coverage-dir d)]
-     [("-v" "--verbose")
-      "Verbose mode"
-      (set! verbose #t)]
      [("-b" "--exclude-pkg-basics")
       "exclude info.rkt, the tests directory, and the scribblings directory from the coverage report"
       (set! exclude-paths (list* "info.rkt" "tests" "scribblings" exclude-paths))]
@@ -79,12 +77,20 @@
      [("-l" "--lib")
       "Interperet arguments as libraries"
       (set! expansion-type 'lib)]
+     #:once-any
+     [("-v" "--verbose")
+      "Verbose mode"
+      (set! noise 'verbose)]
+     [("-Q" "--quiqt")
+      "quiet mode"
+      (set! noise 'quiet)]
      #:args (file . files)
      (cons file files)))
   (with-logging-to-port
-   (if verbose
-       (current-error-port)
-       (current-output-port))
+   (case noise
+     [(verbose) (current-error-port)]
+     [(normal) (current-output-port)]
+     [(quiet) (open-output-nowhere)])
    #:logger (current-logger)
    (lambda ()
      (define-values (files cleaned-files)
@@ -119,7 +125,10 @@
                           coverage-dir))
      (unless passed
        (printf "some tests failed\n")))
-   (if verbose 'debug 'info)
+   (case noise
+     [(verbose) 'debug]
+     [(normal) 'info]
+     [(quiet) 'none])
    'cover))
 
 
