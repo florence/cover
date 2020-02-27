@@ -6,8 +6,6 @@ env:
   matrix:
     - RACKET_VERSION=HEADCS
     - RACKET_VERSION=HEAD
-    - if: branch = release
-      RACKET_VERSION=HEAD FROM_PKG_SERVER=yes
     - RACKET_VERSION=7.6
     - RACKET_VERSION=7.5
     - RACKET_VERSION=7.4
