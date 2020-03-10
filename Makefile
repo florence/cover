@@ -1,6 +1,6 @@
-PKGS=cover-lib cover-doc cover-test cover cover-benchmarks
+PKGS=cover-lib cover-doc cover-test cover
 all:
-	raco setup --check-pkg-deps --pkgs $(PKGS)
-	raco test -p $(PKGS)
-	raco cover $(EXTRA) -bp $(PKGS)
+	PLTSTDERR="warning" raco setup --check-pkg-deps --pkgs $(PKGS)
+	PLTSTDERR="warning" raco test -ep $(PKGS)
+	PLTSTDERR="warning" raco cover $(EXTRA) -bp $(PKGS)
 

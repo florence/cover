@@ -11,7 +11,7 @@
     #;"typed-racket-lib"
     #;"typed-racket-test"
     #;"typed-racket-more"
-    #;"math-lib"
+    "math-lib"
     "pict-lib"
     "pict-test"
     "racket-benchmarks"))
