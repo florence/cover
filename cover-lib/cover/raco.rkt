@@ -81,7 +81,7 @@
      [("-v" "--verbose")
       "Verbose mode"
       (set! noise 'verbose)]
-     [("-Q" "--quiqt")
+     [("-Q" "--quiet")
       "quiet mode"
       (set! noise 'quiet)]
      #:args (file . files)
